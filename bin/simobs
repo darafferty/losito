@@ -58,10 +58,9 @@ if __name__=='__main__':
 
     globalstart = time.time()
     for step in steps:
-
         if step == '_global': continue # skip global setting
 
-        op = parser.getstr(step,'Operation')
+        op = parser.getstr(step, 'Operation')
         if not op in ops:
             logging.error('Unkown operation: '+op)
             continue
