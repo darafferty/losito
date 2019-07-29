@@ -1,0 +1,9 @@
+# Example parset
+# to use with: simobs -v example.ms example.sky example.parset
+ncpu = 0
+
+[tec]
+operation = TEC
+
+[predict]
+operation = PREDICT
