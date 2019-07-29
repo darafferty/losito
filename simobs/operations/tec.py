@@ -9,33 +9,37 @@ from simobs.lib_operations import *
 
 logging.debug('Loading TEC module.')
 
-# this funct is called to set parameters and call the real run()
+
 def _run_parser(obs, parser, step):
-    opt1 = parser.getfloat( step, 'opt1') # no default
-    opt2 = parser.getarrayfloat( step, 'opt3', [1., 2., 3.])
-    opt3 = parser.getint( step, 'opt2', 0 )
+    fitsFilename = parser.getstr( step, 'fitsFilename')
+    h5parmFilename = parser.getstr( step, 'h5parmFilename', fitsFilename+'.h5parm')
 
-    parser.checkSpelling( step, ['op1', 'opt2', 'opt3'])
-    return run(obs, opt1, opt2, opt3)
+    parser.checkSpelling( step, ['fitsFilename', 'h5parmFilename'])
+    return run(obs, fitsFile, h5parmFilename)
 
-# this function can be called by python directly
-# parameters that are non optional require the default value equal to the one defined for the parset above
-def run( obs, opt1, opt2 = [1., 2., 3.], opt3 = 0 ):
+
+def run( obs, fitsFilename, h5parmFilename ):
     """
-    Generic unspecified step for easy expansion.
+    Creates h5parm with TEC values from TEC FITS cube.
 
     Parameters
     ----------
-    opt1 : float
-        Is a mandatory parameter.
-
-    opt2 : list of float, optional
-        Is optional, by default [1.,2.,3.]
-
-    opt2 : int, optional
-        Is optional, by default 0.
+    fitsFilename : str
+        Filename of input FITS cube with dTEC solutions.
+    h5parmFilename : str
+        Filename of output h5parm file.
     """
+    # Get RA, Dec of sky model components
+    ra, dec = obs.get_coords()
 
-    return 0 # if everything went fine, otherwise 1
+    # Get solutions at these coordinates from FITS cube
 
+    # Make h5parm with solutions and write to disk
 
+    # Update predict parset parameters for the obs
+    # E.g.,
+    # obs.parset_parameters['predict.applycal.parmdb'] = h5parmFilename
+    # obs.parset_parameters['predict.applycal.steps'].append('tec')
+    # obs.parset_parameters['predict.applycal.tec.correction'] = 'tec000'
+
+    return 0
