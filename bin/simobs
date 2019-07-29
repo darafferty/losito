@@ -1,0 +1,79 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+import os
+import sys
+import time
+import logging
+from simobs import _version, _logging
+from simobs.obs import Observation
+from simobs.lib_operations import ParsetParser
+
+if __name__=='__main__':
+    # Options
+    import argparse
+    parser = argparse.ArgumentParser(description='simobs - ')
+    parser.add_argument('--version', action='version', version=_version.__version__)
+    parser.add_argument('--quiet', '-q', dest='quiet', help='Quiet', default=False, action='store_true')
+    parser.add_argument('--verbose', '-V', '-v', dest='verbose', help='Verbose', default=False, action='store_true')
+    parser.add_argument('msfile', help='Input MS filename.', default=None, type=str)
+    parser.add_argument('skymodel', help='Input sky model filename.', default=None, type=str)
+    parser.add_argument('parset', help='Simobs parset.', nargs='?', default='simobs.parset', type=str)
+    args = parser.parse_args()
+
+    if args.quiet:
+        _logging.setLevel('warning')
+    if args.verbose:
+        _logging.setLevel('debug')
+
+    # Check input MS and sky model
+    if args.msfile is None:
+        logging.error('No input MS file given.')
+        sys.exit(1)
+    if not os.path.isfile(args.msfile):
+        logging.critical("Missing input MS file.")
+        sys.exit(1)
+    if args.skymodel is None:
+        logging.error('No input sky model file given.')
+        sys.exit(1)
+    if not os.path.isfile(args.skymodel):
+        logging.critical("Missing input sky model file.")
+        sys.exit(1)
+    obs = Observation(args.msfile, args.skymodel)
+
+    # check parset
+    if not os.path.isfile(args.parset):
+        logging.critical("Missing parset file, I don't know what to do :'(")
+        sys.exit(1)
+
+    # read parset
+    parser = ParsetParser(args.parset)
+    steps = parser.sections()
+
+    # Possible operations, linked to relative function
+    import simobs.operations as operations
+    ops = {
+           "TEC": operations.tec,
+           "PREDICT": operations.predict
+          }
+
+    globalstart = time.time()
+    for step in steps:
+
+        if step == '_global': continue # skip global setting
+
+        op = parser.getstr(step,'Operation')
+        if not op in ops:
+            logging.error('Unkown operation: '+op)
+            continue
+
+        returncode = 0
+        with operations.Timer(logging, step, op) as t:
+            # run operation
+            returncode += ops[ op ]._run_parser( obs, parser, step )
+            if returncode != 0:
+               logging.error("Step \'" + step + "\' incomplete. Try to continue anyway.")
+            else:
+               logging.info("Step \'" + step + "\' completed successfully.")
+
+    logging.info("Time for all steps: %i s." % ( time.time() - globalstart ))
+    logging.info("Done.")
