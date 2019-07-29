@@ -115,3 +115,23 @@ class Observation(object):
         el_values = pt.taql("SELECT mscal.azel1()[1] AS el from "
                             + self.ms_filename + " limit ::10000").getcol("el")
         self.mean_el_rad = np.mean(el_values)
+
+    def initialize_parset_parameters(self):
+        """
+        Sets basic DPPP parset parameters for predict
+        """
+        self.parset_parameters['predict.type'] = 'h5parmpredict'
+        self.parset_parameters['predict.sourcedb'] = self.skymodel_filename
+        self.parset_parameters['predict.operation'] = 'replace'
+
+    def write_parset(self):
+        """
+        Writes the DPPP parset parameters to a text file
+        """
+        pass
+
+    def get_coords(self):
+        """
+        Returns (RA, Dec) in degrees for patches in the sky model
+        """
+        pass
