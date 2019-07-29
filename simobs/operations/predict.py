@@ -5,6 +5,7 @@
 
 
 import logging
+import subprocess
 from simobs.lib_operations import *
 
 logging.debug('Loading PREDICT module.')
@@ -37,11 +38,11 @@ def run( obs ):
     obs : Observation object
         Input obs object.
     """
+    # Write DPPP parset with current parameters
+    obs.write_parset()
+
     # Run DPPP
-    mpm = multiprocManager(ncpu, _predict)
-    mpm.put([obs.parset_filename])
-    mpm.wait()
+    result = _predict(obs.parset_filename)
 
     # Return result
-    for result in mpm.get():
-        return result
+    return result
