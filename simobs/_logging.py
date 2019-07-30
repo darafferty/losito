@@ -41,4 +41,5 @@ def setLevel(level):
         logging.root.setLevel(logging.INFO)
     elif level == 'debug':
         logging.root.setLevel(logging.DEBUG)
-
+    else:
+        logging.root.setLevel(level)

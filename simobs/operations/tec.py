@@ -15,10 +15,10 @@ def _run_parser(obs, parser, step):
     h5parmFilename = parser.getstr( step, 'h5parmFilename', fitsFilename+'.h5parm')
 
     parser.checkSpelling( step, ['fitsFilename', 'h5parmFilename'])
-    return run(obs, fitsFile, h5parmFilename)
+    return run(obs, fitsFilename, h5parmFilename)
 
 
-def run( obs, fitsFilename, h5parmFilename ):
+def run(obs, fitsFilename, h5parmFilename):
     """
     Creates h5parm with TEC values from TEC FITS cube.
 

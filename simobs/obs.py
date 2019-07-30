@@ -5,6 +5,7 @@ set
 import os
 import sys
 import logging
+import subprocess
 try:
     import casacore.tables as pt
     has_casacore = True
@@ -12,41 +13,54 @@ except ImportError:
     has_casacore = False
 import numpy as np
 from astropy.time import Time
+import lsmtool
 
 
 class Observation(object):
     """
-    The Observation object contains various MS-related parameters, a DPPP parset, etc.
+    The Observation object holds info on the observation and its processing parameters.
+    E.g.:
+        - various observation parameters
+        - DPPP parset parameters
+        - sky model file
+        - etc.
 
     Parameters
     ----------
     ms_filename : str
-        Filename of the MS file
+        Filename of the MS file.
     skymodel_filename : str
-        Filename of the sky model file
+        Filename of the sky model file.
     starttime : float, optional
-        The start time of the observation (in MJD seconds). If None, the start time
-        is the start of the MS file
+        The start time of the observation (in MJD seconds) to be used during processing.
+        If None, the start time is the start of the MS file.
     endtime : float, optional
-        The end time of the observation (in MJD seconds). If None, the end time
-        is the end of the MS file
+        The end time of the observation (in MJD seconds) to be used during processing.
+        If None, the end time is the end of the MS file.
     """
     def __init__(self, ms_filename, skymodel_filename, starttime=None, endtime=None):
         self.ms_filename = str(ms_filename)
         self.skymodel_filename = str(skymodel_filename)
-        self.parset_filename = self.ms_filename+'.parset'
+        self.sourcedb_filename = self.skymodel_filename + '.sourcedb'
+        self.parset_filename = self.ms_filename + '.parset'
         self.name = os.path.basename(self.ms_filename)
         self.log = logging.getLogger('simobs:{}'.format(self.name))
         self.starttime = starttime
         self.endtime = endtime
         self.parset_parameters = {}
+
+        # Scan the MS and store various observation parameters
         self.scan_ms()
+
+        # Initialize the parset
+        self.initialize_parset_parameters()
 
     def scan_ms(self):
         """
         Scans input MS and stores info
         """
         if not has_casacore:
+            self.goesto_endofms = True
             return
 
         # Get time info
@@ -118,20 +132,47 @@ class Observation(object):
 
     def initialize_parset_parameters(self):
         """
-        Sets basic DPPP parset parameters for predict
+        Sets basic DPPP parset parameters. These are adjusted and added to
+        by the operations that are run.
         """
-        self.parset_parameters['predict.type'] = 'h5parmpredict'
-        self.parset_parameters['predict.sourcedb'] = self.skymodel_filename
-        self.parset_parameters['predict.operation'] = 'replace'
+        self.parset_parameters['msin'] = self.ms_filename
+        self.parset_parameters['numthreads'] = 0
+        self.parset_parameters['msin.datacolumn'] = 'DATA'
+        self.parset_parameters['msin.starttime'] = self.starttime
+        if self.goesto_endofms:
+            self.parset_parameters['msin.ntimes'] = 0
+        else:
+            self.parset_parameters['msin.ntimes'] = self.numsamples
+        self.parset_parameters['steps'] = []
 
-    def write_parset(self):
+    def make_parset(self):
         """
         Writes the DPPP parset parameters to a text file
         """
-        pass
+        with open(self.parset_filename, 'w') as f:
+            for k, v in self.parset_parameters.items():
+                f.write('{0} = {1}\n'.format(k, v))
+
+    def make_sourcedb(self):
+        """
+        Makes the sourcedb for DPPP from the sky model
+        """
+        cmd = ['makesourcedb', 'in={}'.format(self.skymodel_filename),
+               'format=<', 'outtype=blob', 'append=False']
+        subprocess.call(cmd)
 
     def get_coords(self):
         """
-        Returns (RA, Dec) in degrees for patches in the sky model
+        Returns arrays of flux-weighted mean RA, Dec in degrees for patches in the
+        sky model
         """
-        pass
+        # Set logging level to suppress confusing output from lsmtool
+        old_level = logging.root.getEffectiveLevel()
+        logging.root.setLevel(logging.WARNING)
+        skymodel = lsmtool.load(self.skymodel_filename)
+        if not skymodel.hasPatches:
+            skymodel.group('every')
+        skymodel.setPatchPositions(method='wmean')
+        logging.root.setLevel(old_level)
+
+        return skymodel.getPatchPositions(asArray=True)

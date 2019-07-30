@@ -20,7 +20,7 @@ def _run_parser(obs, parser, step):
 
 # this function can be called by python directly
 # parameters that are non optional require the default value equal to the one defined for the parset above
-def run( obs, opt1, opt2 = [1., 2., 3.], opt3 = 0 ):
+def run(obs, opt1, opt2 = [1., 2., 3.], opt3 = 0):
     """
     Generic unspecified step for easy expansion.
 

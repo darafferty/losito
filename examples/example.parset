@@ -4,6 +4,7 @@ ncpu = 0
 
 [tec]
 operation = TEC
+fitsFilename = example.fits
 
 [predict]
 operation = PREDICT

@@ -15,21 +15,7 @@ def _run_parser(obs, parser, step):
     return run(obs)
 
 
-def _predict(parset):
-    """
-    Runs DPPP to preform predict.
-
-    Parameters
-    ----------
-    parset : str
-        Filename of DPPP parset.
-    """
-    cmd = ['DPPP', parset]
-    result = subprocess.call(cmd)
-    return result
-
-
-def run( obs ):
+def run(obs):
     """
     Runs DPPP to predict a sky model with corruptions.
 
@@ -38,11 +24,19 @@ def run( obs ):
     obs : Observation object
         Input obs object.
     """
-    # Write DPPP parset with current parameters
-    obs.write_parset()
+    # Make sourcedb from sky model
+    obs.make_sourcedb()
+
+    # Set parset parameters and write parset to file
+    obs.parset_parameters['steps'] = '[predict]'
+    obs.parset_parameters['predict.type'] = 'h5parmpredict'
+    obs.parset_parameters['predict.sourcedb'] = obs.sourcedb_filename
+    obs.parset_parameters['predict.operation'] = 'replace'
+    obs.make_parset()
 
     # Run DPPP
-    result = _predict(obs.parset_filename)
+    cmd = ['DPPP', obs.parset_filename]
+    result = subprocess.call(cmd)
 
     # Return result
     return result
