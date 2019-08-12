@@ -1,12 +1,12 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Predict operation for simobs: runs DPPP to predict a sky model with corruptions
+# Predict operation for losito: runs DPPP to predict a sky model with corruptions
 
 
 import logging
 import subprocess
-from simobs.lib_operations import *
+from losito.lib_operations import *
 
 logging.debug('Loading PREDICT module.')
 

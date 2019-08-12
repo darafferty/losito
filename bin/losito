@@ -4,20 +4,20 @@ import os
 import sys
 import time
 import logging
-from simobs import _version, _logging
-from simobs.obs import Observation
-from simobs.lib_operations import ParsetParser
+from losito import _version, _logging
+from losito.obs import Observation
+from losito.lib_operations import ParsetParser
 
 if __name__=='__main__':
     # Options
     import argparse
-    parser = argparse.ArgumentParser(description='simobs - ')
+    parser = argparse.ArgumentParser(description='losito - ')
     parser.add_argument('--version', action='version', version=_version.__version__)
     parser.add_argument('--quiet', '-q', dest='quiet', help='Quiet', default=False, action='store_true')
     parser.add_argument('--verbose', '-V', '-v', dest='verbose', help='Verbose', default=False, action='store_true')
     parser.add_argument('msfile', help='Input MS filename.', default=None, type=str)
     parser.add_argument('skymodel', help='Input sky model filename.', default=None, type=str)
-    parser.add_argument('parset', help='Simobs parset.', nargs='?', default='simobs.parset', type=str)
+    parser.add_argument('parset', help='Simobs parset.', nargs='?', default='losito.parset', type=str)
     args = parser.parse_args()
 
     if args.quiet:
@@ -50,7 +50,7 @@ if __name__=='__main__':
     steps = parser.sections()
 
     # Possible operations, linked to relative function
-    import simobs.operations as operations
+    import losito.operations as operations
     ops = {
            "TEC": operations.tec,
            "PREDICT": operations.predict

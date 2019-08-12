@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# TEC operation for simobs: creates h5parm with TEC values from TEC FITS cube
+# TEC operation for losito: creates h5parm with TEC values from TEC FITS cube
 
 
 import logging
-from simobs.lib_operations import *
+from losito.lib_operations import *
 
 logging.debug('Loading TEC module.')
 

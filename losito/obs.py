@@ -44,7 +44,7 @@ class Observation(object):
         self.sourcedb_filename = self.skymodel_filename + '.sourcedb'
         self.parset_filename = self.ms_filename + '.parset'
         self.name = os.path.basename(self.ms_filename)
-        self.log = logging.getLogger('simobs:{}'.format(self.name))
+        self.log = logging.getLogger('losito:{}'.format(self.name))
         self.starttime = starttime
         self.endtime = endtime
         self.parset_parameters = {}

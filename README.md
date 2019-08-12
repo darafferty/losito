@@ -1,2 +1,2 @@
-# simobs
-Observation simulator for LOFAR
+# losito
+LOFAR Simulation Tool

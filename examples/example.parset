@@ -1,5 +1,5 @@
 # Example parset
-# to use with: simobs -v example.ms example.sky example.parset
+# to use with: losito -v example.ms example.sky example.parset
 ncpu = 0
 
 [tec]

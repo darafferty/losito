@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# This is an example operation for simobs
+# This is an example operation for losito
 
 
 import logging
-from simobs.lib_operations import *
+from losito.lib_operations import *
 
 logging.debug('Loading EXAMPLE module.')
 
