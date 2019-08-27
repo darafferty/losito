@@ -188,10 +188,10 @@ class Observation(object):
 
     def get_patch_names(self):
         """
-        Returns arrays of flux-weighted mean RA, Dec in degrees for patches in the
-        sky model
+        Returns list of DPPP-compatible patch names
         """
-        return self.skymodel.getPatchNames()
+        patch_names = ['[{}]'.format(p) for p in self.skymodel.getPatchNames()]
+        return patch_names
 
     def convert_mjd(self, mjd_sec):
         """
