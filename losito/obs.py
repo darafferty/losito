@@ -52,6 +52,9 @@ class Observation(object):
         # Scan the MS and store various observation parameters
         self.scan_ms()
 
+        # Load the sky model
+        self.load_skymodel()
+
         # Initialize the parset
         self.initialize_parset_parameters()
 
@@ -116,6 +119,7 @@ class Observation(object):
         ant = pt.table(self.ms_filename+'::ANTENNA', ack=False)
         self.stations = ant.col('NAME')[:]
         self.diam = float(ant.col('DISH_DIAMETER')[0])
+        self.stationpos = ant.getcol('POSITION')
         if 'HBA' in self.stations[0]:
             self.antenna = 'HBA'
         elif 'LBA' in self.stations[0]:
@@ -161,10 +165,9 @@ class Observation(object):
                'format=<', 'outtype=blob', 'append=False']
         subprocess.call(cmd)
 
-    def get_coords(self):
+    def load_skymodel(self):
         """
-        Returns arrays of flux-weighted mean RA, Dec in degrees for patches in the
-        sky model
+        Loads the sky model
         """
         # Set logging level to suppress confusing output from lsmtool
         old_level = logging.root.getEffectiveLevel()
@@ -174,5 +177,18 @@ class Observation(object):
             skymodel.group('every')
         skymodel.setPatchPositions(method='wmean')
         logging.root.setLevel(old_level)
+        self.skymodel = skymodel
 
-        return skymodel.getPatchPositions(asArray=True)
+    def get_patch_coords(self):
+        """
+        Returns arrays of flux-weighted mean RA, Dec in degrees for patches in the
+        sky model
+        """
+        return self.skymodel.getPatchPositions(asArray=True)
+
+    def get_patch_names(self):
+        """
+        Returns arrays of flux-weighted mean RA, Dec in degrees for patches in the
+        sky model
+        """
+        return self.skymodel.getPatchNames()
