@@ -1,2 +1,2 @@
-# losito
+# LoSiTo
 LOFAR Simulation Tool
