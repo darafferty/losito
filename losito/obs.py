@@ -162,6 +162,7 @@ class Observation(object):
         Makes the sourcedb for DPPP from the sky model
         """
         cmd = ['makesourcedb', 'in={}'.format(self.skymodel_filename),
+               'out={}'.format(self.sourcedb_filename),
                'format=<', 'outtype=blob', 'append=False']
         subprocess.call(cmd)
 
