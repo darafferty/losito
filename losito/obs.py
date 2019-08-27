@@ -140,6 +140,7 @@ class Observation(object):
         by the operations that are run.
         """
         self.parset_parameters['msin'] = self.ms_filename
+        self.parset_parameters['msout'] = .
         self.parset_parameters['numthreads'] = 0
         self.parset_parameters['msin.datacolumn'] = 'DATA'
         if not self.startsat_startofms:
