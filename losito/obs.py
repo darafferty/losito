@@ -142,10 +142,9 @@ class Observation(object):
         self.parset_parameters['msin'] = self.ms_filename
         self.parset_parameters['numthreads'] = 0
         self.parset_parameters['msin.datacolumn'] = 'DATA'
-        self.parset_parameters['msin.starttime'] = self.starttime
-        if self.goesto_endofms:
-            self.parset_parameters['msin.ntimes'] = 0
-        else:
+        if not self.startsat_startofms:
+            self.parset_parameters['msin.starttime'] = self.convert_mjd(self.starttime)
+        if not self.goesto_endofms:
             self.parset_parameters['msin.ntimes'] = self.numsamples
         self.parset_parameters['steps'] = []
 
@@ -193,3 +192,25 @@ class Observation(object):
         sky model
         """
         return self.skymodel.getPatchNames()
+
+    def convert_mjd(self, mjd_sec):
+        """
+        Converts MJD to casacore MVTime
+
+        Parameters
+        ----------
+        mjd_sec : float
+            MJD time in seconds
+
+        Returns
+        -------
+        mvtime : str
+            Casacore MVTime string
+        """
+        t = Time(mjd_sec / 3600 / 24, format='mjd', scale='utc')
+        date, hour = t.iso.split(' ')
+        year, month, day = date.split('-')
+        d = t.datetime
+        month = d.ctime().split(' ')[1]
+
+        return '{0}{1}{2}/{3}'.format(day, month, year, hour)
