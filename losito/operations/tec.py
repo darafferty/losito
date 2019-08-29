@@ -43,7 +43,7 @@ def _getaltaz(radec):
 
 def _gettec(altaz_args):
     alltec = []
-    altaz, stationpositions = altaz_args
+    altaz, stationpositions, A12 = altaz_args
     direction = altaz.geocentrictrueecliptic.cartesian.xyz.value
     for ant in stationpositions:
         pp, am = post.getPPsimple([200.e3]*direction[0].shape[0], ant, direction)
@@ -54,6 +54,9 @@ def _gettec(altaz_args):
         tec = tid(x, times*3600.*24)
         alltec.append([tec, x, y, altaz.secz])
     return alltec
+
+def tid(x, t, omega=500.e3/3600., amp=1., wavelength=200e3):
+    return amp*np.sin((x+omega*t)*2*np.pi/wavelength)
 
 
 def run(obs, method, h5parmFilename, fitsFilename=None):
@@ -140,9 +143,6 @@ def run(obs, method, h5parmFilename, fitsFilename=None):
         times = np.array([obs.starttime+i*obs.timepersample for i in range(obs.numsamples)])
         times /= 3600.0 * 24.0
 
-        def tid(x,t,omega=500.e3/3600.,amp=1.,wavelength=200e3):
-            return amp*np.sin((x+omega*t)*2*np.pi/wavelength)
-
         A12 = EarthLocation(lat=52.91*u.deg, lon=6.87*u.deg, height=1*u.m)
         utcoffset = 0 * u.hour  # UT
         time = Time(times, format="mjd")
@@ -158,7 +158,7 @@ def run(obs, method, h5parmFilename, fitsFilename=None):
         altazcoord = p.map(_getaltaz, radec)
 
         p = Pool(processes=16)
-        gettec_args = [(a, obs.stationpositions) for a in altazcoord]
+        gettec_args = [(a, obs.stationpositions, A12) for a in altazcoord]
         alltec = p.map(_gettec, gettec_args)
         alltec = np.array(alltec)
         0/0
