@@ -29,7 +29,7 @@ def _run_parser(obs, parser, step):
     fitsFilename = parser.getstr( step, 'fitsFilename', '')
 
     parser.checkSpelling( step, ['method', 'fitsFilename', 'h5parmFilename'])
-    return run(obs, method, h5parmFilename, fitsFilename)
+    return run(obs, method, h5parmFilename, fitsFilename, step)
 
 
 def _getaltaz(radec):
@@ -60,7 +60,7 @@ def tid(x, t, omega=500.e3/3600., amp=1., wavelength=200e3):
     return amp*np.sin((x+omega*t)*2*np.pi/wavelength)
 
 
-def run(obs, method, h5parmFilename, fitsFilename=None):
+def run(obs, method, h5parmFilename, fitsFilename=None, stepname=None):
     """
     Creates h5parm with TEC values from TEC FITS cube.
 
@@ -197,9 +197,9 @@ def run(obs, method, h5parmFilename, fitsFilename=None):
     if 'predict.applycal.steps' in obs.parset_parameters:
         obs.parset_parameters['predict.applycal.steps'].append('tec')
     else:
-        obs.parset_parameters['predict.applycal.steps'] = ['tec']
+        obs.parset_parameters['predict.applycal.steps'] = [stepname]
     obs.parset_parameters['predict.applycal.correction'] = 'tec000'
-    obs.parset_parameters['predict.applycal.tec.correction'] = 'tec000'
-    obs.parset_parameters['predict.applycal.tec.parmdb'] = h5parmFilename
+    obs.parset_parameters['predict.applycal.{}.correction'.format(stepname)] = 'tec000'
+    obs.parset_parameters['predict.applycal.{}.parmdb'.format(stepname)] = h5parmFilename
 
     return 0
