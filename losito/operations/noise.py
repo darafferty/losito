@@ -41,3 +41,5 @@ def run(obs, stddev=7500.0, outputColumn='DATA'):
     noisedata = myreal + 1.j*myimag
     myt.putcol(outputColumn, simul_data+noisedata)
     myt.close()
+
+    return 0
