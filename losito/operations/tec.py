@@ -48,7 +48,7 @@ def _gettec(altaz_args):
     for ant in stationpositions:
         pp, am = post.getPPsimple([200.e3]*direction[0].shape[0], ant, direction)
         ppa = EarthLocation.from_geocentric(pp[:,0], pp[:,1], pp[:,2], unit=u.m)
-        ppaproj = EarthLocation.from_geodetic(-ppa.longitude.deg+A12.longitude.deg, -ppa.latitude.deg+A12.latitude.deg,ppa.height)
+        ppaproj = EarthLocation.from_geodetic(-ppa.lon.deg+A12.lon.deg, -ppa.lat.deg+A12.lat.deg,ppa.height)
         x = ppaproj.z.value
         y = ppaproj.y.value
         tec = tid(x, times*3600.*24)
