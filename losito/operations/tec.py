@@ -152,7 +152,8 @@ def run(obs, method, h5parmFilename, fitsFilename=None):
         altazcoord = []
 
         p = Pool(processes=16)
-        altazcoord = p.map(_getaltaz, zip(ras, decs))
+        radec = [(r, d) for r, d in zip(ras, decs)]
+        altazcoord = p.map(_getaltaz, radec)
 
         p = Pool(processes=16)
         alltec = p.map(_gettec, altazcoord)
