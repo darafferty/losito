@@ -55,6 +55,7 @@ def _gettec(altaz_args):
         alltec.append([tec, x, y, altaz.secz])
     return alltec
 
+
 def tid(x, t, omega=500.e3/3600., amp=1., wavelength=200e3):
     return amp*np.sin((x+omega*t)*2*np.pi/wavelength)
 
@@ -74,7 +75,7 @@ def run(obs, method, h5parmFilename, fitsFilename=None):
     fitsFilename : str, optional
         Filename of input FITS cube with dTEC solutions.
     """
-    # Get sky model properites
+    # Get sky model properties
     ras, decs = obs.get_patch_coords()
     source_names = obs.get_patch_names()
     ndirs = len(source_names)
@@ -161,9 +162,35 @@ def run(obs, method, h5parmFilename, fitsFilename=None):
         gettec_args = [(a, obs.stationpositions, A12, times) for a in altazcoord]
         alltec = p.map(_gettec, gettec_args)
         alltec = np.array(alltec)
-        0/0
-#         np.savez("simul_tec",tecxyam=alltec,sources=[myline.strip().split(",")[0] for myline in allsources], ant=ANTENNA)
 
+        # Fill the axis arrays
+        times *= 3600.0 * 24.0
+        freqs = [obs.referencefreq]
+        ants = obs.stations
+        vals = np.zeros((len(times), len(ants), len(source_names), 1))
+        weights = np.ones(vals.shape)
+        vals[:, :, :, 0] = alltec[:, :, 0, :].transpose([2, 1, 0])
+
+        # Make h5parm with solutions and write to disk
+        if os.path.exists(h5parmFilename):
+            os.remove(h5parmFilename)
+        ho = h5parm(h5parmFilename, readonly=False)
+        solset = ho.makeSolset(solsetName='sol000')
+        st = solset.makeSoltab('tec', 'tec000', axesNames=['time', 'ant', 'dir', 'freq'],
+                            axesVals=[times, ants, source_names, freqs], vals=vals,
+                            weights=weights)
+        antennaTable = solset.obj._f_get_child('antenna')
+        antennaTable.append(list(zip(*(obs.stations, obs.stationpos))))
+        sourceTable = solset.obj._f_get_child('source')
+        vals = [[ra, dec] for ra, dec in zip(ras, decs)]
+        sourceTable.append(list(zip(*(source_names, vals))))
+
+        # Add CREATE entry to history
+        soltabs = solset.getSoltabs()
+        for st in soltabs:
+            st.addHistory('CREATE (by TEC operation of LoSiTo from '
+                          'obs {0} and method="wave")'.format(h5parmFilename))
+        ho.close()
 
     # Update predict parset parameters for the obs
     obs.parset_parameters['predict.applycal.parmdb'] = h5parmFilename
