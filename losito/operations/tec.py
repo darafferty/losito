@@ -127,7 +127,7 @@ def run(obs, method, h5parmFilename, fitsFilename=None):
                             axesVals=[times, ants, source_names, freqs], vals=vals,
                             weights=weights)
         antennaTable = solset.obj._f_get_child('antenna')
-        antennaTable.append(list(zip(*(obs.stations, obs.stationpos))))
+        antennaTable.append(list(zip(*(obs.stations, obs.stationpositions))))
         sourceTable = solset.obj._f_get_child('source')
         vals = [[ra, dec] for ra, dec in zip(ras, decs)]
         sourceTable.append(list(zip(*(source_names, vals))))
@@ -180,7 +180,7 @@ def run(obs, method, h5parmFilename, fitsFilename=None):
                             axesVals=[times, ants, source_names, freqs], vals=vals,
                             weights=weights)
         antennaTable = solset.obj._f_get_child('antenna')
-        antennaTable.append(list(zip(*(obs.stations, obs.stationpos))))
+        antennaTable.append(list(zip(*(obs.stations, obs.stationpositions))))
         sourceTable = solset.obj._f_get_child('source')
         vals = [[ra, dec] for ra, dec in zip(ras, decs)]
         sourceTable.append(list(zip(*(source_names, vals))))
