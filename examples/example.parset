@@ -4,7 +4,9 @@ ncpu = 0
 
 [tec]
 operation = TEC
+method = fits
 fitsFilename = example.fits
 
 [predict]
 operation = PREDICT
+outputColumn = CORRECTED_DATA

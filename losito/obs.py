@@ -95,7 +95,7 @@ class Observation(object):
         else:
             self.goesto_endofms = True
         self.timepersample = tab.getcell('EXPOSURE', 0)
-        self.numsamples = int(np.ceil((self.endtime - self.starttime) / self.timepersample)) + 1
+        self.numsamples = int(np.ceil((self.endtime - self.starttime) / self.timepersample))
         tab.close()
 
         # Get frequency info
@@ -115,11 +115,11 @@ class Observation(object):
         self.dec = np.degrees(float(obs.col('REFERENCE_DIR')[0][0][1]))
         obs.close()
 
-        # Get station names and diameter
+        # Get station names, positions, and diameter
         ant = pt.table(self.ms_filename+'::ANTENNA', ack=False)
         self.stations = ant.col('NAME')[:]
         self.diam = float(ant.col('DISH_DIAMETER')[0])
-        self.stationpos = ant.getcol('POSITION')
+        self.stationpositions = ant.getcol('POSITION')
         if 'HBA' in self.stations[0]:
             self.antenna = 'HBA'
         elif 'LBA' in self.stations[0]:

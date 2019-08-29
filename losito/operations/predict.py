@@ -15,7 +15,7 @@ def _run_parser(obs, parser, step):
     return run(obs)
 
 
-def run(obs):
+def run(obs, outputColumn='DATA'):
     """
     Runs DPPP to predict a sky model with corruptions.
 
@@ -32,6 +32,7 @@ def run(obs):
     obs.parset_parameters['predict.type'] = 'h5parmpredict'
     obs.parset_parameters['predict.sourcedb'] = obs.sourcedb_filename
     obs.parset_parameters['predict.operation'] = 'replace'
+    obs.parset_parameters['msout.column'] = outputColumn
     obs.make_parset()
 
     # Run DPPP
