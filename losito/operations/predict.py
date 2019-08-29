@@ -37,7 +37,7 @@ def run(obs, outputColumn='DATA'):
     obs.parset_parameters['predict.type'] = 'h5parmpredict'
     obs.parset_parameters['predict.sourcedb'] = obs.sourcedb_filename
     obs.parset_parameters['predict.operation'] = 'replace'
-    obs.parset_parameters['msout.column'] = outputColumn
+    obs.parset_parameters['msout.datacolumn'] = outputColumn
     obs.make_parset()
 
     # Run DPPP
