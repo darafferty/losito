@@ -35,6 +35,7 @@ def _run_parser(obs, parser, step):
 def _getaltaz(radec):
     ra = radec[0]
     dec = radec[1]
+    aa = radec[2]
     mycoord = coord.SkyCoord(ra, dec, frame=coord.FK5, unit=(u.hourangle,u.deg))
     mycoord_aa = mycoord.transform_to(aa)
     return mycoord_aa
@@ -152,7 +153,7 @@ def run(obs, method, h5parmFilename, fitsFilename=None):
         altazcoord = []
 
         p = Pool(processes=16)
-        radec = [(r, d) for r, d in zip(ras, decs)]
+        radec = [(r, d, aa) for r, d in zip(ras, decs)]
         altazcoord = p.map(_getaltaz, radec)
 
         p = Pool(processes=16)
