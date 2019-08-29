@@ -24,6 +24,7 @@ def run(obs):
     obs : Observation object
         Input obs object.
     """
+    # TODO: calculate stddev from the LOFAR specifications (for given baseline, etc)
     stddev=7500.
 
     myt=pt.table("/net/node100/data/users/lofareor/mevius/AARTFAAC/ACE_SB371_2min-3ch1s_LST23h30_08.MS",readonly=False)

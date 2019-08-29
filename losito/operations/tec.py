@@ -32,6 +32,28 @@ def _run_parser(obs, parser, step):
     return run(obs, fitsFilename, h5parmFilename)
 
 
+def _getaltaz(radec):
+    ra = radec[0]
+    dec = radec[1]
+    mycoord = coord.SkyCoord(ra, dec, frame=coord.FK5, unit=(u.hourangle,u.deg))
+    mycoord_aa = mycoord.transform_to(aa)
+    return mycoord_aa
+
+
+def _gettec(altaz):
+    alltec = []
+    direction = altaz.geocentrictrueecliptic.cartesian.xyz.value
+    for ant in obs.stationpositions:
+        pp, am = post.getPPsimple([200.e3]*direction[0].shape[0], ant, direction)
+        ppa = EarthLocation.from_geocentric(pp[:,0], pp[:,1], pp[:,2], unit=u.m)
+        ppaproj = EarthLocation.from_geodetic(-ppa.longitude.deg+A12.longitude.deg, -ppa.latitude.deg+A12.latitude.deg,ppa.height)
+        x = ppaproj.z.value
+        y = ppaproj.y.value
+        tec = tid(x, times*3600.*24)
+        alltec.append([tec, x, y, altaz.secz])
+    return alltec
+
+
 def run(obs, method, h5parmFilename, fitsFilename=None):
     """
     Creates h5parm with TEC values from TEC FITS cube.
@@ -129,32 +151,11 @@ def run(obs, method, h5parmFilename, fitsFilename=None):
         flux_ACE = []
         altazcoord = []
 
-        def merge_convers_args():
-            return getaltaz(*args)
-
-        def getaltaz(radec):
-            ra = radec[0]
-            dec = radec[1]
-            mycoord = coord.SkyCoord(ra, dec, frame=coord.FK5, unit=(u.hourangle,u.deg))
-            mycoord_aa = mycoord.transform_to(aa)
-            return mycoord_aa
         p = Pool(processes=16)
-        altazcoord = p.map(getaltaz, zip(ras, decs))
+        altazcoord = p.map(_getaltaz, zip(ras, decs))
 
-        def gettec(altaz):
-            alltec = []
-            direction = altaz.geocentrictrueecliptic.cartesian.xyz.value
-            for ant in obs.stationpositions:
-                pp, am = post.getPPsimple([200.e3]*direction[0].shape[0], ant, direction)
-                ppa = EarthLocation.from_geocentric(pp[:,0], pp[:,1], pp[:,2], unit=u.m)
-                ppaproj = EarthLocation.from_geodetic(-ppa.longitude.deg+A12.longitude.deg, -ppa.latitude.deg+A12.latitude.deg,ppa.height)
-                x = ppaproj.z.value
-                y = ppaproj.y.value
-                tec = tid(x, times*3600.*24)
-                alltec.append([tec, x, y, altaz.secz])
-            return alltec
         p = Pool(processes=16)
-        alltec = p.map(gettec, altazcoord)
+        alltec = p.map(_gettec, altazcoord)
         alltec = np.array(alltec)
         0/0
 #         np.savez("simul_tec",tecxyam=alltec,sources=[myline.strip().split(",")[0] for myline in allsources], ant=ANTENNA)
