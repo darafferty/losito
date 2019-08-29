@@ -200,5 +200,6 @@ def run(obs, method, h5parmFilename, fitsFilename=None):
         obs.parset_parameters['predict.applycal.steps'] = ['tec']
     obs.parset_parameters['predict.applycal.correction'] = 'tec000'
     obs.parset_parameters['predict.applycal.tec.correction'] = 'tec000'
+    obs.parset_parameters['predict.applycal.tec.parmdb'] = h5parmFilename
 
     return 0
