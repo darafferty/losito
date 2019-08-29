@@ -41,10 +41,11 @@ def _getaltaz(radec):
     return mycoord_aa
 
 
-def _gettec(altaz):
+def _gettec(altaz_args):
     alltec = []
+    altaz, stationpositions = altaz_args
     direction = altaz.geocentrictrueecliptic.cartesian.xyz.value
-    for ant in obs.stationpositions:
+    for ant in stationpositions:
         pp, am = post.getPPsimple([200.e3]*direction[0].shape[0], ant, direction)
         ppa = EarthLocation.from_geocentric(pp[:,0], pp[:,1], pp[:,2], unit=u.m)
         ppaproj = EarthLocation.from_geodetic(-ppa.longitude.deg+A12.longitude.deg, -ppa.latitude.deg+A12.latitude.deg,ppa.height)
@@ -157,7 +158,8 @@ def run(obs, method, h5parmFilename, fitsFilename=None):
         altazcoord = p.map(_getaltaz, radec)
 
         p = Pool(processes=16)
-        alltec = p.map(_gettec, altazcoord)
+        gettec_args = [(a, obs.stationpositions) for a in altazcoord]
+        alltec = p.map(_gettec, gettec_args)
         alltec = np.array(alltec)
         0/0
 #         np.savez("simul_tec",tecxyam=alltec,sources=[myline.strip().split(",")[0] for myline in allsources], ant=ANTENNA)
