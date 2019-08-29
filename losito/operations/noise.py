@@ -12,10 +12,14 @@ logging.debug('Loading NOISE module.')
 
 
 def _run_parser(obs, parser, step):
-    return run(obs)
+    stddev = parser.getfloat( step, 'stddev')
+    outputColumn = parser.getstr( step, 'outputColumn')
+
+    parser.checkSpelling( step, ['stddev', 'outputColumn'])
+    return run(obs, stddev, outputColumn)
 
 
-def run(obs):
+def run(obs, stddev=7500.0, outputColumn='DATA'):
     """
     Adds Gaussian noise to a data column.
 
@@ -23,22 +27,17 @@ def run(obs):
     ----------
     obs : Observation object
         Input obs object.
+    stddev : float, optional
+        Standard deviation of noise
+    outputColumn : str, optional
+        Name of output column to which noise is added
     """
     # TODO: calculate stddev from the LOFAR specifications (for given baseline, etc)
-    stddev=7500.
-
-    myt=pt.table("/net/node100/data/users/lofareor/mevius/AARTFAAC/ACE_SB371_2min-3ch1s_LST23h30_08.MS",readonly=False)
-
-    simul_data=myt.getcol("SIMULATED_DATA")
-    myreal=np.random.normal(0,stddev,simul_data.shape)
-    myimag=np.random.normal(0,stddev,simul_data.shape)
-    noisedata=myreal+1.j*myimag
-    desc=myt.getcoldesc("DATA")
-    desc['name']="HALF_NOISE_DATA"
-    myt.addcols(desc)
-    desc['name']="SIMULATED_HALF_NOISE_DATA"
-    myt.addcols(desc)
-
-    myt.putcol("NOISE_DATA",noisedata)
-    myt.putcol("SIMULATED_HALF_NOISE_DATA",simul_data+noisedata)
+    # See https://old.astron.nl/radio-observatory/astronomers/lofar-imaging-capabilities-sensitivity/sensitivity-lofar-array/sensiti
+    myt = pt.table(obs.ms_filename, readonly=False)
+    simul_data = myt.getcol(outputColumn)
+    myreal = np.random.normal(0, stddev, simul_data.shape)
+    myimag = np.random.normal(0, stddev, simul_data.shape)
+    noisedata = myreal + 1.j*myimag
+    myt.putcol(outputColumn, simul_data+noisedata)
     myt.close()

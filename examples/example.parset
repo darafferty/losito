@@ -2,11 +2,21 @@
 # to use with: losito -v example.ms example.sky example.parset
 ncpu = 0
 
-[tec]
+[tec1]
 operation = TEC
 method = fits
 fitsFilename = example.fits
+h5parmFilename = tec1.h5
+
+[tec2]
+operation = TEC
+method = wave
+h5parmFilename = tec2.h5
 
 [predict]
 operation = PREDICT
+outputColumn = CORRECTED_DATA
+
+[noise]
+operation = NOISE
 outputColumn = CORRECTED_DATA

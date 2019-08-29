@@ -25,11 +25,11 @@ logging.debug('Loading TEC module.')
 
 def _run_parser(obs, parser, step):
     method = parser.getstr( step, 'method')
+    h5parmFilename = parser.getstr( step, 'h5parmFilename')
     fitsFilename = parser.getstr( step, 'fitsFilename', '')
-    h5parmFilename = parser.getstr( step, 'h5parmFilename', fitsFilename+'.h5parm')
 
-    parser.checkSpelling( step, ['fitsFilename', 'h5parmFilename'])
-    return run(obs, fitsFilename, h5parmFilename)
+    parser.checkSpelling( step, ['method', 'fitsFilename', 'h5parmFilename'])
+    return run(obs, method, h5parmFilename, fitsFilename)
 
 
 def _getaltaz(radec):

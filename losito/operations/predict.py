@@ -12,7 +12,10 @@ logging.debug('Loading PREDICT module.')
 
 
 def _run_parser(obs, parser, step):
-    return run(obs)
+    outputColumn = parser.getstr( step, 'outputColumn')
+
+    parser.checkSpelling( step, ['outputColumn'])
+    return run(obs, outputColumn)
 
 
 def run(obs, outputColumn='DATA'):
@@ -23,6 +26,8 @@ def run(obs, outputColumn='DATA'):
     ----------
     obs : Observation object
         Input obs object.
+    outputColumn : str, optional
+        Name of output column
     """
     # Make sourcedb from sky model
     obs.make_sourcedb()
