@@ -43,7 +43,7 @@ def _getaltaz(radec):
 
 def _gettec(altaz_args):
     alltec = []
-    altaz, stationpositions, A12 = altaz_args
+    altaz, stationpositions, A12, times = altaz_args
     direction = altaz.geocentrictrueecliptic.cartesian.xyz.value
     for ant in stationpositions:
         pp, am = post.getPPsimple([200.e3]*direction[0].shape[0], ant, direction)
@@ -158,7 +158,7 @@ def run(obs, method, h5parmFilename, fitsFilename=None):
         altazcoord = p.map(_getaltaz, radec)
 
         p = Pool(processes=16)
-        gettec_args = [(a, obs.stationpositions, A12) for a in altazcoord]
+        gettec_args = [(a, obs.stationpositions, A12, times) for a in altazcoord]
         alltec = p.map(_gettec, gettec_args)
         alltec = np.array(alltec)
         0/0
