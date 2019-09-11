@@ -7,18 +7,15 @@ from losito.lib_operations import *
 from astropy.io import fits as pyfits
 from astropy import wcs
 from losoto.h5parm import h5parm
-import matplotlib.pyplot as plt
 import numpy as np
 from astropy import units as u
 import astropy.coordinates as coord
-from astropy.coordinates import SkyCoord
-import matplotlib.pyplot as plt
 from astropy.time import Time
-from astropy.coordinates import SkyCoord, EarthLocation, FK5
+from astropy.coordinates import EarthLocation
 from astropy.coordinates import AltAz
 from multiprocessing import Pool
-import casacore.tables as pt
 import RMextract.PosTools as post
+import os
 
 logging.debug('Loading TEC module.')
 
@@ -36,7 +33,7 @@ def _getaltaz(radec):
     ra = radec[0]
     dec = radec[1]
     aa = radec[2]
-    mycoord = coord.SkyCoord(ra, dec, frame=coord.FK5, unit=(u.hourangle,u.deg))
+    mycoord = coord.SkyCoord(ra, dec, frame=coord.FK5, unit=(u.hourangle, u.deg))
     mycoord_aa = mycoord.transform_to(aa)
     return mycoord_aa
 
@@ -47,8 +44,8 @@ def _gettec(altaz_args):
     direction = altaz.geocentrictrueecliptic.cartesian.xyz.value
     for ant in stationpositions:
         pp, am = post.getPPsimple([200.e3]*direction[0].shape[0], ant, direction)
-        ppa = EarthLocation.from_geocentric(pp[:,0], pp[:,1], pp[:,2], unit=u.m)
-        ppaproj = EarthLocation.from_geodetic(-ppa.lon.deg+A12.lon.deg, -ppa.lat.deg+A12.lat.deg,ppa.height)
+        ppa = EarthLocation.from_geocentric(pp[:, 0], pp[:, 1], pp[:, 2], unit=u.m)
+        ppaproj = EarthLocation.from_geodetic(-ppa.lon.deg+A12.lon.deg, -ppa.lat.deg+A12.lat.deg, ppa.height)
         x = ppaproj.z.value
         y = ppaproj.y.value
         tec = tid(x, times*3600.*24)
@@ -124,8 +121,8 @@ def run(obs, method, h5parmFilename, fitsFilename=None, stepname=None):
         ho = h5parm(h5parmFilename, readonly=False)
         solset = ho.makeSolset(solsetName='sol000')
         st = solset.makeSoltab('tec', 'tec000', axesNames=['time', 'ant', 'dir', 'freq'],
-                            axesVals=[times, ants, source_names, freqs], vals=vals,
-                            weights=weights)
+                               axesVals=[times, ants, source_names, freqs], vals=vals,
+                               weights=weights)
         antennaTable = solset.obj._f_get_child('antenna')
         antennaTable.append(list(zip(*(obs.stations, obs.stationpositions))))
         sourceTable = solset.obj._f_get_child('source')
@@ -145,15 +142,10 @@ def run(obs, method, h5parmFilename, fitsFilename=None, stepname=None):
         times /= 3600.0 * 24.0
 
         A12 = EarthLocation(lat=52.91*u.deg, lon=6.87*u.deg, height=1*u.m)
-        utcoffset = 0 * u.hour  # UT
         time = Time(times, format="mjd")
 
         aa = AltAz(location=A12, obstime=time)
-        Ra_ACE = []
-        Dec_ACE = []
-        flux_ACE = []
         altazcoord = []
-
         p = Pool(processes=16)
         radec = [(r, d, aa) for r, d in zip(ras, decs)]
         altazcoord = p.map(_getaltaz, radec)
@@ -177,8 +169,8 @@ def run(obs, method, h5parmFilename, fitsFilename=None, stepname=None):
         ho = h5parm(h5parmFilename, readonly=False)
         solset = ho.makeSolset(solsetName='sol000')
         st = solset.makeSoltab('tec', 'tec000', axesNames=['time', 'ant', 'dir', 'freq'],
-                            axesVals=[times, ants, source_names, freqs], vals=vals,
-                            weights=weights)
+                               axesVals=[times, ants, source_names, freqs], vals=vals,
+                               weights=weights)
         antennaTable = solset.obj._f_get_child('antenna')
         antennaTable.append(list(zip(*(obs.stations, obs.stationpositions))))
         sourceTable = solset.obj._f_get_child('source')

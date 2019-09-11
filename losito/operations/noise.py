@@ -4,9 +4,9 @@
 # Noise operation for losito: adds Gaussian noise to a data column
 
 import logging
-import subprocess
 from losito.lib_operations import *
 import casacore.tables as pt
+import numpy as np
 
 logging.debug('Loading NOISE module.')
 
