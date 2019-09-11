@@ -32,7 +32,7 @@ def run(obs, mode='default', usechannelfreq=True, onebeamperpatch=False):
     outputColumn : str, optional
         Name of output column to which noise is added
     """
-    if mode not in ['full', 'array_factor', 'element']:
+    if mode not in ['default', 'array_factor', 'element']:
         logging.error('mode "{}" not understood'.format(mode))
         return 1
 
