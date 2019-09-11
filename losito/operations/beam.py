@@ -36,6 +36,7 @@ def run(obs, mode='full', usechannelfreq=True, onebeamperpatch=False):
         return 1
 
     # Update predict parset parameters for the obs
+    obs.parset_parameters['predict.usebeammodel'] = True
     obs.parset_parameters['predict.beammode'] = mode
     obs.parset_parameters['predict.usechannelfreq'] = usechannelfreq
     obs.parset_parameters['predict.onebeamperpatch'] = onebeamperpatch
