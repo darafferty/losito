@@ -10,7 +10,7 @@ logging.debug('Loading BEAM module.')
 
 
 def _run_parser(obs, parser, step):
-    mode = parser.getstr( step, 'mode', 'full')
+    mode = parser.getstr( step, 'mode', 'default')
     usechannelfreq = parser.getbool( step, 'usechannelfreq', True)
     onebeamperpatch = parser.getbool( step, 'onebeamperpatch', False)
 
@@ -18,7 +18,7 @@ def _run_parser(obs, parser, step):
     return run(obs, mode, usechannelfreq, onebeamperpatch)
 
 
-def run(obs, mode='full', usechannelfreq=True, onebeamperpatch=False):
+def run(obs, mode='default', usechannelfreq=True, onebeamperpatch=False):
     """
     Adds Gaussian noise to a data column.
 
@@ -27,7 +27,8 @@ def run(obs, mode='full', usechannelfreq=True, onebeamperpatch=False):
     obs : Observation object
         Input obs object.
     mode : str, optional
-        Beam mode to use: 'full', 'array_factor', or 'element'
+        Beam mode to use: 'default' (= array factor + element), 'array_factor',
+        or 'element'
     outputColumn : str, optional
         Name of output column to which noise is added
     """
