@@ -13,13 +13,13 @@ logging.debug('Loading NOISE module.')
 
 def _run_parser(obs, parser, step):
     stddev = parser.getfloat( step, 'stddev', 1e-4)
-    outputColumn = parser.getstr( step, 'outputColumn', 'DATA')
+    column = parser.getstr( step, 'outputColumn', 'DATA')
 
-    parser.checkSpelling( step, ['stddev', 'outputColumn'])
+    parser.checkSpelling( step, ['stddev', 'column'])
     return run(obs, stddev, outputColumn)
 
 
-def run(obs, stddev=1e-4, outputColumn='DATA'):
+def run(obs, stddev=1e-4, column='DATA'):
     """
     Adds Gaussian noise to a data column.
 
@@ -29,17 +29,17 @@ def run(obs, stddev=1e-4, outputColumn='DATA'):
         Input obs object.
     stddev : float, optional
         Standard deviation of noise
-    outputColumn : str, optional
-        Name of output column to which noise is added
+    column : str, optional
+        Name of column to which noise is added
     """
     # TODO: calculate stddev from the LOFAR specifications (for given baseline, etc)
     # See https://old.astron.nl/radio-observatory/astronomers/lofar-imaging-capabilities-sensitivity/sensitivity-lofar-array/sensiti
     myt = pt.table(obs.ms_filename, readonly=False)
-    simul_data = myt.getcol(outputColumn)
+    simul_data = myt.getcol(column)
     myreal = np.random.normal(0, stddev, simul_data.shape)
     myimag = np.random.normal(0, stddev, simul_data.shape)
     noisedata = myreal + 1.j*myimag
-    myt.putcol(outputColumn, simul_data+noisedata)
+    myt.putcol(column, simul_data+noisedata)
     myt.close()
 
     return 0
