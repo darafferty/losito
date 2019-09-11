@@ -53,6 +53,7 @@ if __name__=='__main__':
     import losito.operations as operations
     ops = {
            "TEC": operations.tec,
+           "BEAM": operations.beam,
            "PREDICT": operations.predict,
            "NOISE": operations.noise
           }
