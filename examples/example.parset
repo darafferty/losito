@@ -2,6 +2,10 @@
 # to use with: losito -v example.ms example.sky example.parset
 ncpu = 0
 
+[beam]
+operation = BEAM
+mode = full
+
 [tec1]
 operation = TEC
 method = fits
@@ -10,7 +14,8 @@ h5parmFilename = tec1.h5
 
 [tec2]
 operation = TEC
-method = wave
+method = tid
+tidAmp = 0.3
 h5parmFilename = tec2.h5
 
 [predict]

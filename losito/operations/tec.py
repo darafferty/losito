@@ -24,9 +24,10 @@ def _run_parser(obs, parser, step):
     method = parser.getstr( step, 'method')
     h5parmFilename = parser.getstr( step, 'h5parmFilename')
     fitsFilename = parser.getstr( step, 'fitsFilename', '')
+    tidAmp = parser.getfloat( step, 'tidAmp', 0.2)
 
-    parser.checkSpelling( step, ['method', 'fitsFilename', 'h5parmFilename'])
-    return run(obs, method, h5parmFilename, fitsFilename, step)
+    parser.checkSpelling( step, ['method', 'fitsFilename', 'h5parmFilename', 'tidAmp'])
+    return run(obs, method, h5parmFilename, fitsFilename, tidAmp, step)
 
 
 def _getaltaz(radec):
@@ -53,11 +54,11 @@ def _gettec(altaz_args):
     return alltec
 
 
-def tid(x, t, omega=500.e3/3600., amp=1., wavelength=200e3):
+def tid(x, t, omega=500.e3/3600., amp=0.2, wavelength=200e3):
     return amp*np.sin((x+omega*t)*2*np.pi/wavelength)
 
 
-def run(obs, method, h5parmFilename, fitsFilename=None, stepname='tec'):
+def run(obs, method, h5parmFilename, fitsFilename=None, tidAmp=0.2, stepname='tec'):
     """
     Creates h5parm with TEC values from TEC FITS cube.
 
@@ -71,6 +72,8 @@ def run(obs, method, h5parmFilename, fitsFilename=None, stepname='tec'):
         Filename of output h5parm file.
     fitsFilename : str, optional
         Filename of input FITS cube with dTEC solutions.
+    tidAmp : float, optional
+        Amplitude of TID wave (in TECU)
     stepname _ str, optional
         Name of step to use in DPPP parset
     """
