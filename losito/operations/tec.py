@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# TEC operation for losito: creates h5parm with TEC values from TEC FITS cube
+# TEC operation for losito: applies TEC values
 import logging
 from losito.lib_operations import *
 from astropy.io import fits as pyfits
@@ -69,7 +69,7 @@ def run(obs, method, h5parmFilename, fitsFilename=None, stepname=None):
     method : str
         Method to use:
         "fits": read TEC values from the FITS cube specified by fitsFilename
-        "tid": generate a TID wave
+        "tid": generate a traveling ionospheric disturbance (TID) wave
     h5parmFilename : str
         Filename of output h5parm file.
     fitsFilename : str, optional
@@ -139,8 +139,8 @@ def run(obs, method, h5parmFilename, fitsFilename=None, stepname=None):
                           'obs {0} and FITS cube {1})'.format(h5parmFilename, fitsFilename))
         ho.close()
 
-    elif method == 'wave':
-
+    elif method == 'tid':
+        # Generate solutions for TID wave
         times = np.array([obs.starttime+i*obs.timepersample for i in range(obs.numsamples)])
         times /= 3600.0 * 24.0
 
@@ -191,6 +191,9 @@ def run(obs, method, h5parmFilename, fitsFilename=None, stepname=None):
             st.addHistory('CREATE (by TEC operation of LoSiTo from '
                           'obs {0} and method="wave")'.format(h5parmFilename))
         ho.close()
+    else:
+        logging.error('method "{}" not understood'.format(method))
+        return 1
 
     # Update predict parset parameters for the obs
     obs.parset_parameters['predict.applycal.parmdb'] = h5parmFilename
