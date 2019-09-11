@@ -57,7 +57,7 @@ def tid(x, t, omega=500.e3/3600., amp=1., wavelength=200e3):
     return amp*np.sin((x+omega*t)*2*np.pi/wavelength)
 
 
-def run(obs, method, h5parmFilename, fitsFilename=None, stepname=None):
+def run(obs, method, h5parmFilename, fitsFilename=None, stepname='tec'):
     """
     Creates h5parm with TEC values from TEC FITS cube.
 
@@ -71,6 +71,8 @@ def run(obs, method, h5parmFilename, fitsFilename=None, stepname=None):
         Filename of output h5parm file.
     fitsFilename : str, optional
         Filename of input FITS cube with dTEC solutions.
+    stepname _ str, optional
+        Name of step to use in DPPP parset
     """
     # Get sky model properties
     ras, decs = obs.get_patch_coords()
@@ -190,7 +192,7 @@ def run(obs, method, h5parmFilename, fitsFilename=None, stepname=None):
     # Update predict parset parameters for the obs
     obs.parset_parameters['predict.applycal.parmdb'] = h5parmFilename
     if 'predict.applycal.steps' in obs.parset_parameters:
-        obs.parset_parameters['predict.applycal.steps'].append('tec')
+        obs.parset_parameters['predict.applycal.steps'].append(stepname)
     else:
         obs.parset_parameters['predict.applycal.steps'] = [stepname]
     obs.parset_parameters['predict.applycal.correction'] = 'tec000'

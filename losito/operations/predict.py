@@ -12,7 +12,7 @@ logging.debug('Loading PREDICT module.')
 
 
 def _run_parser(obs, parser, step):
-    outputColumn = parser.getstr( step, 'outputColumn')
+    outputColumn = parser.getstr( step, 'outputColumn', 'DATA')
 
     parser.checkSpelling( step, ['outputColumn'])
     return run(obs, outputColumn)

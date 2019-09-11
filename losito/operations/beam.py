@@ -10,9 +10,9 @@ logging.debug('Loading BEAM module.')
 
 
 def _run_parser(obs, parser, step):
-    mode = parser.getstr( step, 'full')
-    usechannelfreq = parser.getbool( step, True)
-    onebeamperpatch = parser.getbool( step, False)
+    mode = parser.getstr( step, 'mode', 'full')
+    usechannelfreq = parser.getbool( step, 'usechannelfreq', True)
+    onebeamperpatch = parser.getbool( step, 'onebeamperpatch', False)
 
     parser.checkSpelling( step, ['mode', 'usechannelfreq', 'onebeamperpatch'])
     return run(obs, mode, usechannelfreq, onebeamperpatch)

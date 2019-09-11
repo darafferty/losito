@@ -12,14 +12,14 @@ logging.debug('Loading NOISE module.')
 
 
 def _run_parser(obs, parser, step):
-    stddev = parser.getfloat( step, 'stddev')
-    outputColumn = parser.getstr( step, 'outputColumn')
+    stddev = parser.getfloat( step, 'stddev', 1e-4)
+    outputColumn = parser.getstr( step, 'outputColumn', 'DATA')
 
     parser.checkSpelling( step, ['stddev', 'outputColumn'])
     return run(obs, stddev, outputColumn)
 
 
-def run(obs, stddev=7500.0, outputColumn='DATA'):
+def run(obs, stddev=1e-4, outputColumn='DATA'):
     """
     Adds Gaussian noise to a data column.
 
