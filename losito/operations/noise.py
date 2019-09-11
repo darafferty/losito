@@ -16,7 +16,7 @@ def _run_parser(obs, parser, step):
     column = parser.getstr( step, 'outputColumn', 'DATA')
 
     parser.checkSpelling( step, ['stddev', 'column'])
-    return run(obs, stddev, outputColumn)
+    return run(obs, stddev, column)
 
 
 def run(obs, stddev=1e-4, column='DATA'):
