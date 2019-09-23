@@ -1,6 +1,5 @@
 """
 Definition of the Observation class
-set
 """
 import os
 import sys
@@ -29,7 +28,7 @@ class Observation(object):
     ----------
     ms_filename : str
         Filename of the MS file.
-    skymodel_filename : str
+    skymodel_filename : str, optional
         Filename of the sky model file.
     starttime : float, optional
         The start time of the observation (in MJD seconds) to be used during processing.
@@ -38,9 +37,10 @@ class Observation(object):
         The end time of the observation (in MJD seconds) to be used during processing.
         If None, the end time is the end of the MS file.
     """
-    def __init__(self, ms_filename, skymodel_filename, starttime=None, endtime=None):
+    def __init__(self, ms_filename, skymodel_filename=None, starttime=None, endtime=None):
         self.ms_filename = str(ms_filename)
-        self.skymodel_filename = str(skymodel_filename)
+        if skymodel_filename is not None:
+            self.skymodel_filename = str(skymodel_filename)
         self.sourcedb_filename = self.skymodel_filename + '.sourcedb'
         self.parset_filename = self.ms_filename + '.parset'
         self.name = os.path.basename(self.ms_filename)
@@ -53,7 +53,8 @@ class Observation(object):
         self.scan_ms()
 
         # Load the sky model
-        self.load_skymodel()
+        if skymodel_filename is not None:
+            self.load_skymodel()
 
         # Initialize the parset
         self.initialize_parset_parameters()
@@ -118,6 +119,7 @@ class Observation(object):
         # Get station names, positions, and diameter
         ant = pt.table(self.ms_filename+'::ANTENNA', ack=False)
         self.stations = ant.col('NAME')[:]
+        self.numstations = len(self.stations)
         self.diam = float(ant.col('DISH_DIAMETER')[0])
         self.stationpositions = ant.getcol('POSITION')
         if 'HBA' in self.stations[0]:
@@ -133,6 +135,8 @@ class Observation(object):
         el_values = pt.taql("SELECT mscal.azel1()[1] AS el from "
                             + self.ms_filename + " limit ::10000").getcol("el")
         self.mean_el_rad = np.mean(el_values)
+        sec_el = 1.0 / np.sin(self.mean_el_rad)
+        self.fwhm_deg = 1.1 * ((3.0e8 / self.referencefreq) / self.diam) * 180. / np.pi * sec_el
 
     def initialize_parset_parameters(self):
         """
@@ -193,6 +197,22 @@ class Observation(object):
         """
         patch_names = ['[{}]'.format(p) for p in self.skymodel.getPatchNames()]
         return patch_names
+
+    def get_times(self):
+        """
+        Returns array of times (ordered, with duplicates excluded)
+        """
+        tab = pt.table(self.ms_filename, ack=False)
+        times = tab.getcol('TIME')
+        times = np.array(sorted(list(set(times))))
+        return times
+
+    def get_frequencies(self):
+        """
+        Returns array of channel frequencies (ordered, with duplicates excluded)
+        """
+        freqs = np.array([self.startfreq+i*self.channelwidth for i in range(self.numchannels)])
+        return freqs
 
     def convert_mjd(self, mjd_sec):
         """

@@ -1,20 +1,17 @@
 # -*- coding: utf-8 -*-
-
-# Some utilities for operations
-
-import sys
-import math
+"""
+Libraries for operations
+"""
 import logging
 import multiprocessing
 import numpy as np
+from astropy.io import fits as pyfits
 import os
 import sys
 from configparser import ConfigParser
 if (sys.version_info > (3, 0)):
-    #from configparser import ConfigParser
     from io import StringIO
 else:
-    #from ConfigParser import ConfigParser
     from StringIO import StringIO
 
 
@@ -29,7 +26,7 @@ class ParsetParser(ConfigParser):
     """
 
     def __init__(self, parsetFile):
-        ConfigParser.__init__(self, inline_comment_prefixes=('#',';'))
+        ConfigParser.__init__(self, inline_comment_prefixes=('#', ';'))
 
         config = StringIO()
         # add [_global] fake section at beginning
@@ -50,7 +47,7 @@ class ParsetParser(ConfigParser):
 
     def getstr(self, s, v, default=None):
         if self.has_option(s, v):
-            return str(self.get(s, v).replace('\'','').replace('"','')) # remove apex
+            return str(self.get(s, v).replace('\'', '').replace('"', ''))  # remove apex
         elif default is None:
             logging.error('Section: %s - Values: %s: required (expected string).' % (s, v))
         else:
@@ -83,7 +80,7 @@ class ParsetParser(ConfigParser):
     def getarray(self, s, v, default=None):
         if self.has_option(s, v):
             try:
-                return self.getstr(s, v).replace(' ','').replace('[','').replace(']','').split(',') # split also turns str into 1-element lists
+                return self.getstr(s, v).replace(' ', '').replace('[', '').replace(']', '').split(',')  # split also turns str into 1-element lists
             except:
                 logging.error('Error interpreting section: %s - values: %s (should be a list as [xxx,yyy,zzz...])' % (s, v))
         elif default is None:
@@ -143,7 +140,6 @@ class multiprocManager(object):
                 self.funct(*parms, outQueue=self.outQueue)
                 self.inQueue.task_done()
 
-
     def __init__(self, procs=0, funct=None):
         """
         Manager for multiprocessing
@@ -194,77 +190,136 @@ class multiprocManager(object):
         self.inQueue.join()
 
 
-def reorderAxes( a, oldAxes, newAxes ):
+def make_template_image(image_name, reference_ra_deg, reference_dec_deg,
+                        ximsize=512, yimsize=512, cellsize_deg=0.000417, freqs=None,
+                        times=None, antennas=None, aterm_type='tec', fill_val=0):
     """
-    Reorder axis of an array to match a new name pattern.
+    Make a blank image and save it to disk
 
     Parameters
     ----------
-    a : np array
-        The array to transpose.
-    oldAxes : list of str
-        A list like ['time','freq','pol'].
-        It can contain more axes than the new list, those are ignored.
-        This is to pass to oldAxis the soltab.getAxesNames() directly even on an array from getValuesIter()
-    newAxes : list of str
-        A list like ['time','pol','freq'].
-
-    Returns
-    -------
-    np array
-        With axis transposed to match the newAxes list.
+    image_name : str
+        Filename of output image
+    reference_ra_deg : float, optional
+        RA for center of output mask image
+    reference_dec_deg : float, optional
+        Dec for center of output mask image
+    imsize : int, optional
+        Size of output image
+    cellsize_deg : float, optional
+        Size of a pixel in degrees
+    freqs : list
+        Frequencies to use to construct extra axes (for IDG a-term images)
+    times : list
+        Times to use to construct extra axes (for IDG a-term images)
+    antennas : list
+        Antennas to use to construct extra axes (for IDG a-term images)
+    aterm_type : str
+        One of 'tec' or 'gain'
+    fill_val : int
+        Value with which to fill the data
     """
-    oldAxes = [ax for ax in oldAxes if ax in newAxes]
-    idx = [ oldAxes.index(ax) for ax in newAxes ]
-    return np.transpose(a, idx)
+    if freqs is not None and times is not None and antennas is not None:
+        nants = len(antennas)
+        ntimes = len(times)
+        nfreqs = len(freqs)
+        if aterm_type == 'tec':
+            # TEC solutions
+            # data is [RA, DEC, ANTENNA, FREQ, TIME].T
+            shape_out = [ntimes, nfreqs, nants, yimsize, ximsize]
+        else:
+            # Gain solutions
+            # data is [RA, DEC, MATRIX, ANTENNA, FREQ, TIME].T
+            shape_out = [ntimes, nfreqs, nants, 4, yimsize, ximsize]
+    else:
+        # Normal FITS image
+        # data is [STOKES, FREQ, DEC, RA]
+        shape_out = [1, 1, yimsize, ximsize]
+        nfreqs = 1
+        freqs = [150e6]
 
+    hdu = pyfits.PrimaryHDU(np.ones(shape_out, dtype=np.float32)*fill_val)
+    hdulist = pyfits.HDUList([hdu])
+    header = hdulist[0].header
 
-def removeKeys( dic, keys = [] ):
-    """
-    Remove a list of keys from a dict and return a new one.
+    # Add RA, Dec info
+    i = 1
+    header['CRVAL{}'.format(i)] = reference_ra_deg
+    header['CDELT{}'.format(i)] = -cellsize_deg
+    header['CRPIX{}'.format(i)] = ximsize / 2.0
+    header['CUNIT{}'.format(i)] = 'deg'
+    header['CTYPE{}'.format(i)] = 'RA---SIN'
+    i += 1
+    header['CRVAL{}'.format(i)] = reference_dec_deg
+    header['CDELT{}'.format(i)] = cellsize_deg
+    header['CRPIX{}'.format(i)] = yimsize / 2.0
+    header['CUNIT{}'.format(i)] = 'deg'
+    header['CTYPE{}'.format(i)] = 'DEC--SIN'
+    i += 1
 
-    Parameters
-    ----------
-    dic : dcit
-        The input dictionary.
-    keys : list of str
-        A list of arguments to remove or a string for single argument.
+    # Add STOKES info or ANTENNA (+MATRIX) info
+    if antennas is None:
+        # basic image
+        header['CRVAL{}'.format(i)] = 1.0
+        header['CDELT{}'.format(i)] = 1.0
+        header['CRPIX{}'.format(i)] = 1.0
+        header['CUNIT{}'.format(i)] = ''
+        header['CTYPE{}'.format(i)] = 'STOKES'
+        i += 1
+    else:
+        if aterm_type == 'gain':
+            # gain aterm images: add MATRIX info
+            header['CRVAL{}'.format(i)] = 0.0
+            header['CDELT{}'.format(i)] = 1.0
+            header['CRPIX{}'.format(i)] = 1.0
+            header['CUNIT{}'.format(i)] = ''
+            header['CTYPE{}'.format(i)] = 'MATRIX'
+            i += 1
 
-    Returns
-    -------
-    dict
-        Dictionary with removed keys.
-    """
-    dicCopy = dict(dic)
-    if type(keys) is str: keys = [keys]
-    for key in keys:
-        del dicCopy[key]
-    return dicCopy
+        # dTEC or gain: add ANTENNA info
+        header['CRVAL{}'.format(i)] = 0.0
+        header['CDELT{}'.format(i)] = 1.0
+        header['CRPIX{}'.format(i)] = 1.0
+        header['CUNIT{}'.format(i)] = ''
+        header['CTYPE{}'.format(i)] = 'ANTENNA'
+        i += 1
 
+    # Add frequency info
+    ref_freq = freqs[0]
+    if nfreqs > 1:
+        deltas = freqs[1:] - freqs[:-1]
+        del_freq = np.min(deltas)
+    else:
+        del_freq = 1e8
+    header['RESTFRQ'] = ref_freq
+    header['CRVAL{}'.format(i)] = ref_freq
+    header['CDELT{}'.format(i)] = del_freq
+    header['CRPIX{}'.format(i)] = 1.0
+    header['CUNIT{}'.format(i)] = 'Hz'
+    header['CTYPE{}'.format(i)] = 'FREQ'
+    i += 1
 
-def normalize_phase(phase):
-    """
-    Normalize phase to the range [-pi, pi].
+    # Add time info
+    if times is not None:
+        ref_time = times[0]
+        if ntimes > 1:
+            deltas = times[1:] - times[:-1]
+            del_time = np.min(deltas)
+        else:
+            del_time = 1.0
+        header['CRVAL{}'.format(i)] = ref_time
+        header['CDELT{}'.format(i)] = del_time
+        header['CRPIX{}'.format(i)] = 1.0
+        header['CUNIT{}'.format(i)] = 's'
+        header['CTYPE{}'.format(i)] = 'TIME'
+        i += 1
 
-    Parameters
-    ----------
-    phase : array of float
-        Phase to normalize.
+    # Add equinox
+    header['EQUINOX'] = 2000.0
 
-    Returns
-    -------
-    array of float
-        Normalized phases.
-    """
+    # Add telescope
+    header['TELESCOP'] = 'LOFAR'
 
-    # Convert to range [-2*pi, 2*pi].
-    out = np.fmod(phase, 2.0 * np.pi)
-    # Remove nans
-    nans = np.isnan(out)
-    np.putmask(out, nans, 0)
-    # Convert to range [-pi, pi]
-    out[out < -np.pi] += 2.0 * np.pi
-    out[out > np.pi] -= 2.0 * np.pi
-    # Put nans back
-    np.putmask(out, nans, np.nan)
-    return out
+    hdulist[0].header = header
+    hdulist.writeto(image_name, overwrite=True)
+    hdulist.close()
