@@ -32,7 +32,6 @@ def create_images(ntimes, polygrade, pixels, seed, coeffs, pos):
 
     # Scale coefficients to values between -1 and 1
     ai = np.sin(value)
-    # rf = ai[0,0]*0.05 #alternative
 
     # Create 'realistic' Screensize variable
     scrvar = 1.0
@@ -41,11 +40,10 @@ def create_images(ntimes, polygrade, pixels, seed, coeffs, pos):
     y, x = np.meshgrid(np.linspace(-scrvar, scrvar, pixels), np.linspace(-scrvar, scrvar, pixels))
 
     # Output of this function is saved in outputlist
-    outputlist = np.zeros((pixels, pixels, ntimes))
+    data = np.zeros((ntimes, pixels, pixels))
     for i in range(ntimes):
         # Calculate polynomial
         z = np.polynomial.polynomial.polyval2d(x, y, ai)
-        # z = np.sin(rf+value[0,1]+x)+np.cos(rf+value[1,1]+y) #alternative
 
         # Centre polynomial to given coordinates; Rescale to realistic dTec values
         z = z-np.polynomial.polynomial.polyval2d(0, 0, ai)
@@ -53,8 +51,9 @@ def create_images(ntimes, polygrade, pixels, seed, coeffs, pos):
             z = np.interp(z, (z.min(), -z.min()), (-0.3*scrvar, +0.3*scrvar))
         else:
             z = np.interp(z, (-z.max(), z.max()), (-0.3*scrvar, +0.3*scrvar))
+        data[i, :, :] = z
 
-    return outputlist
+    return data
 
 
 def check_positive(uvalue):
