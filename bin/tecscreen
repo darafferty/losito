@@ -103,7 +103,7 @@ def coeff_map(antpos, seed, polygrade):
 
     Coeffs = np.empty(((len(antpos)), polygrade**2))
 
-    for pos in antpos:
+    for i in range(len(antpos)):
         Coeffs[pos, :] = A * float(antpos[pos][0]) + B * float(antpos[pos][1])
 
     if Coeffs.any():
