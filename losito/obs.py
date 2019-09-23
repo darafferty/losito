@@ -41,7 +41,7 @@ class Observation(object):
         self.ms_filename = str(ms_filename)
         if skymodel_filename is not None:
             self.skymodel_filename = str(skymodel_filename)
-        self.sourcedb_filename = self.skymodel_filename + '.sourcedb'
+            self.sourcedb_filename = self.skymodel_filename + '.sourcedb'
         self.parset_filename = self.ms_filename + '.parset'
         self.name = os.path.basename(self.ms_filename)
         self.log = logging.getLogger('losito:{}'.format(self.name))
