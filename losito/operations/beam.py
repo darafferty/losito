@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-
-# Beam operation for losito: applies beam values
-
+"""
+Beam operation for losito: corrupts with the beam
+"""
 import logging
 from losito.lib_operations import *
 

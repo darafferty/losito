@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-
-# Noise operation for losito: adds Gaussian noise to a data column
-
+"""
+Noise operation for losito: adds Gaussian noise to a data column
+"""
 import logging
 from losito.lib_operations import *
 import casacore.tables as pt

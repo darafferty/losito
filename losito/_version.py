@@ -1,7 +1,8 @@
-"""Version module.
+"""
+Version module.
 
-This module simply stores the version
+This module simply stores the version number.
 """
 
 # Version number
-__version__ = '0.1'
+__version__ = '1.0'

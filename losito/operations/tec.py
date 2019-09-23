@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-
-# TEC operation for losito: applies TEC values
+"""
+TEC operation for losito: generates dTEC corruptions
+"""
 import logging
 from losito.lib_operations import *
 from astropy.io import fits as pyfits
@@ -49,12 +50,12 @@ def _gettec(altaz_args):
         ppaproj = EarthLocation.from_geodetic(-ppa.lon.deg+A12.lon.deg, -ppa.lat.deg+A12.lat.deg, ppa.height)
         x = ppaproj.z.value
         y = ppaproj.y.value
-        tec = tid(x, times*3600.*24)
+        tec = _tid(x, times*3600.*24)
         alltec.append([tec, x, y, altaz.secz])
     return alltec
 
 
-def tid(x, t, omega=500.e3/3600., amp=0.2, wavelength=200e3):
+def _tid(x, t, omega=500.e3/3600., amp=0.2, wavelength=200e3):
     return amp*np.sin((x+omega*t)*2*np.pi/wavelength)
 
 
@@ -92,7 +93,8 @@ def run(obs, method, h5parmFilename, fitsFilename=None, tidAmp=0.2, stepname='te
 
         # Check that number of stations in input FITS cube matches MS
         if nstations != len(obs.stations):
-            logging.error('Number of stations in input FITS cube does not match that in the input MS')
+            logging.error('Number of stations in input FITS cube does not match that '
+                          'in the input MS')
             return 1
 
         # Get solutions at the source coords
@@ -103,7 +105,7 @@ def run(obs, method, h5parmFilename, fitsFilename=None, tidAmp=0.2, stepname='te
             x = int(w.wcs_world2pix(ra_dec, 0)[0][0])
             y = int(w.wcs_world2pix(ra_dec, 0)[0][1])
             if x < 0 or x > nx or y < 0 or y > ny:
-                vals[:, :, d, :] = 1.0
+                vals[:, :, d, :] = 0.0
                 weights[:, :, d, :] = 0.0
                 continue
             for t in range(ntimes):

@@ -1,5 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+"""
+Script that runs LoSiTo
+"""
 import os
 import sys
 import time
@@ -7,10 +10,11 @@ import logging
 from losito import _version, _logging
 from losito.obs import Observation
 from losito.lib_operations import ParsetParser
+import argparse
 
-if __name__=='__main__':
+
+if __name__ == '__main__':
     # Options
-    import argparse
     parser = argparse.ArgumentParser(description='losito - ')
     parser.add_argument('--version', action='version', version=_version.__version__)
     parser.add_argument('--quiet', '-q', dest='quiet', help='Quiet', default=False, action='store_true')
@@ -60,21 +64,22 @@ if __name__=='__main__':
 
     globalstart = time.time()
     for step in steps:
-        if step == '_global': continue # skip global setting
+        if step == '_global':
+            continue  # skip global setting
 
         op = parser.getstr(step, 'Operation')
-        if not op in ops:
+        if op not in ops:
             logging.error('Unkown operation: '+op)
             continue
 
         returncode = 0
         with operations.Timer(logging, step, op) as t:
             # run operation
-            returncode += ops[ op ]._run_parser( obs, parser, step )
+            returncode += ops[op]._run_parser(obs, parser, step)
             if returncode != 0:
-               logging.error("Step \'" + step + "\' incomplete. Try to continue anyway.")
+                logging.error("Step '{}' incomplete. Trying to continue anyway.".format(step))
             else:
-               logging.info("Step \'" + step + "\' completed successfully.")
+                logging.info("Step '{}' completed successfully.".format(step))
 
-    logging.info("Time for all steps: %i s." % ( time.time() - globalstart ))
+    logging.info("Time for all steps: {} s.".format(int(time.time() - globalstart)))
     logging.info("Done.")

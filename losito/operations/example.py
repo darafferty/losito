@@ -1,9 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-
-# This is an example operation for losito
-
-
+"""
+This is an example operation for losito
+"""
 import logging
 from losito.lib_operations import *
 

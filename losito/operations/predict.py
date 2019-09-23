@@ -1,9 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-
-# Predict operation for losito: runs DPPP to predict a sky model with corruptions
-
-
+"""
+Predict operation for losito: runs DPPP to predict a sky model with corruptions
+"""
 import logging
 import subprocess
 from losito.lib_operations import *
