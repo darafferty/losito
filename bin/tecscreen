@@ -51,6 +51,12 @@ def create_images(ntimes, polygrade, pixels, seed, coeffs, pos):
             z = np.interp(z, (z.min(), -z.min()), (-0.3*scrvar, +0.3*scrvar))
         else:
             z = np.interp(z, (-z.max(), z.max()), (-0.3*scrvar, +0.3*scrvar))
+
+        # Adding values to for the next step
+        np.random.seed(int(seed+i))
+        value += ((np.random.rand(polygrade,polygrade))-1) * 0.05
+        ai = np.sin(value)
+
         data[i, :, :] = z
 
     return data
