@@ -53,8 +53,7 @@ def create_images(ntimes, polygrade, pixels, seed, coeffs, pos):
             z = np.interp(z, (-z.max(), z.max()), (-0.3*scrvar, +0.3*scrvar))
 
         # Adding values to for the next step
-        np.random.seed(int(seed+i))
-        value += ((np.random.rand(polygrade,polygrade))-1) * 0.05
+        value += ((np.random.rand(polygrade, polygrade))-1) * 0.05
         ai = np.sin(value)
 
         data[i, :, :] = z
@@ -161,12 +160,15 @@ if __name__ == '__main__':
     hdu = pyfits.open(args.fitsfile, memmap=False)
     data = hdu[0].data
 
-    # Calculate TEC-Screens
+    # Calculate TEC screens, referencing them to the first station
     for i in range(obs.numstations):
         c = coeffs[i, :]
         c = np.reshape(c, (args.polygrade, args.polygrade))
         data[:, 0, i, :, :] = create_images(obs.numsamples, args.polygrade, args.npixels,
                                             args.seed, c, i)
+        if i > 0:
+            data[:, :, i, :, :] -= data[:, :, 0, :, :]
+    data[:, :, 0, :, :] = 0.0
 
     # Write out screens
     hdu[0].data = data
