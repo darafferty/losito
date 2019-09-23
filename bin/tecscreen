@@ -159,7 +159,7 @@ if __name__ == '__main__':
     for i in range(obs.numstations):
         c = coeffs[i, :]
         c = np.reshape(c, (args.polygrade, args.polygrade))
-        data[:, :, i, :, :] = create_images(obs.numsamples, args.polygrade, args.npixels,
+        data[:, 0, i, :, :] = create_images(obs.numsamples, args.polygrade, args.npixels,
                                             args.seed, c, i)
 
     # Write out screens
