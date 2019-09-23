@@ -151,7 +151,7 @@ if __name__ == '__main__':
         size_deg = args.size
     cellsize_deg = size_deg / args.npixels
     make_template_image(args.fitsfile, obs.ra, obs.dec, ximsize=args.npixels,
-                        yimsize=args.npixels, cellsize_deg=cellsize_deg, freqs=freqs,
+                        yimsize=args.npixels, cellsize_deg=cellsize_deg, freqs=[freqs[0]],
                         times=times, antennas=obs.stations, aterm_type='tec')
     hdu = pyfits.open(args.fitsfile, memmap=False)
     data = hdu[0].data
