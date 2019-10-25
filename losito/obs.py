@@ -40,8 +40,9 @@ class Observation(object):
     def __init__(self, ms_filename, skymodel_filename=None, starttime=None, endtime=None):
         self.ms_filename = str(ms_filename)
         if skymodel_filename is not None:
-            self.skymodel_filename = str(skymodel_filename)
-            self.sourcedb_filename = self.skymodel_filename + '.sourcedb'
+            self.input_skymodel_filename = str(skymodel_filename)
+            self.output_skymodel_filename = self.input_skymodel_filename + '.losito'
+            self.sourcedb_filename = self.output_skymodel_filename + '.sourcedb'
         self.parset_filename = self.ms_filename + '.parset'
         self.name = os.path.basename(self.ms_filename)
         self.log = logging.getLogger('losito:{}'.format(self.name))
@@ -53,7 +54,7 @@ class Observation(object):
         self.scan_ms()
 
         # Load the sky model
-        if skymodel_filename is not None:
+        if self.input_skymodel_filename is not None:
             self.load_skymodel()
 
         # Initialize the parset
@@ -128,7 +129,7 @@ class Observation(object):
             self.antenna = 'LBA'
         else:
             self.log.warning('Antenna type not recognized (only LBA and HBA data '
-                             'are supported at this time)')
+                             'are supported)')
         ant.close()
 
         # Find mean elevation and FOV
@@ -165,7 +166,8 @@ class Observation(object):
         """
         Makes the sourcedb for DPPP from the sky model
         """
-        cmd = ['makesourcedb', 'in={}'.format(self.skymodel_filename),
+        self.save_skymodel()
+        cmd = ['makesourcedb', 'in={}'.format(self.output_skymodel_filename),
                'out={}'.format(self.sourcedb_filename),
                'format=<', 'outtype=blob', 'append=False']
         subprocess.call(cmd)
@@ -177,12 +179,36 @@ class Observation(object):
         # Set logging level to suppress confusing output from lsmtool
         old_level = logging.root.getEffectiveLevel()
         logging.root.setLevel(logging.WARNING)
-        skymodel = lsmtool.load(self.skymodel_filename)
+        skymodel = lsmtool.load(self.input_skymodel_filename)
         if not skymodel.hasPatches:
-            skymodel.group('every')
+            skymodel.group('single')
         skymodel.setPatchPositions(method='wmean')
         logging.root.setLevel(old_level)
         self.skymodel = skymodel
+
+    def save_skymodel(self, filename=None, format='makesourcedb'):
+        """
+        Saves the sky model
+
+        Parameters
+        ----------
+        filename : str, optional
+            Name of output file. If None, self.output_skymodel_filename is used
+        format: str, optional
+            Format of the output file. Allowed formats are:
+                - 'makesourcedb' (BBS format)
+                - 'fits'
+                - 'votable'
+                - 'hdf5'
+                - 'ds9'
+                - 'kvis'
+                - 'casa'
+                - 'factor'
+                - plus all other formats supported by the astropy.table package
+        """
+        if filename is None:
+            filename = self.output_skymodel_filename
+        self.skymodel.write(filename, format=format, clobber=True)
 
     def get_patch_coords(self):
         """
