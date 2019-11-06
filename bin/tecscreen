@@ -125,7 +125,7 @@ if __name__ == '__main__':
     parser.add_argument("--vid", help="toggle video output", type=bool, default=False)
     parser.add_argument("--fits", help="toggle fits output", type=bool, default=True)
     parser.add_argument("--seed", help="define random seed", type=int, default=None)
-    parser.add_argument("--maxdtec", help="maximum dTEC value in screen", type=float, default=0.3)
+    parser.add_argument("--maxdtec", help="maximum dTEC value in screen", type=float, default=1.0)
     args = parser.parse_args()
 
     if args.seed is None:
