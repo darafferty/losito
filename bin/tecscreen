@@ -14,7 +14,7 @@ from losito.obs import Observation
 from losito.lib_operations import make_template_image
 
 
-def create_images(ntimes, polygrade, pixels, seed, coeffs, pos):
+def create_images(ntimes, polygrade, pixels, seed, coeffs, pos, max_dtec):
     """
     Creates simulated time-dependant dTEC screens
 
@@ -33,10 +33,8 @@ def create_images(ntimes, polygrade, pixels, seed, coeffs, pos):
     # Scale coefficients to values between -1 and 1
     ai = np.sin(value)
 
-    # Create 'realistic' Screensize variable
-    scrvar = 1.0
-
     # generate 2 2d grids for the x & y bounds
+    scrvar = 1.0
     y, x = np.meshgrid(np.linspace(-scrvar, scrvar, pixels), np.linspace(-scrvar, scrvar, pixels))
 
     # Output of this function is saved in outputlist
@@ -48,11 +46,11 @@ def create_images(ntimes, polygrade, pixels, seed, coeffs, pos):
         # Centre polynomial to given coordinates; Rescale to realistic dTec values
         z = z-np.polynomial.polynomial.polyval2d(0, 0, ai)
         if abs(z.min()) > abs(z.max()):
-            z = np.interp(z, (z.min(), -z.min()), (-0.3*scrvar, +0.3*scrvar))
+            z = np.interp(z, (z.min(), -z.min()), (-max_dtec, max_dtec))
         else:
-            z = np.interp(z, (-z.max(), z.max()), (-0.3*scrvar, +0.3*scrvar))
+            z = np.interp(z, (-z.max(), z.max()), (-max_dtec, max_dtec))
 
-        # Adding values to for the next step
+        # Adding values for the next step
         value += ((np.random.rand(polygrade, polygrade))-1) * 0.05
         ai = np.sin(value)
 
@@ -127,6 +125,7 @@ if __name__ == '__main__':
     parser.add_argument("--vid", help="toggle video output", type=bool, default=False)
     parser.add_argument("--fits", help="toggle fits output", type=bool, default=True)
     parser.add_argument("--seed", help="define random seed", type=int, default=None)
+    parser.add_argument("--maxdtec", help="maximum dTEC value in screen", type=float, default=0.3)
     args = parser.parse_args()
 
     if args.seed is None:
@@ -165,7 +164,7 @@ if __name__ == '__main__':
         c = coeffs[i, :]
         c = np.reshape(c, (args.polygrade, args.polygrade))
         data[:, 0, i, :, :] = create_images(obs.numsamples, args.polygrade, args.npixels,
-                                            args.seed, c, i)
+                                            args.seed, c, i, args.maxdtec)
         if i > 0:
             data[:, :, i, :, :] -= data[:, :, 0, :, :]
     data[:, :, 0, :, :] = 0.0
