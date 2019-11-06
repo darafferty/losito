@@ -54,7 +54,7 @@ class Observation(object):
         self.scan_ms()
 
         # Load the sky model
-        if self.input_skymodel_filename is not None:
+        if skymodel_filename is not None:
             self.load_skymodel()
 
         # Initialize the parset
