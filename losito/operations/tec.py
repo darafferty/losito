@@ -14,6 +14,7 @@ import astropy.coordinates as coord
 from astropy.time import Time
 from astropy.coordinates import EarthLocation
 from astropy.coordinates import AltAz
+import multiprocessing
 from multiprocessing import Pool
 import RMextract.PosTools as post
 import os
@@ -26,9 +27,10 @@ def _run_parser(obs, parser, step):
     h5parmFilename = parser.getstr( step, 'h5parmFilename')
     fitsFilename = parser.getstr( step, 'fitsFilename', '')
     tidAmp = parser.getfloat( step, 'tidAmp', 0.2)
+    ncpu = parser.getint( '_global', 'ncpu', 0)
 
     parser.checkSpelling( step, ['method', 'fitsFilename', 'h5parmFilename', 'tidAmp'])
-    return run(obs, method, h5parmFilename, fitsFilename, tidAmp, step)
+    return run(obs, method, h5parmFilename, fitsFilename, tidAmp, step, ncpu)
 
 
 def _getaltaz(radec):
@@ -59,7 +61,7 @@ def _tid(x, t, omega=500.e3/3600., amp=0.2, wavelength=200e3):
     return amp*np.sin((x+omega*t)*2*np.pi/wavelength)
 
 
-def run(obs, method, h5parmFilename, fitsFilename=None, tidAmp=0.2, stepname='tec'):
+def run(obs, method, h5parmFilename, fitsFilename=None, tidAmp=0.2, stepname='tec', ncpu=0):
     """
     Creates h5parm with TEC values from TEC FITS cube.
 
@@ -77,11 +79,15 @@ def run(obs, method, h5parmFilename, fitsFilename=None, tidAmp=0.2, stepname='te
         Amplitude of TID wave (in TECU)
     stepname _ str, optional
         Name of step to use in DPPP parset
+    ncpu : int, optional
+        Number of cores to use, by default all available.
     """
     # Get sky model properties
     ras, decs = obs.get_patch_coords()
     source_names = obs.get_patch_names()
     ndirs = len(source_names)
+    if ncpu == 0:
+        ncpu = multiprocessing.cpu_count()
 
     if method == 'fits':
         # Load solutions from FITS cube
@@ -153,11 +159,11 @@ def run(obs, method, h5parmFilename, fitsFilename=None, tidAmp=0.2, stepname='te
 
         aa = AltAz(location=A12, obstime=time)
         altazcoord = []
-        p = Pool(processes=16)
+        p = Pool(processes=ncpu)
         radec = [(r, d, aa) for r, d in zip(ras, decs)]
         altazcoord = p.map(_getaltaz, radec)
 
-        p = Pool(processes=16)
+        p = Pool(processes=ncpu)
         gettec_args = [(a, obs.stationpositions, A12, times) for a in altazcoord]
         alltec = p.map(_gettec, gettec_args)
         alltec = np.array(alltec)
