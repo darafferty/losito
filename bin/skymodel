@@ -1,0 +1,163 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+import logging, argparse, sys
+import numpy as np
+import casacore.tables as pt
+import astropy.coordinates as apy
+
+logging.basicConfig(level=logging.INFO)
+
+def add_source(src, name, Jy = 1.0, s_idx = -.5):
+    '''Generate a sky model entry for a single source.
+    
+    Parameters
+    ----------
+    src : SkyCoord object
+    name : str
+        Source name.
+    Jy : float, optional
+        Source flux density in Jy. The default is 1.0.
+    s_idx : float, optional
+        Source spectral index. The default is -.5.
+        
+    Returns
+    -------
+    add_opt : str
+        Output string to be added to sky model.'''
+    
+    ra = '{:0>2.0f}:{:0>2.0f}:{:0>2.3f}'.format(*src.ra.hms)
+    dec = '{:+.0f}.{:0>2.0f}.{:0>2.3f}'.format(*src.dec.dms)
+    # add patch		
+    patch = 'patch_' + name 
+    add_opt = ' , , {}, {}, {}\n'.format(patch, ra, dec)
+    # add source
+    add_opt += '{}, POINT, {}, {}, {}, {}, 0.0, 0.0, '.format(name, patch, ra, dec, Jy)
+    add_opt += '0.0, 0.0, 0.0, 0.0, 5.85938e+07, [{}]\n'.format(s_idx)
+    return add_opt
+
+def add_cross(phs_c, angle = 0.5):
+    '''Add five sources to the sky model. One is located in the
+    phase center, the others are spaced evenly around it.
+        
+
+    Parameters
+    ----------
+    phs_c : SkyCoord object
+        Phase center of observation.
+    angle : float, optional
+        Distance (degree) between the central and the four outer 
+        sources.
+        The default is 0.5.
+
+    Returns
+    -------
+    add_opt : str
+        Output string to be added to sky model.'''
+    
+    # calculate ra, dec of cross
+    ra_1 = (phs_c.ra.rad + np.arccos((np.cos(angle*np.pi/180) - np.sin(phs_c.dec.rad)**2)	/ (np.cos(phs_c.dec.rad)**2)))
+    ra_2 = (phs_c.ra.rad - np.arccos((np.cos(angle*np.pi/180) - np.sin(phs_c.dec.rad)**2)	/ (np.cos(phs_c.dec.rad)**2)))
+    dec_1 = phs_c.dec.rad + angle*np.pi/180
+    dec_2 = phs_c.dec.rad - angle*np.pi/180
+    # generate sources as SkyCoord objects
+    tgt_1 = apy.SkyCoord(phs_c.ra.rad, dec_1, frame='icrs', unit='rad')
+    tgt_2 = apy.SkyCoord(ra_1, phs_c.dec.rad, frame='icrs', unit='rad')
+    tgt_3 = apy.SkyCoord(phs_c.ra.rad, dec_2, frame='icrs', unit='rad')
+    tgt_4 = apy.SkyCoord(ra_2, phs_c.dec.rad, frame='icrs', unit='rad')
+    # return sources properties as string
+    add_opt = add_source(phs_c, 's1')
+    add_opt += add_source(tgt_1, 's2')
+    add_opt += add_source(tgt_2, 's3')
+    add_opt += add_source(tgt_3, 's4')
+    add_opt += add_source(tgt_4, 's5')
+    
+    return add_opt
+
+def add_spiral(phs_c, max_angle = 0.5, npoints = 10):
+    '''Add <npoints> sources to the sky model in a spiral centered
+    around the observation phase center.
+    Parameters
+    ----------
+    phs_c : SkyCoord object
+        Phase center of observation.
+    angle : float, optional
+        Ra & dec distance in degree between the central and the 
+        outermost source. 
+        (Source is on diagonal, so actual distance has factor sqrt(2).)
+        The default is 0.5.
+    npoints: int, optional
+        Number of sources to add. Default = 7
+
+    Returns
+    -------
+    add_opt : str
+        Output string to be added to sky model.'''
+    # spiral-space points starting at [0, 0, 1]    
+    t_max = np.sin(np.deg2rad(max_angle))
+    omega = 25.1*np.pi/(8*t_max)
+    steps = np.linspace(0, t_max, num = npoints)
+    pts = np.zeros((npoints, 3))
+    for i, t in enumerate(steps):
+        
+        pts[i] = [t * np.cos(omega*t), t * np.sin(omega*t), np.sqrt(1-t**2)]
+        
+    # find rot. mat. that aligns [0,0,1] with phase center
+    r = np.array([np.cos(phs_c.ra.rad)*np.cos(phs_c.dec.rad), 
+                  np.sin(phs_c.ra.rad)*np.cos(phs_c.dec.rad), 
+                  np.sin(phs_c.dec.rad)])
+    e_z = np.array([0, 0, 1])
+    v = np.cross(e_z, r)
+    mat_V = np.array([[ 0,   -v[2], v[1]],
+                      [ v[2], 0,   -v[0]],
+                      [-v[1], v[0], 0  ]])
+    mat_R =  np.identity(3) + mat_V
+    mat_R += np.linalg.matrix_power(mat_V, 2) / (1+np.sqrt(1-(v**2).sum(-1)))
+
+    # rotate the points and get ra, dec from cartesian
+    ra, dec = np.zeros((2, npoints))
+    for i, p in enumerate(pts):
+        x, y, z = np.dot(mat_R, p)
+        dec[i] = np.arcsin(z)
+        ra[i] = np.arccos(x/np.cos(dec[i]))# case cos = 0 
+
+      
+    # sources to SkyCoord, get string return
+    sources = apy.SkyCoord(ra, dec, unit = 'rad')
+    add_opt = add_source(sources[0], 's0')
+    for i, src in enumerate(sources[1:]):
+        add_opt += add_source(src, 's'+str(i+1))
+        
+    return add_opt
+   
+if __name__ == '__main__':
+	# Options
+    parser = argparse.ArgumentParser(description='gen_skymodel - ')
+    parser.add_argument('msfile', help='Input MS filename.', default= 'test.MS', type=str)
+    parser.add_argument('--output', help='Ouput .sky filename.', default= 'mock.sky', type=str)
+    parser.add_argument('--kind', help='Kind of sky model.', default= 'cross', type=str)
+    args = parser.parse_args()
+    msfile = args.msfile   
+    tab = pt.table(msfile + '/FIELD')
+    logging.info('Create sky model for ' + msfile)
+
+    phs_c = apy.SkyCoord(*tab[0]['PHASE_DIR'][0], frame='icrs', unit='rad')    
+
+    opt = 'format = Name, Type, Patch, Ra, Dec, I, Q, U, V, MajorAxis, '
+    opt += 'MinorAxis, Orientation, ReferenceFrequency=\'5.85938e+07\', '
+    opt += 'SpectralIndex=\'[]\'\n'
+    
+    if args.kind == 'cross':
+        opt += add_cross(phs_c)
+    elif args.kind == 'spiral':
+        opt += add_spiral(phs_c)
+    else:
+        logging.error(args.kind + ' is not a valid sky model kind.')
+        sys.exit('Stop.')
+        
+    output_file = args.output
+    logging.info('Output file: ' + output_file)
+    with open(output_file, "w+") as f:
+        f.write(opt)
+        f.close()  
+                
+
