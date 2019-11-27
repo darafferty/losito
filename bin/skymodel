@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 import logging, argparse, sys
 import numpy as np
@@ -7,7 +7,7 @@ import astropy.coordinates as apy
 
 logging.basicConfig(level=logging.INFO)
 
-def add_source(src, name, Jy = 1.0, s_idx = -.5):
+def add_source(src, ref_freq, name, Jy = 1.0, s_idx = -.5):
     '''Generate a sky model entry for a single source.
     
     Parameters
@@ -31,11 +31,12 @@ def add_source(src, name, Jy = 1.0, s_idx = -.5):
     patch = 'patch_' + name 
     add_opt = ' , , {}, {}, {}\n'.format(patch, ra, dec)
     # add source
-    add_opt += '{}, POINT, {}, {}, {}, {}, 0.0, 0.0, '.format(name, patch, ra, dec, Jy)
-    add_opt += '0.0, 0.0, 0.0, 0.0, 5.85938e+07, [{}]\n'.format(s_idx)
+    add_opt += '{}, POINT, {}, {}, {}, {}, 0.0, 0.0, '.format(name, patch, ra, 
+                                                              dec, Jy)
+    add_opt += '0.0, 0.0, 0.0, 0.0, {}, [{}]\n'.format(ref_freq, s_idx)
     return add_opt
 
-def add_cross(phs_c, angle = 0.5):
+def add_cross(phs_c, ref_freq, angle = 0.5):
     '''Add five sources to the sky model. One is located in the
     phase center, the others are spaced evenly around it.
         
@@ -65,15 +66,15 @@ def add_cross(phs_c, angle = 0.5):
     tgt_3 = apy.SkyCoord(phs_c.ra.rad, dec_2, frame='icrs', unit='rad')
     tgt_4 = apy.SkyCoord(ra_2, phs_c.dec.rad, frame='icrs', unit='rad')
     # return sources properties as string
-    add_opt = add_source(phs_c, 's1')
-    add_opt += add_source(tgt_1, 's2')
-    add_opt += add_source(tgt_2, 's3')
-    add_opt += add_source(tgt_3, 's4')
-    add_opt += add_source(tgt_4, 's5')
+    add_opt = add_source(phs_c, ref_freq, 's1')
+    add_opt += add_source(tgt_1, ref_freq, 's2')
+    add_opt += add_source(tgt_2, ref_freq, 's3')
+    add_opt += add_source(tgt_3, ref_freq, 's4')
+    add_opt += add_source(tgt_4, ref_freq, 's5')
     
     return add_opt
 
-def add_spiral(phs_c, max_angle = 0.5, npoints = 10):
+def add_spiral(phs_c, ref_freq, max_angle = 0.5, npoints = 10):
     '''Add <npoints> sources to the sky model in a spiral centered
     around the observation phase center.
     Parameters
@@ -123,9 +124,9 @@ def add_spiral(phs_c, max_angle = 0.5, npoints = 10):
       
     # sources to SkyCoord, get string return
     sources = apy.SkyCoord(ra, dec, unit = 'rad')
-    add_opt = add_source(sources[0], 's0')
+    add_opt = add_source(sources[0], ref_freq, 's0')
     for i, src in enumerate(sources[1:]):
-        add_opt += add_source(src, 's'+str(i+1))
+        add_opt += add_source(src, ref_freq, 's'+str(i+1))
         
     return add_opt
    
@@ -137,19 +138,20 @@ if __name__ == '__main__':
     parser.add_argument('--kind', help='Kind of sky model.', default= 'cross', type=str)
     args = parser.parse_args()
     msfile = args.msfile   
-    tab = pt.table(msfile + '/FIELD')
+    tab = pt.table(msfile)
     logging.info('Create sky model for ' + msfile)
 
-    phs_c = apy.SkyCoord(*tab[0]['PHASE_DIR'][0], frame='icrs', unit='rad')    
-
+    phs_c = apy.SkyCoord(*tab.FIELD[0]['PHASE_DIR'][0], frame='icrs', unit='rad')    
+    ref_freq = tab.SPECTRAL_WINDOW[0]['REF_FREQUENCY']
+    
     opt = 'format = Name, Type, Patch, Ra, Dec, I, Q, U, V, MajorAxis, '
-    opt += 'MinorAxis, Orientation, ReferenceFrequency=\'5.85938e+07\', '
-    opt += 'SpectralIndex=\'[]\'\n'
+    opt += 'MinorAxis, Orientation, ReferenceFrequency, '
+    opt += 'SpectralIndex\n'
     
     if args.kind == 'cross':
-        opt += add_cross(phs_c)
+        opt += add_cross(phs_c, ref_freq)
     elif args.kind == 'spiral':
-        opt += add_spiral(phs_c)
+        opt += add_spiral(phs_c, ref_freq, max_angle = 2.0)
     else:
         logging.error(args.kind + ' is not a valid sky model kind.')
         sys.exit('Stop.')

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
 Script that creates simulated time-dependant dTEC FITS screens based on a 2D-polynomial
@@ -136,6 +136,7 @@ if __name__ == '__main__':
     obs = Observation(args.msfile)
     stationpositions = obs.stationpositions
     times = obs.get_times()
+    print(times)
     freqs = obs.get_frequencies()
 
     # Map station locations to x-y grid defined in 1-km cells

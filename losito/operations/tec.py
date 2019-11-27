@@ -120,11 +120,11 @@ def run(obs, method, h5parmFilename, fitsFilename=None, tidAmp=0.2, stepname='te
                         vals[t, s, d, f] = data[t, f, s, y, x]
 
         # Fill the axis arrays
-        t_ref = header['CRVAL4']
-        t_del = header['CDELT4']
+        t_ref = header['CRVAL5']
+        t_del = header['CDELT5']
         times = [t_ref+(t_del*i) for i in range(ntimes)]
-        f_ref = header['CRVAL3']
-        f_del = header['CDELT3']
+        f_ref = header['CRVAL4']
+        f_del = header['CDELT4']
         freqs = [f_ref+(f_del*i) for i in range(nfreqs)]
         ants = obs.stations
 
