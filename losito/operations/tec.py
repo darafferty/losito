@@ -27,10 +27,14 @@ def _run_parser(obs, parser, step):
     h5parmFilename = parser.getstr( step, 'h5parmFilename')
     fitsFilename = parser.getstr( step, 'fitsFilename', '')
     tidAmp = parser.getfloat( step, 'tidAmp', 0.2)
+    tidLen = parser.getfloat( step, 'tidLen', 200e3)
+    tidVel = parser.getfloat( step, 'tidVel', 500.e3/3600.)
     ncpu = parser.getint( '_global', 'ncpu', 0)
 
-    parser.checkSpelling( step, ['method', 'fitsFilename', 'h5parmFilename', 'tidAmp'])
-    return run(obs, method, h5parmFilename, fitsFilename, tidAmp, step, ncpu)
+    parser.checkSpelling( step, ['method', 'fitsFilename', 'h5parmFilename', 
+                                 'tidAmp', 'tidLen', 'tidVel'])
+    return run(obs, method, h5parmFilename, fitsFilename, tidAmp, 
+               tidLen, tidVel, step, ncpu)
 
 
 def _getaltaz(radec):
@@ -44,7 +48,7 @@ def _getaltaz(radec):
 
 def _gettec(altaz_args):
     alltec = []
-    altaz, stationpositions, A12, times = altaz_args
+    altaz, stationpositions, A12, times, tidAmp, tidLen, tidVel = altaz_args
     direction = altaz.geocentrictrueecliptic.cartesian.xyz.value
     for ant in stationpositions:
         pp, am = post.getPPsimple([200.e3]*direction[0].shape[0], ant, direction)
@@ -52,16 +56,17 @@ def _gettec(altaz_args):
         ppaproj = EarthLocation.from_geodetic(-ppa.lon.deg+A12.lon.deg, -ppa.lat.deg+A12.lat.deg, ppa.height)
         x = ppaproj.z.value
         y = ppaproj.y.value
-        tec = _tid(x, times*3600.*24)
+        tec = _tid(x, times*3600.*24, tidAmp, tidLen, tidVel)
         alltec.append([tec, x, y, altaz.secz])
     return alltec
 
 
-def _tid(x, t, omega=500.e3/3600., amp=0.2, wavelength=200e3):
+def _tid(x, t, amp=0.2, wavelength=200e3, omega=500.e3/3600.):
     return amp*np.sin((x+omega*t)*2*np.pi/wavelength)
 
 
-def run(obs, method, h5parmFilename, fitsFilename=None, tidAmp=0.2, stepname='tec', ncpu=0):
+def run(obs, method, h5parmFilename, fitsFilename=None, tidAmp=0.2, 
+        tidLen=200e3, tidVel=500e3/3600, stepname='tec', ncpu=0):
     """
     Creates h5parm with TEC values from TEC FITS cube.
 
@@ -77,6 +82,10 @@ def run(obs, method, h5parmFilename, fitsFilename=None, tidAmp=0.2, stepname='te
         Filename of input FITS cube with dTEC solutions.
     tidAmp : float, optional
         Amplitude of TID wave (in TECU)
+    tidLen : float, optional
+        Wavelength of TID wave (in m). default = 300 km
+    tidVel : float, optional
+        Velocity (?) of TID wave (in m/s). default = 500 km/h 
     stepname _ str, optional
         Name of step to use in DPPP parset
     ncpu : int, optional
@@ -150,6 +159,8 @@ def run(obs, method, h5parmFilename, fitsFilename=None, tidAmp=0.2, stepname='te
         ho.close()
 
     elif method == 'tid':
+        # Properties of TID wave
+        tid_prop = [tidAmp, tidLen, tidVel]
         # Generate solutions for TID wave
         times = np.array([obs.starttime+i*obs.timepersample for i in range(obs.numsamples)])
         times /= 3600.0 * 24.0
@@ -164,9 +175,9 @@ def run(obs, method, h5parmFilename, fitsFilename=None, tidAmp=0.2, stepname='te
         altazcoord = p.map(_getaltaz, radec)
 
         p = Pool(processes=ncpu)
-        gettec_args = [(a, obs.stationpositions, A12, times) for a in altazcoord]
+        gettec_args = [(a, obs.stationpositions, A12, times, *tid_prop) for a in altazcoord]
         alltec = p.map(_gettec, gettec_args)
-        alltec = np.array(alltec)
+        alltec = np.array(alltec) 
 
         # Fill the axis arrays
         times *= 3600.0 * 24.0

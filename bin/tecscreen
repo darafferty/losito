@@ -14,66 +14,68 @@ from losito.obs import Observation
 from losito.lib_operations import make_template_image
 
 
-def create_images(ntimes, polygrade, pixels, seed, coeffs, pos, max_dtec):
-    """
-    Creates simulated time-dependant dTEC screens
+def create_images(ntimes, coeffs, seed, pixels=100, max_dtec=1., freq=1.):
+    '''    
 
     Parameters
     ----------
-    TODO
+    ntimes : int
+        Number of time stamps
+    seed : int
+        Random seed.
+    coeffs : (n,n)-array
+        Coefficient matrix for 2d polynomial. n: polynomial grade
+    pixels : int, optional
+        Number of pixels per for x / y
+    max_dtec : float, optional
+        Maximum amplitude of dTec
+    freq : float, optional    
 
     Returns
     -------
-    TODO
-    """
+    data : (ntimes, pixels, pixels)-array
+        Output array containing dTec values per time and pixel
+    '''
     # Create Values for coefficients of polynomials
     np.random.seed(int(seed))
-    value = coeffs + math.pi * 2 * (np.random.rand(polygrade, polygrade))
+    value = coeffs + 2 * math.pi * np.random.rand(*np.shape(coeffs))
 
     # Scale coefficients to values between -1 and 1
     ai = np.sin(value)
-
+    
     # generate 2 2d grids for the x & y bounds
-    scrvar = 1.0
-    y, x = np.meshgrid(np.linspace(-scrvar, scrvar, pixels), np.linspace(-scrvar, scrvar, pixels))
+    pxspace = np.linspace(-1.0, 1.0, pixels)
+    y, x = np.meshgrid(pxspace, pxspace)
+    # generate moving origin of polynomial so there is no constant spot
+    # on the tec screen
+    y0, x0 = 2*np.random.rand(2) - 1
 
     # Output of this function is saved in outputlist
     data = np.zeros((ntimes, pixels, pixels))
     for i in range(ntimes):
         # Calculate polynomial
-        z = np.polynomial.polynomial.polyval2d(x, y, ai)
-
-        # Centre polynomial to given coordinates; Rescale to realistic dTec values
-        z = z-np.polynomial.polynomial.polyval2d(0, 0, ai)
+        z = np.polynomial.polynomial.polyval2d(x-x0, y-y0, ai)
+        # Rescale to realistic dTec values
         if abs(z.min()) > abs(z.max()):
             z = np.interp(z, (z.min(), -z.min()), (-max_dtec, max_dtec))
         else:
             z = np.interp(z, (-z.max(), z.max()), (-max_dtec, max_dtec))
 
         # Adding values for the next step
-        value += ((np.random.rand(polygrade, polygrade))-1) * 0.05
+        value += ((np.random.rand(*np.shape(value)))-1) * 0.025 * freq
         ai = np.sin(value)
+        # slightly move polynom origin:
+        y0, x0 = [y0, x0] + (2 * np.random.rand(2) - 1) / 50 
 
         data[i, :, :] = z
 
     return data
 
 
-def check_positive(uvalue):
-    """
-    Checks if values of arguments are positive
-
-    Parameters
-    ----------
-    TODO
-
-    Returns
-    -------
-    TODO
-    """
-    ivalue = int(uvalue)
+def check_positive(value):
+    ivalue = int(value)
     if ivalue <= 0:
-        raise argparse.ArgumentTypeError("%s is an invalid positive int value" % uvalue)
+        raise argparse.ArgumentTypeError("%s is an invalid negative int value" % value)
     return ivalue
 
 
@@ -123,9 +125,12 @@ if __name__ == '__main__':
     parser.add_argument("--npixels", help="number of screen pixels", type=check_positive, default=100)
     parser.add_argument("--size", help="width of screen in degrees", type=float, default=None)
     parser.add_argument("--vid", help="toggle video output", type=bool, default=False)
+    parser.add_argument("--vidname", help="video output filename", type=bool, default=False)
     parser.add_argument("--fits", help="toggle fits output", type=bool, default=True)
     parser.add_argument("--seed", help="define random seed", type=int, default=None)
     parser.add_argument("--maxdtec", help="maximum dTEC value in screen", type=float, default=1.0)
+    parser.add_argument("--freq", help="factor controlling frequency", type=float, default=1.0)
+
     args = parser.parse_args()
 
     if args.seed is None:
@@ -134,15 +139,17 @@ if __name__ == '__main__':
 
     # Make obs object and get station positions (in m), times, and freqs
     obs = Observation(args.msfile)
-    stationpositions = obs.stationpositions
+    sp = obs.stationpositions
     times = obs.get_times()
-    print(times)
     freqs = obs.get_frequencies()
-
+    
+    
+    #TODO:  Project station positions on Plane fitted to 3d point cloud
+    #right now, everything is only projected to x-y plane ?
+    #A = np.concatenate((sp[:,0:2], np.ones(len(sp))[:, None]), axis = 1)
+    
     # Map station locations to x-y grid defined in 1-km cells
-    min_xpos = min([sp[0] for sp in stationpositions])
-    min_ypos = min([sp[1] for sp in stationpositions])
-    antpos = [((sp[0]-min_xpos)/1000.0, (sp[1]-min_ypos)/1000.0) for sp in stationpositions]
+    antpos = ((sp - np.min(sp, axis = 0)) / 1000)[:,0:2]
 
     # Before creating the TEC-screens the coefficients for the polynomials are defined,
     # based on antenna positions (Nearby antennas = similar coefficients)
@@ -164,8 +171,9 @@ if __name__ == '__main__':
     for i in range(obs.numstations):
         c = coeffs[i, :]
         c = np.reshape(c, (args.polygrade, args.polygrade))
-        data[:, 0, i, :, :] = create_images(obs.numsamples, args.polygrade, args.npixels,
-                                            args.seed, c, i, args.maxdtec)
+        data[:, 0, i, :, :] = create_images(obs.numsamples, c, args.seed, 
+                                            args.npixels, args.maxdtec, 
+                                            args.freq)
         if i > 0:
             data[:, :, i, :, :] -= data[:, :, 0, :, :]
     data[:, :, 0, :, :] = 0.0

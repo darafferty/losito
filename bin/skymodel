@@ -45,6 +45,8 @@ def add_cross(phs_c, ref_freq, angle = 0.5):
     ----------
     phs_c : SkyCoord object
         Phase center of observation.
+    ref_freq : float
+        Reference frequency of the measurement.
     angle : float, optional
         Distance (degree) between the central and the four outer 
         sources.
@@ -80,7 +82,9 @@ def add_spiral(phs_c, ref_freq, max_angle = 0.5, npoints = 10):
     Parameters
     ----------
     phs_c : SkyCoord object
-        Phase center of observation.
+        Phase center of observation.#
+    ref_freq : float
+            Reference frequency of the measurement.
     angle : float, optional
         Ra & dec distance in degree between the central and the 
         outermost source. 
@@ -120,15 +124,78 @@ def add_spiral(phs_c, ref_freq, max_angle = 0.5, npoints = 10):
         x, y, z = np.dot(mat_R, p)
         dec[i] = np.arcsin(z)
         ra[i] = np.arccos(x/np.cos(dec[i]))# case cos = 0 
-
       
     # sources to SkyCoord, get string return
-    sources = apy.SkyCoord(ra, dec, unit = 'rad')
+    sources = apy.SkyCoord(ra, dec, unit = 'rad')    
     add_opt = add_source(sources[0], ref_freq, 's0')
     for i, src in enumerate(sources[1:]):
         add_opt += add_source(src, ref_freq, 's'+str(i+1))
         
     return add_opt
+
+def add_tree(phs_c, ref_freq, scale = 1.):
+        '''Add a chrsitmas tree to the sky model.
+        Parameters
+        ----------
+        phs_c : SkyCoord object
+            Phase center of observation.
+        ref_freq : float, optional
+            Reference frequency of the measurement.
+        scale: angular scale of the tree    
+        Returns
+        -------
+        add_opt : str
+        Output string to be added to sky model.'''
+        a = float(1/3.6056)
+        def steps(start, stop, dens = 1000):
+            return np.linspace(start, stop, int(np.linalg.norm(stop-start)*dens))[0:-1]
+        # Parametrize half of the tree and mirror it.
+        path = np.array([[[0,  2*a], [-a/3,  a]],
+                        [[-a/3,1*a], [-a/6,  a]],
+                        [[-a/6,1*a], [-2*a/3,0]],
+                        [[-2*a/3,0], [-a/2,  0]],
+                        [[-a/2,  0], [-a   ,-a]],
+                        [[-a,   -a], [0   , -a]],
+                        [[-a/8, -a],[-a/8,-a*4/3]],
+                        [[-a/8,-4*a/3],[0,-a*4/3]]])
+        path *= np.tan(np.deg2rad(scale))
+
+        path = np.concatenate([steps(step[0], step[1]) for step in path])
+        path_r = path.copy()
+        path_r[:,0] = - path_r[:,0]
+        path = np.concatenate([path, path_r])
+
+        # Add z-values = 1
+        path = np.pad(path, (0,1))[:-1]
+        path[:,2] = np.ones(len(path))
+        
+        # find rot. mat. that aligns [0,0,1] with phase center
+        r = np.array([np.cos(phs_c.ra.rad)*np.cos(phs_c.dec.rad), 
+                      np.sin(phs_c.ra.rad)*np.cos(phs_c.dec.rad), 
+                      np.sin(phs_c.dec.rad)])
+        e_z = np.array([0, 0, 1])
+        v = np.cross(e_z, r)
+        mat_V = np.array([[ 0,   -v[2], v[1]],
+                          [ v[2], 0,   -v[0]],
+                          [-v[1], v[0], 0  ]])
+        mat_R =  np.identity(3) + mat_V
+        mat_R += np.linalg.matrix_power(mat_V, 2) / (1+np.sqrt(1-(v**2).sum(-1)))
+
+        # rotate the points and get ra, dec from cartesian
+        ra, dec = np.zeros((2, len(path)))
+        for i, p in enumerate(path):
+            x, y, z = np.dot(mat_R, p)
+            dec[i] = np.arcsin(z)
+            ra[i] = np.arccos(x/np.cos(dec[i])) # care case cos = 0 
+          
+        # sources to SkyCoord, get string return
+        sources = apy.SkyCoord(ra, dec, unit = 'rad')    
+        add_opt = add_source(sources[0], ref_freq, 's0')
+        for i, src in enumerate(sources[1:]):
+            add_opt += add_source(src, ref_freq, 's'+str(i+1))
+            
+        return add_opt
+                            
    
 if __name__ == '__main__':
 	# Options
@@ -136,6 +203,7 @@ if __name__ == '__main__':
     parser.add_argument('msfile', help='Input MS filename.', default= 'test.MS', type=str)
     parser.add_argument('--output', help='Ouput .sky filename.', default= 'mock.sky', type=str)
     parser.add_argument('--kind', help='Kind of sky model.', default= 'cross', type=str)
+
     args = parser.parse_args()
     msfile = args.msfile   
     tab = pt.table(msfile)
@@ -152,6 +220,8 @@ if __name__ == '__main__':
         opt += add_cross(phs_c, ref_freq)
     elif args.kind == 'spiral':
         opt += add_spiral(phs_c, ref_freq, max_angle = 2.0)
+    elif args.kind == 'tree':
+        opt += add_tree(phs_c, ref_freq, scale = 2.0)
     else:
         logging.error(args.kind + ' is not a valid sky model kind.')
         sys.exit('Stop.')
