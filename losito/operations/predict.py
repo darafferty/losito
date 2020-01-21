@@ -5,7 +5,10 @@ Predict operation for losito: runs DPPP to predict a sky model with corruptions
 """
 import logging
 import subprocess
+import casacore.tables as pt
+import numpy as np
 from losito.lib_operations import *
+
 import multiprocessing
 
 logging.debug('Loading PREDICT module.')
@@ -14,13 +17,16 @@ logging.debug('Loading PREDICT module.')
 def _run_parser(obs, parser, step):
     outputColumn = parser.getstr( step, 'outputColumn', 'DATA')
     predictType = parser.getstr( step, 'predictType', 'h5parmpredict')    
+    resetWeights = parser.getbool( step, 'resetWeights', True) 
     ncpu = parser.getint( '_global', 'ncpu', 0)
-    parser.checkSpelling( step, ['outputColumn', 'predictType'])
+    parser.checkSpelling( step, ['outputColumn', 'resetWeights', 
+                                 'predictType'])
     
     return run(obs, outputColumn, predictType, ncpu)
 
 
-def run(obs, outputColumn='DATA', predictType='h5parmpredict', ncpu=0):
+def run(obs, outputColumn='DATA', predictType='h5parmpredict', 
+        resetWeights = True, ncpu=0):
     """
     Runs DPPP to predict a sky model. Prediction type h5parmpredict will
     apply corruptions stored in a .h5parmdb (default).
@@ -35,9 +41,19 @@ def run(obs, outputColumn='DATA', predictType='h5parmpredict', ncpu=0):
         Name of output column
     predictType : str, optional
         Type of DPPP predict command
+    resetWeights : bool, optional
+        Whether to reset the entries in WEIGHT_SPECTRUM column
     ncpu : int, optional
         Number of cpu to use, by default all available.
     """
+    # reset weights if specified (default)
+    if resetWeights:
+        logging.info('Reset entries in WEIGHT_SPECTRUM...')
+        tab = pt.table(obs.ms_filename, readonly = False)
+        ones = np.ones_like(tab.getcol('WEIGHT_SPECTRUM'))
+        tab.putcol('WEIGHT_SPECTRUM', ones)
+        tab.close()
+        
     # Make sourcedb from sky model
     obs.make_sourcedb()
 

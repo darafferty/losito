@@ -19,7 +19,9 @@ def _run_parser(obs, parser, step):
 
 def run(obs, column='DATA'):
     """
-    Adds Gaussian noise to a data column.
+    Adds Gaussian noise to a data column. Scale of the noise, frequency-
+    and station-dependency are calculated according to 'Synthesis Imaging 
+    in Radio Astronomy II' (1999) by Taylor et al., page 175.    
 
     Parameters
     ----------
@@ -80,12 +82,12 @@ def run(obs, column='DATA'):
                          -2.27947113e-18, 6.44567520e-27, -7.14899170e-36]   
             # The SEFD for 1 BL is the sqrt of the products of the 
             # SEFD per station
-            SEFD_cs = np.polynomial.polynomial.polyval(freq, coeffs_cs)**0.5
-            SEFD_rs = np.polynomial.polynomial.polyval(freq, coeffs_rs)**0.5
+            SEFD_cs = np.polynomial.polynomial.polyval(freq, coeffs_cs)
+            SEFD_rs = np.polynomial.polynomial.polyval(freq, coeffs_rs)
             SEFD_s1 = np.where(station1 <= lim, SEFD_cs, SEFD_rs)
             SEFD_s2 = np.where(station2 <= lim, SEFD_cs, SEFD_rs)
             
-            return SEFD_s1*SEFD_s2
+            return np.sqrt(SEFD_s1*SEFD_s2)
         
     chan_width = tab.SPECTRAL_WINDOW.getcol('CHAN_WIDTH') 
     freq = tab.SPECTRAL_WINDOW.getcol('CHAN_FREQ')
@@ -99,9 +101,8 @@ def run(obs, column='DATA'):
     noise = noise + 1.j*np.moveaxis(np.random.normal(loc=0, scale=std, 
                                                      size=[4,*np.shape(std)]), 
                                     0, 2)
-    #TODO
-    pt.taql('UPDATE $tab SET CORRUPTED_DATA=$noise WHERE not FLAG_ROW')
-    #tab.putcol(column, tab.getcol(column) + noise)
+    prediction = tab.getcol(column) 
+    tab.putcol(column, prediction + noise)
     tab.close()
 
     return 0
