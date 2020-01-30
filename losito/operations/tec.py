@@ -5,15 +5,15 @@ TEC operation for losito: generates dTEC corruptions
 """
 import logging
 from losito.lib_operations import *
-from astropy.io import fits as pyfits
-from astropy import wcs
+
 from losoto.h5parm import h5parm
 import numpy as np
 from astropy import units as u
-import astropy.coordinates as coord
+from astropy import wcs
+from astropy.io import fits as pyfits
 from astropy.time import Time
-from astropy.coordinates import EarthLocation
-from astropy.coordinates import AltAz
+import astropy.coordinates as coord
+from astropy.coordinates import EarthLocation, AltAz
 import multiprocessing
 from multiprocessing import Pool
 import RMextract.PosTools as post
@@ -41,6 +41,7 @@ def _getaltaz(radec):
     ra = radec[0]
     dec = radec[1]
     aa = radec[2]
+    # TODO: RA should be in u.deg instead of u.hourangle ?
     mycoord = coord.SkyCoord(ra, dec, frame=coord.FK5, unit=(u.hourangle, u.deg))
     mycoord_aa = mycoord.transform_to(aa)
     return mycoord_aa
@@ -49,6 +50,9 @@ def _getaltaz(radec):
 def _gettec(altaz_args):
     alltec = []
     altaz, stationpositions, A12, times, tidAmp, tidLen, tidVel = altaz_args
+    # TODO: Why are the directions transformed to ecliptic reference frame?
+    # In RMextract/PosTool.py it specifies ITRF as input frame.
+    # Does this make a difference?
     direction = altaz.geocentrictrueecliptic.cartesian.xyz.value
     for ant in stationpositions:
         pp, am = post.getPPsimple([200.e3]*direction[0].shape[0], ant, direction)
@@ -142,9 +146,12 @@ def run(obs, method, h5parmFilename, fitsFilename=None, tidAmp=0.2,
             os.remove(h5parmFilename)
         ho = h5parm(h5parmFilename, readonly=False)
         solset = ho.makeSolset(solsetName='sol000')
-        st = solset.makeSoltab('tec', 'tec000', axesNames=['time', 'ant', 'dir', 'freq'],
-                               axesVals=[times, ants, source_names, freqs], vals=vals,
-                               weights=weights)
+        st = solset.makeSoltab('tec', 'tec000', axesNames=['time', 'ant', 'dir'],
+                               axesVals=[times, ants, source_names], vals=vals[:,:,:,0],
+                               weights=weights[:,:,:,0])
+        #st = solset.makeSoltab('tec', 'tec000', axesNames=['time', 'ant', 'dir', 'freq'],
+        #                       axesVals=[times, ants, source_names, freqs], vals=vals,
+        #                       weights=weights)
         antennaTable = solset.obj._f_get_child('antenna')
         antennaTable.append(list(zip(*(obs.stations, obs.stationpositions))))
         sourceTable = solset.obj._f_get_child('source')
@@ -184,17 +191,23 @@ def run(obs, method, h5parmFilename, fitsFilename=None, tidAmp=0.2,
         freqs = [obs.referencefreq]
         ants = obs.stations
         vals = np.zeros((len(times), len(ants), len(source_names), 1))
-        weights = np.ones(vals.shape)
-        vals[:, :, :, 0] = alltec[:, :, 0, :].transpose([2, 1, 0])
+        #weights = np.ones(vals.shape)
+        
+        #vals[:, :, :, 0] = alltec[:, :, 0, :].transpose([2, 1, 0])
+        vals = alltec[:, :, 0, :].transpose([2, 1, 0])[:,:,:,0]
+        weights = np.ones_like(vals)
 
         # Make h5parm with solutions and write to disk
         if os.path.exists(h5parmFilename):
             os.remove(h5parmFilename)
         ho = h5parm(h5parmFilename, readonly=False)
         solset = ho.makeSolset(solsetName='sol000')
-        st = solset.makeSoltab('tec', 'tec000', axesNames=['time', 'ant', 'dir', 'freq'],
-                               axesVals=[times, ants, source_names, freqs], vals=vals,
+        st = solset.makeSoltab('tec', 'tec000', axesNames=['time', 'ant', 'dir'],
+                               axesVals=[times, ants, source_names], vals=vals,
                                weights=weights)
+        #st = solset.makeSoltab('tec', 'tec000', axesNames=['time', 'ant', 'dir', 'freq'],
+        #               axesVals=[times, ants, source_names, freqs], vals=vals,
+        #               weights=weights)
         antennaTable = solset.obj._f_get_child('antenna')
         antennaTable.append(list(zip(*(obs.stations, obs.stationpositions))))
         sourceTable = solset.obj._f_get_child('source')

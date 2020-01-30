@@ -12,9 +12,11 @@ import argparse
 from astropy.io import fits as pyfits
 from losito.obs import Observation
 from losito.lib_operations import make_template_image
+from losito.MegaScreen import MegaScreen
 
 
-def create_images(ntimes, coeffs, seed, pixels=100, max_dtec=1., freq=1.):
+
+def create_images(ntimes, seed = 1, pixels=100, max_dtec=1., freq=1.):
     '''    
 
     Parameters
@@ -37,20 +39,6 @@ def create_images(ntimes, coeffs, seed, pixels=100, max_dtec=1., freq=1.):
         Output array containing dTec values per time and pixel
     '''
     # Create Values for coefficients of polynomials
-    np.random.seed(int(seed))
-    value = coeffs + 2 * math.pi * np.random.rand(*np.shape(coeffs))
-
-    # Scale coefficients to values between -1 and 1
-    ai = np.sin(value)
-    
-    # generate 2 2d grids for the x & y bounds
-    pxspace = np.linspace(-1.0, 1.0, pixels)
-    y, x = np.meshgrid(pxspace, pxspace)
-    # generate moving origin of polynomial so there is no constant spot
-    # on the tec screen
-    y0, x0 = 2*np.random.rand(2) - 1
-
-    # Output of this function is saved in outputlist
     data = np.zeros((ntimes, pixels, pixels))
     for i in range(ntimes):
         # Calculate polynomial
@@ -72,48 +60,6 @@ def create_images(ntimes, coeffs, seed, pixels=100, max_dtec=1., freq=1.):
     return data
 
 
-def check_positive(value):
-    ivalue = int(value)
-    if ivalue <= 0:
-        raise argparse.ArgumentTypeError("%s is an invalid negative int value" % value)
-    return ivalue
-
-
-def coeff_map(antpos, seed, polygrade):
-    """
-    Calculates coefficients
-
-    Every Coefficient has its own gradient map of Ax+By to create spatial coherency.
-    Coefficients have random values between -1 and 1.
-
-    Parameters
-    ----------
-    TODO
-
-    Returns
-    -------
-    TODO
-    """
-    A, B = np.empty(polygrade**2), np.empty(polygrade**2)
-
-    for coeff in range(polygrade**2):
-        seed = int(seed*1.01)
-        np.random.seed(seed)
-        A[coeff] = np.random.rand()*2 - 1
-
-        seed = int(seed+1)
-        np.random.seed(seed)
-        B[coeff] = np.random.rand()*2 - 1
-
-    Coeffs = np.empty(((len(antpos)), polygrade**2))
-
-    for i in range(len(antpos)):
-        Coeffs[i, :] = A * float(antpos[i][0]) + B * float(antpos[i][1])
-
-    if Coeffs.any():
-        Coeffs = Coeffs / Coeffs.max()
-
-    return Coeffs
 
 
 if __name__ == '__main__':
@@ -121,14 +67,14 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('msfile', help='Input MS filename.', type=str, default=None)
     parser.add_argument("fitsfile", help="Output FITS fileneam", type=str, default=None)
-
-    parser.add_argument("--polygrade", help="define grade of polynomial", type=check_positive, default=3)
-    parser.add_argument("--npixels", help="number of screen pixels", type=check_positive, default=100)
+    parser.add_argument("--npixels", help="number of screen pixels", default=100)
     parser.add_argument("--size", help="width of screen in degrees", type=float, default=None)
+    parser.add_argument("--vid", help="toggle video output", type=bool, default=False)
+    parser.add_argument("--vidname", help="video output filename", type=bool, default=False)
+    parser.add_argument("--fits", help="toggle fits output", type=bool, default=True)
     parser.add_argument("--seed", help="define random seed", type=int, default=None)
     parser.add_argument("--maxdtec", help="maximum dTEC value in screen", type=float, default=1.0)
     parser.add_argument("--freq", help="factor controlling frequency", type=float, default=1.0)
-
     args = parser.parse_args()
 
     if args.seed is None:
@@ -151,7 +97,6 @@ if __name__ == '__main__':
 
     # Before creating the TEC-screens the coefficients for the polynomials are defined,
     # based on antenna positions (Nearby antennas = similar coefficients)
-    coeffs = coeff_map(antpos, args.seed, args.polygrade)
 
     # Make blank output FITS file
     if args.size is None:
@@ -167,8 +112,7 @@ if __name__ == '__main__':
 
     # Calculate TEC screens, referencing them to the first station
     for i in range(obs.numstations):
-        c = coeffs[i, :]
-        c = np.reshape(c, (args.polygrade, args.polygrade))
+
         data[:, 0, i, :, :] = create_images(obs.numsamples, c, args.seed, 
                                             args.npixels, args.maxdtec, 
                                             args.freq)
