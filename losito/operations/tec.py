@@ -107,7 +107,8 @@ def run(obs, method, h5parmFilename, maxdtec = 0.5, maxvtec = 50., seed = None,
     if method == 'turbulence':               
         directions = np.array([ras, decs]).T
         tecvals = get_tecscreen(sp, directions, times, screensize = 400, 
-                    h_ion = 200.e3, maxvtec = 50., maxdtec = 1.,  ncpu = ncpu)           
+                    h_ion = 200.e3, maxvtec = 50., maxdtec = 1.,  
+                    expfolder = 'export', ncpu = ncpu)           
 
     elif method == 'fits':
         ''' TODO/Warning: Currently, this method is not optimized. 
