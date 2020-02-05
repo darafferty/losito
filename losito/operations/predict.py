@@ -9,8 +9,6 @@ import casacore.tables as pt
 import numpy as np
 from losito.lib_operations import *
 
-import multiprocessing
-
 logging.debug('Loading PREDICT module.')
 
 
@@ -22,7 +20,7 @@ def _run_parser(obs, parser, step):
     parser.checkSpelling( step, ['outputColumn', 'resetWeights', 
                                  'predictType'])
     
-    return run(obs, outputColumn, predictType, ncpu)
+    return run(obs, outputColumn, predictType, resetWeights, ncpu)
 
 
 def run(obs, outputColumn='DATA', predictType='h5parmpredict', 

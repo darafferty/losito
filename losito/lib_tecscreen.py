@@ -1,9 +1,109 @@
+import functools
+import multiprocessing as mp
 import numpy as np
 from numpy import sqrt, fft, random, pi
-import functools
 import scipy.interpolate
+import astropy.units as u
+from astropy.time import Time
+from astropy.coordinates import EarthLocation, SkyCoord, ITRS
+import astropy.coordinates as coord
 
+R_earth = 6364.62e3
 
+def get_PP_PD_per_source(args):
+    ''' 
+    Get the Pierce Points and the Pierce Directions for a single direction,
+    <m> stations as well as <n> timestamps. The idea is that this function
+    is used within a pool.map parallelization taking the individual directions
+    as arguments.
+    
+    Parameters
+    ----------
+    args: list,
+        containing (sp, radec, time) obeying these definitions:
+        -sp : (m, 3) ndarray
+              Station positions in meters ITRS XYZ
+        -radec : (2,) ndarray
+              Source direction RA and DEC in degree
+        -time : (n,) ndarray
+              Array containing timestamps in mjd seconds.
+            
+    Returns
+    -------
+    PP : (n, m, 3) ndarray
+        Pierce points in geocentric ITRS. Unit: meter
+        The (n, m, 3) shape corresponds to (timestamp, station, xyz).
+    PD : (n, 3) ndarray
+        Pierce direction unit verctors in geocenric ITRS.
+        The directions are oriented such that the point from the source
+        towards earth.
+        The (n, 3) shape corresponds to (timestamp, xyz). Since the coord sys
+        is geocentric and not horizontal, the source directions are the same
+        for every station.
+    '''
+    sp, radec, times, h_ion = args 
+    sp = EarthLocation.from_geocentric(x = sp[:,0], y= sp[:,1], z = sp[:,2], unit = 'meter')
+    times = Time(times/(3600*24), format = 'mjd') # convert to mjd object
+    itrs = ITRS(obstime=times)
+    direction = SkyCoord(radec[0], radec[1], frame=coord.FK5, unit=(u.deg, u.deg))
+    direction = direction.transform_to(itrs)
+    # TODO: The ITRS values seem to vary randomly each calculation?
+    d = np.array([direction.x, direction.y, direction.z]).T # source direction unit vector in itrs
+    S = np.array([sp.x.value, sp.y.value, sp.z.value]) # station position in itrs, [m]
+
+    alpha = -(d @ S) + np.sqrt((d @ S)**2 + (R_earth + h_ion)**2 - (S**2).sum(0))
+    PP = S.T[np.newaxis,:,:] + alpha[:,:,np.newaxis] * d[:,np.newaxis,:]
+    #PD: -d Minus: ray/ pierce direction going towards earth.
+    PD = -d
+    return PP, PD 
+
+def get_PP_PD(sp, directions, times, h_ion = 200.e3, ncpu = None):
+    ''' 
+    This is a wrapper function to parallelize get_PP_PD_per_source()
+    and unpack the return.
+    Get the Pierce Points and the Pierce Directions for <l> directions,
+    <m> stations and <n> timestamps. 
+    
+    Parameters
+    ----------
+    sp : (m, 3) ndarray
+        Station positions in meters ITRS XYZ
+    directions : (l,2) ndarray
+        Source directions RA and DEC in degree
+    times : (n,) ndarray
+        Array containing timestamps in mjd seconds.
+    h_ion : float, optional. Ionosphere height in m, default: 200km
+    ncpu : int, optional. 
+            
+    Returns
+    -------
+    PP : (n,m,l,3) ndarray
+        Pierce points in geocentric ITRS. Unit: meter
+        The (n,m,l3) shape corresponds to (timestamp, station, direction, xyz).
+    PD : (n,l,3) ndarray
+        Pierce direction unit verctors in geocentric ITRS.
+        The directions are oriented such that the point from the source
+        towards earth.
+        The (n,l,3) shape corresponds to (timestamp, direction, xyz).
+        Since the coord sys is geocentric and not horizontal, the source 
+        directions are the same for every station.
+    '''
+    if ncpu == 0:
+        ncpu = mp.cpu_count()
+    pool = mp.Pool(processes = ncpu)
+    map_args = [(sp, d, times, h_ion) for d in directions]
+    PP_PD = pool.map(get_PP_PD_per_source, map_args)
+    pool.close() # w/o close+join: OSError: [Errno 12] Cannot allocate memory
+    pool.join()
+    # PP shaped as (timestamp, station, sources, xyz)
+    PP = np.array([u for (u,v) in PP_PD]).swapaxes(0,1).swapaxes(1,2)
+    # PD shaped as (timestamp, source, xyz)
+    PD = np.array([v for (u,v) in PP_PD]).swapaxes(0,1)
+    return PP, PD
+
+def unit_vec(v):
+    'Return unit vector of v w.r.t. last axis'
+    return v/np.linalg.norm(v, axis = -1, keepdims = True)
 
 
 
