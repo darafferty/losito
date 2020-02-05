@@ -10,11 +10,9 @@ from astropy.coordinates import EarthLocation
 # lofar specific imports
 import EMM.EMM as EMM
 from losoto.h5parm import h5parm
-from losito.lib_tecscreen import get_PP_PD, unit_vec
+from losito.lib_tecscreen import get_PP_PD
 
 log.debug('Loading FARADAY module.')
-
-R_earth = 6364.62e3
 
 def _run_parser(obs, parser, step):
     h5parmFilename = parser.getstr(step, 'h5parmFilename')
@@ -95,7 +93,7 @@ def run(obs, h5parmFilename, h_ion = 200.e3, stepname='rm', ncpu=0):
     sp = np.array(list(solset.getAnt().values()))  
     directions = np.array(list(solset.getSou().values()))
     times = soltab.getAxisValues('time')
-    vTEC = soltab.getValues()[0] # TODO: is this actually vTEC?
+    sTEC = soltab.getValues()[0]
     if ncpu == 0:
         ncpu = mp.cpu_count()
     log.info('''Calculating ionosphere pierce points for {} directions, {} 
@@ -124,7 +122,7 @@ def run(obs, h5parmFilename, h_ion = 200.e3, stepname='rm', ncpu=0):
     B_parallel = (PD[:,np.newaxis,:,:]*B_vec).sum(-1)     
     
     RM = constants * TECU * B_parallel * sTEC # rad*m**-2
-    st = solset.makeSoltab('rotationmeasure', 'rotatim000', axesNames=
+    st = solset.makeSoltab('rotationmeasure', 'rotationmeasure000', axesNames=
                            ['time', 'ant', 'dir'],
                            axesVals=[times, soltab.getAxisValues('ant'), 
                                              soltab.getAxisValues('dir')], 

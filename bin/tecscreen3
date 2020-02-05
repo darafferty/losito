@@ -18,7 +18,7 @@ from astropy.coordinates import EarthLocation, SkyCoord, ITRS, FK5
 from losito.obs import Observation
 from losito.operations.faraday import get_PP_PD
 from losito.lib_operations import make_template_image
-from losito.MegaScreen import MegaScreen
+from losito.lib_tecscreen import MegaScreen, unit_vec, get_PP_PD
 
 R_earth = 6364.62e3
 h_ion = 200.0e3
@@ -298,14 +298,17 @@ def get_tecscreen(sp, direction, times, size, h_ion = 200.e3, maxvtec = 50.,
         np.save(savefile, tecsc)
         logging.info('Save TEC screen to file: ' + savefile)
         
-    data = np.zeros((len(times), len(sp), len(directions)))
+    cos_pierce = (unit_vec(PP)*unit_vec(PD)[:,np.newaxis,:,:]).sum(-1)
+    TEC = np.zeros((len(times), len(sp), len(directions)))
     PP*PD[:,np.newaxis]
     for (i, sc) in enumerate(tecsc): # iterate times
-        f = RectBivariateSpline(grid_lon, grid_lat, sc)
-        a = f.ev(PP_llr[i,:,:,0], PP_llr[i,:,:,1])
-        data[i] = a
-    print(data)
-    return data
+        sc_interp = RectBivariateSpline(grid_lon, grid_lat, sc)
+        vTEC_ti = sc_interp.ev(PP_llr[i,:,:,0], PP_llr[i,:,:,1])
+        TEC[i] = vTEC_ti
+     # slant TEC from pierce angle: (e_r*e_d)**-1 = cos(pierce_angle)**-1
+
+    TEC /= cos_pierce    
+    return TEC
         
     
 

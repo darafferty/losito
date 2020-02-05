@@ -21,7 +21,7 @@ if __name__ == '__main__':
     parser.add_argument('--verbose', '-V', '-v', dest='verbose', help='Verbose', default=False, action='store_true')
     parser.add_argument('msfile', help='Input MS filename.', default=None, type=str)
     parser.add_argument('skymodel', help='Input sky model filename.', default=None, type=str)
-    parser.add_argument('parset', help='Simobs parset.', nargs='?', default='losito.parset', type=str)
+    parser.add_argument('parset', help='LoSiTo parset.', nargs='?', default='losito.parset', type=str)
     args = parser.parse_args()
 
     if args.quiet:

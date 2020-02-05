@@ -1,14 +1,48 @@
-import functools
-import multiprocessing as mp
+# -*- coding: utf-8 -*-
+"""
+Created on Fri Jan 31 10:14:35 2020
+
+@author: Henrik Edler <henrik.edler@hs.uni-hamburg.de>
+"""
+import logging, functools, os
 import numpy as np
+import multiprocessing as mp
 from numpy import sqrt, fft, random, pi
-import scipy.interpolate
+from scipy.interpolate import RectBivariateSpline
 import astropy.units as u
+import astropy.coordinates as coord
 from astropy.time import Time
 from astropy.coordinates import EarthLocation, SkyCoord, ITRS
-import astropy.coordinates as coord
 
 R_earth = 6364.62e3
+
+def unit_vec(v):
+    'Return unit vector of v w.r.t. last axis'
+    return v/np.linalg.norm(v, axis = -1, keepdims = True)
+
+def geocentric_to_geodetic(points):
+    ''' Geocentric XYZ to longitude and latitude conversion.
+    The input points can have arbitrary shape, the only restriction is that
+    the last axis has length of 3 and corresponds to X/Y/Z.
+    Parameters
+    ----------
+    points : (...,3) ndarray
+        Input points
+    Returns
+    -------
+    LonLatR: (...,3) ndarray           
+            lon : (...,) ndarray
+                Corresponding longitude in rad 
+            lon : (...,) ndarray
+                Corresponding latitude in rad
+            R : (...,) ndarray
+                Corresponding radius.
+    '''
+    R = np.linalg.norm(points, axis = -1)
+    lon = np.arctan2(points[...,1], points[...,0])
+    lat = np.arcsin(points[...,2]/R)
+    return np.moveaxis(np.array([lon, lat, R]), 0, -1)
+    
 
 def get_PP_PD_per_source(args):
     ''' 
@@ -100,19 +134,139 @@ def get_PP_PD(sp, directions, times, h_ion = 200.e3, ncpu = None):
     # PD shaped as (timestamp, source, xyz)
     PD = np.array([v for (u,v) in PP_PD]).swapaxes(0,1)
     return PP, PD
+    
+def daytime_from_mjds(t):
+    ''' Turn an array of modified julian day seconds into an array
+    containing the day hour, including decimal fraciton.
+    Parameters
+    ----------
+    t : (n,) ndarray. MJDseconds timestamps.
+    Returns
+    -------
+    hours : (n,) ndarray. Daytime hours.
+    '''
+    jd = Time(t/(3600.*24.), format = 'mjd')
+    hours = np.array([step.hour for step in jd.to_datetime()])
+    fracs = np.array([step.minute/60. for step in jd.to_datetime()])
+    return hours + fracs
 
-def unit_vec(v):
-    'Return unit vector of v w.r.t. last axis'
-    return v/np.linalg.norm(v, axis = -1, keepdims = True)
+def daytime_tec_modulation(t):
+    ''' Get the tec modulation values corresponding to the daytime derived
+    from mjds timestamps. Peaking at 15h, with a tecmax/tecmin ration of 10.
+    Parameters
+    ----------
+    t : (n,) ndarray. MJDseconds timestamps
+    Returns
+    -------
+    modulation : (n,) ndarray. TEC modulation, between 0.05 and 1.
+    '''
+    # TODO: longitude dependency of modulation. 
+    hours = daytime_from_mjds(t)
+    modulation = 0.45 * np.sin((hours - 9)*np.pi/12.) + 0.55
+    return modulation 
+    
 
+def screen_grid(edges, gridsize, R_earth = 6364.62e3, h_ion = 200.0e3):
+    '''
+    
+    Parameters
+    ----------
+    edges : (4,) ndarray
+        Pierce point edges in minlon, maxlon, minlat, maxlat. (Radians)
+    gridsize : int
+        Resolution of the greater grid axis.
+    R_earth : TYPE, optional
+        DESCRIPTION. The default is 6364.62e3.
+    h_ion : TYPE, optional
+        DESCRIPTION. The default is 200.0e3.
 
+    Returns
+    -------
+    None.
 
+    '''
+    min_lon, max_lon, min_lat, max_lat,  = edges
+    lat_wdth, lat_center = max_lat - min_lat, np.mean([max_lat, min_lat])    
+    # To get similar length scale res, cosine factor
+    lon_wdth = (max_lon - min_lon) 
+    res_rad = np.max([lat_wdth, lon_wdth * np.cos(lat_center)]) / gridsize
+    res_lon = res_rad / np.cos(lat_center)
+    
+    pixel_lat = np.ceil(lat_wdth/res_rad)
+    pixel_lon = np.ceil(lon_wdth/res_lon)  
+    
+    grid_lat = np.linspace(min_lat, max_lat, pixel_lat)
+    grid_lon = np.linspace(min_lon, max_lon, pixel_lon)
+    # update resolution to get rid of rounding error
+    cellsz_lat = lat_wdth/pixel_lat
+    cellsz_lon = lon_wdth/pixel_lon
+    
+    return grid_lon, grid_lat, cellsz_lon, cellsz_lat
+    
+    
+def get_tecscreen(sp, directions, times, size, h_ion = 200.e3, maxvtec = 50., 
+                  maxdtec = 1., ncpu = None, expfolder = None):
+    ''' Return a tecscreen-array. The TEC values represent a daily 
+    sinusoidal modulation peaking at 15h, overlaid with von Karman 
+    turbulences. 
+    Parameters
+    ----------
+    PP : (l,m,n,3) ndarray
+        Ionospheric pierce points in geocentric coordinates.
+        Axes correspond to (time, station, direction, xyz)
+    PD : (l,n,3) ndarray
+        Pierce directions in geocentric coords. (time, direction, xyz)
+    times : (n,) ndarray
+        Timestamps in MJDseconds
+    size : int
+        Size of the greater screen axis.
+    maxvtec : float, optinal. Default = 50.
+        Daytime vTEC peak value for tec modulation in TECU.
+    maxdtec : float, optional. Default = 1.
+        Maximum allowed dTEC of the screen for a single timestep. 
+    savefile: str, optional. Default = None.
+        Filename of the output .npy tecscreen array.   
+        
+    Returns
+    -------
+    tecscreen : (n, i, j) ndarray
+        TECscreen time dependent grid, the axes are (time, lon, lat)
+    '''    
+    if ncpu == 0:
+        ncpu = mp.cpu_count()
+    # Get the ionospheric pierce points)
+    PP, PD = get_PP_PD(sp, directions, times, h_ion, ncpu)   
 
-
-
-
-
-
+    # Find the outermost piercepoints to define tecscreen size:
+    PP_llr = geocentric_to_geodetic(PP)
+    edges = [np.min(PP_llr[...,0]), np.max(PP_llr[...,0]), 
+             np.min(PP_llr[...,1]), np.max(PP_llr[...,1])]
+    grid_lon, grid_lat, cellsz_lon, cellsz_lat = screen_grid(edges, size)
+    # Get turbulent screen generator object and convert to array
+    it = MegaScreen(1, 1000, windowShape = [len(grid_lon), len(grid_lat)], 
+               dx = 1, theta = 0, seed = 10, numIter = len(times))
+    tecsc = np.array(list(it)) # this can't be parallelized :(
+    # Rescale each timestep screen to have max dtec 
+    tecsc *= maxdtec / (np.max(tecsc, axis=0) - np.min(tecsc, axis=0))
+    tecsc = (daytime_tec_modulation(times)[:,np.newaxis,np.newaxis]
+             * (tecsc + maxvtec))
+        
+    cos_pierce = (unit_vec(PP)*unit_vec(PD)[:,np.newaxis,:,:]).sum(-1)
+    TEC = np.zeros((len(times), len(sp), len(directions)))
+    PP*PD[:,np.newaxis]
+    for (i, sc) in enumerate(tecsc): # iterate times
+        sc_interp = RectBivariateSpline(grid_lon, grid_lat, sc)
+        vTEC_ti = sc_interp.ev(PP_llr[i,:,:,0], PP_llr[i,:,:,1])
+        TEC[i] = vTEC_ti
+    # slant TEC from pierce angle: (e_r*e_d)**-1 = cos(pierce_angle)**-1
+    TEC /= cos_pierce  
+    
+    if expfolder:
+        os.mkdir(expfolder)
+        np.save(expfolder + '/tecscreen.npy', tecsc)
+        logging.info('Exporting tecscreen data to: ' + expfolder+'/')
+        
+    return TEC
 
 
 # The following code is taken from "Simulating large atmospheric phase 
@@ -188,7 +342,7 @@ def GridInterpolator(grid):
     ygrid = np.arange(grid.shape[1])
     def interpolator(x, y, grid = False):
         pass 
-    return scipy.interpolate.RectBivariateSpline(xgrid, ygrid, grid)
+    return RectBivariateSpline(xgrid, ygrid, grid)
 
 
 def SlidingPixels(tileGenerator, x, y, dx):
@@ -352,8 +506,6 @@ def NestedScreen(
             yield inner, outer, inner + outer
         else:
             yield inner + outer
-
-
 def MegaScreen(
     r0=7.0,
     L0=7000.0,
