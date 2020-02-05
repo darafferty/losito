@@ -46,13 +46,11 @@ def run(obs, outputColumn='DATA', predictType='h5parmpredict',
     ncpu : int, optional
         Number of cpu to use, by default all available.
     """
-    # reset weights if specified (default)
+    # reset weights if specified (default). Use pt.taql() to avoid excessive
+    # memory usage with large tables
     if resetWeights:
         logging.info('Reset entries in WEIGHT_SPECTRUM...')
-        tab = pt.table(obs.ms_filename, readonly = False)
-        ones = np.ones_like(tab.getcol('WEIGHT_SPECTRUM'))
-        tab.putcol('WEIGHT_SPECTRUM', ones)
-        tab.close()
+        pt.taql("UPDATE {0} SET WEIGHT_SPECTRUM=0.0".format(obs.ms_filename))
 
     # Make sourcedb from sky model
     obs.make_sourcedb()
