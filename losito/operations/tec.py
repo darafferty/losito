@@ -167,7 +167,7 @@ def run(obs, method, h5parmFilename, maxdtec = 0.5, maxvtec = 50., seed = None,
         return 1
     
     if os.path.exists(h5parmFilename):
-        log.info(h5parmFilename +'already exists. Overwriting file...')
+        log.info(h5parmFilename +' already exists. Overwriting file...')
         os.remove(h5parmFilename)
     
     # Write tec values to h5parm file as DPPP input    

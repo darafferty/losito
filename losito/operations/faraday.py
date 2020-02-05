@@ -122,6 +122,10 @@ def run(obs, h5parmFilename, h_ion = 200.e3, stepname='rm', ncpu=0):
     B_parallel = (PD[:,np.newaxis,:,:]*B_vec).sum(-1)     
     
     RM = constants * TECU * B_parallel * sTEC # rad*m**-2
+    if 'rotationmeasure000' in solset.getSoltabs():
+        log.info('Soltab rotationmeasure000 already exists. Overwriting...')
+        solset.getSoltab('rotationmeasure000').delete()
+        
     st = solset.makeSoltab('rotationmeasure', 'rotationmeasure000', axesNames=
                            ['time', 'ant', 'dir'],
                            axesVals=[times, soltab.getAxisValues('ant'), 
