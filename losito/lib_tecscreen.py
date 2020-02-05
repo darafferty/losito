@@ -13,6 +13,7 @@ import astropy.units as u
 import astropy.coordinates as coord
 from astropy.time import Time
 from astropy.coordinates import EarthLocation, SkyCoord, ITRS
+from .progress import progress
 
 R_earth = 6364.62e3
 
@@ -204,8 +205,8 @@ def screen_grid(edges, gridsize, R_earth = 6364.62e3, h_ion = 200.0e3):
     return grid_lon, grid_lat, cellsz_lon, cellsz_lat
     
     
-def get_tecscreen(sp, directions, times, size, h_ion = 200.e3, maxvtec = 50., 
-                  maxdtec = 1., ncpu = None, expfolder = None):
+def get_tecscreen(sp, directions, times, h_ion = 200.e3, maxvtec = 50., 
+             maxdtec = 1., screensize = 400., ncpu = None, expfolder = None):
     ''' Return a tecscreen-array. The TEC values represent a daily 
     sinusoidal modulation peaking at 15h, overlaid with von Karman 
     turbulences. 
@@ -241,11 +242,15 @@ def get_tecscreen(sp, directions, times, size, h_ion = 200.e3, maxvtec = 50.,
     PP_llr = geocentric_to_geodetic(PP)
     edges = [np.min(PP_llr[...,0]), np.max(PP_llr[...,0]), 
              np.min(PP_llr[...,1]), np.max(PP_llr[...,1])]
-    grid_lon, grid_lat, cellsz_lon, cellsz_lat = screen_grid(edges, size)
+    grid_lon, grid_lat, cellsz_lon, cellsz_lat = screen_grid(edges, screensize)
     # Get turbulent screen generator object and convert to array
     it = MegaScreen(1, 1000, windowShape = [len(grid_lon), len(grid_lat)], 
                dx = 1, theta = 0, seed = 10, numIter = len(times))
-    tecsc = np.array(list(it)) # this can't be parallelized :(
+    tecsc = np.zeros((len(times), len(grid_lon), len(grid_lat))) # this can't be parallelized :(
+    for i, sc in enumerate(it):
+        progress(i, len(tecsc), status='Generating tecscreen')
+        tecsc[i] = sc
+        
     # Rescale each timestep screen to have max dtec 
     tecsc *= maxdtec / (np.max(tecsc, axis=0) - np.min(tecsc, axis=0))
     tecsc = (daytime_tec_modulation(times)[:,np.newaxis,np.newaxis]
@@ -264,9 +269,14 @@ def get_tecscreen(sp, directions, times, size, h_ion = 200.e3, maxvtec = 50.,
     if expfolder:
         os.mkdir(expfolder)
         np.save(expfolder + '/tecscreen.npy', tecsc)
-        logging.info('Exporting tecscreen data to: ' + expfolder+'/')
-        
+        np.save(expfolder + '/piercepoints.npy', PP_llr)
+        np.save(expfolder + '/times.npy', times)
+        np.save(expfolder + '/grid.npy', np.array([grid_lon, grid_lat]))
+        np.save(expfolder/ +'/res.npy', np.array([cellsz_lon, cellsz_lat]))
+        logging.info('Exporting tecscreen data to: ' + expfolder+'/')        
     return TEC
+
+
 
 
 # The following code is taken from "Simulating large atmospheric phase 

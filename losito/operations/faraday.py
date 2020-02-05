@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
 FARADAY operation for LoSiTo
@@ -10,7 +9,8 @@ from astropy.coordinates import EarthLocation
 # lofar specific imports
 import EMM.EMM as EMM
 from losoto.h5parm import h5parm
-from losito.lib_tecscreen import get_PP_PD
+from ..lib_tecscreen import get_PP_PD
+from ..progress import progress
 
 log.debug('Loading FARADAY module.')
 
@@ -107,8 +107,7 @@ def run(obs, h5parmFilename, h_ion = 200.e3, stepname='rm', ncpu=0):
     pool = mp.Pool(processes = ncpu)
     B_vec = np.zeros_like(PP)
     for i in range(len(B_vec[0])): # iterate stations
-        # TODO progressbar
-        log.info('starting {}/{}'.format(i+1,len(B_vec[0])))
+        progress(i, len(B_vec[0]), status='Get B-field values at piercpoints')
         B_vec[:,i] =  pool.map(Bfield, PP[:,i])
     
     log.info('Calculate rotation measure...')   
@@ -141,8 +140,8 @@ def run(obs, h5parmFilename, h_ion = 200.e3, stepname='rm', ncpu=0):
         obs.parset_parameters['predict.applycal.steps'].append(stepname)
     else:
         obs.parset_parameters['predict.applycal.steps'] = [stepname]
-    obs.parset_parameters['predict.applycal.correction'] = 'rm000'
-    obs.parset_parameters['predict.applycal.{}.correction'.format(stepname)] = 'rm000'
+    obs.parset_parameters['predict.applycal.correction'] = 'rotationmeasure000'
+    obs.parset_parameters['predict.applycal.{}.correction'.format(stepname)] = 'rotationmeasure000'
     obs.parset_parameters['predict.applycal.{}.parmdb'.format(stepname)] = h5parmFilename
 
     return 0
