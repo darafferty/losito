@@ -84,9 +84,9 @@ def run(obs, column='DATA'):
             # SEFD per station
             SEFD_cs = np.polynomial.polynomial.polyval(freq, coeffs_cs)
             SEFD_rs = np.polynomial.polynomial.polyval(freq, coeffs_rs)
-            SEFD_s1 = np.where(station1 <= lim, SEFD_cs, SEFD_rs)
-            SEFD_s2 = np.where(station2 <= lim, SEFD_cs, SEFD_rs)
             
+            SEFD_s1 = np.where(station1[:,np.newaxis] <= lim, SEFD_cs, SEFD_rs)
+            SEFD_s2 = np.where(station2[:,np.newaxis] <= lim, SEFD_cs, SEFD_rs)
             return np.sqrt(SEFD_s1*SEFD_s2)
         
     chan_width = tab.SPECTRAL_WINDOW.getcol('CHAN_WIDTH') 
@@ -102,6 +102,7 @@ def run(obs, column='DATA'):
                                                      size=[4,*np.shape(std)]), 
                                     0, 2)
     prediction = tab.getcol(column) 
+
     tab.putcol(column, prediction + noise)
     tab.close()
 
