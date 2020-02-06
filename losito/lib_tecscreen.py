@@ -267,12 +267,14 @@ def get_tecscreen(sp, directions, times, h_ion = 200.e3, maxvtec = 50.,
     TEC /= cos_pierce  
     
     if expfolder:
-        os.mkdir(expfolder)
+        if not os.path.exists(expfolder):
+            os.mkdir(expfolder) #exist_ok=True
+        
         np.save(expfolder + '/tecscreen.npy', tecsc)
         np.save(expfolder + '/piercepoints.npy', PP_llr)
         np.save(expfolder + '/times.npy', times)
         np.save(expfolder + '/grid.npy', np.array([grid_lon, grid_lat]))
-        np.save(expfolder/ +'/res.npy', np.array([cellsz_lon, cellsz_lat]))
+        np.save(expfolder + '/res.npy', np.array([cellsz_lon, cellsz_lat]))
         logging.info('Exporting tecscreen data to: ' + expfolder+'/')        
     return TEC
 

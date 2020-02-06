@@ -1,0 +1,24 @@
+#LoSiTo parset
+ncpu = 6
+
+# Add TEC values from turbulent screen
+[tec]
+operation = TEC
+method = turbulence
+h5parmFilename = tec.h5
+
+# Add Rotation Measures from TEC and B-field
+[rm]
+operation = FARADAY
+h5ParmFilename = tec.h5
+
+# Do the predict
+[predict]
+operation = PREDICT
+outputColumn = CORRECTED_DATA
+predictType = h5parmpredict
+
+# Add noise to the predicted visibilities
+[noise]
+operation = NOISE
+outputColumn = CORRECTED_DATA
