@@ -337,7 +337,7 @@ def reset_beam_keyword(ms_filename, colname='DATA'):
     colname : str, optional
         Name of column
     """
-    t = pt.table(ms_filename, readonly=False)
-    if 'LOFAR_APPLIED_BEAM_MODE' in t.getcolkeywords(colname):
+    t = pt.table(ms_filename, readonly=False, ack=False)
+    if colname in t.colnames() and 'LOFAR_APPLIED_BEAM_MODE' in t.getcolkeywords(colname):
         t.putcolkeyword(colname, 'LOFAR_APPLIED_BEAM_MODE', 'None')
     t.close()
