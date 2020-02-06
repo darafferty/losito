@@ -6,10 +6,7 @@ Predict operation for losito: runs DPPP to predict a sky model with corruptions
 import logging
 import subprocess
 import casacore.tables as pt
-import numpy as np
 from losito.lib_operations import *
-
-import multiprocessing
 
 logging.debug('Loading PREDICT module.')
 
@@ -64,17 +61,16 @@ def run(obs, outputColumn='DATA', predictType='h5parmpredict',
     obs.parset_parameters['msout.datacolumn'] = outputColumn
     obs.make_parset()
 
+    # Ensure that the LOFAR_APPLIED_BEAM_MODE keyword is unset (otherwise DPPP may
+    # complain that the beam has already been applied)
+    reset_beam_keyword(obs.ms_filename, outputColumn)
+
     # Run DPPP
     cmd = ['DPPP', obs.parset_filename]
     result = subprocess.call(cmd)
 
-    # Ensure that the LOFAR_APPLIED_BEAM_MODE is unset, so that the beam can later
-    # be applied to the simulated dataset (otherwise DPPP may complain that the
-    # beam has already been applied)
-    t = pt.table(obs.ms_filename, readonly=False)
-    if 'LOFAR_APPLIED_BEAM_MODE' in t.getcolkeywords(outputColumn):
-        t.putcolkeyword(outputColumn, 'LOFAR_APPLIED_BEAM_MODE', 'None')
-    t.close()
+    # Ensure again that the LOFAR_APPLIED_BEAM_MODE keyword is unset
+    reset_beam_keyword(obs.ms_filename, outputColumn)
 
     # Return result
     return result
