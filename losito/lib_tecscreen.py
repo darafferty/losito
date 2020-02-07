@@ -244,6 +244,7 @@ def get_tecscreen(sp, directions, times, h_ion = 200.e3, maxvtec = 50.,
              np.min(PP_llr[...,1]), np.max(PP_llr[...,1])]
     grid_lon, grid_lat, cellsz_lon, cellsz_lat = screen_grid(edges, screensize)
     # Get turbulent screen generator object and convert to array
+    # TODO: Make sure the r0 and L values for the screen are appropriate!
     it = MegaScreen(1, 1000, windowShape = [len(grid_lon), len(grid_lat)], 
                dx = 1, theta = 0, seed = 10, numIter = len(times))
     tecsc = np.zeros((len(times), len(grid_lon), len(grid_lat))) # this can't be parallelized :(

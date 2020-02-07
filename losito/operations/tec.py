@@ -18,7 +18,7 @@ from losoto.h5parm import h5parm
 import RMextract.PosTools as post
 from ..lib_tecscreen import get_tecscreen
 
-log.info('Loading TEC module.')
+log.debug('Loading TEC module.')
 
 warnings.simplefilter('ignore', category=AstropyWarning)
 
