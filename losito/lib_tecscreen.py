@@ -88,8 +88,8 @@ def get_PP_PD_per_source(args):
 
     alpha = -(d @ S) + np.sqrt((d @ S)**2 + (R_earth + h_ion)**2 - (S**2).sum(0))
     PP = S.T[np.newaxis,:,:] + alpha[:,:,np.newaxis] * d[:,np.newaxis,:]
-    #PD: -d Minus: ray/ pierce direction going towards earth.
-    PD = -d
+    # pierce directions are defined as going from receiver to source
+    PD = d
     return PP, PD 
 
 def get_PP_PD(sp, directions, times, h_ion = 200.e3, ncpu = None):
@@ -258,8 +258,9 @@ def get_tecscreen(sp, directions, times, h_ion = 200.e3, maxvtec = 50.,
              * (tecsc + maxvtec))
         
     cos_pierce = (unit_vec(PP)*unit_vec(PD)[:,np.newaxis,:,:]).sum(-1)
+    
+    # Interpolate screen for each time and get values at pierce points
     TEC = np.zeros((len(times), len(sp), len(directions)))
-    PP*PD[:,np.newaxis]
     for (i, sc) in enumerate(tecsc): # iterate times
         sc_interp = RectBivariateSpline(grid_lon, grid_lat, sc)
         vTEC_ti = sc_interp.ev(PP_llr[i,:,:,0], PP_llr[i,:,:,1])

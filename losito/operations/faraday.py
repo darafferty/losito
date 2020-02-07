@@ -6,13 +6,17 @@ import numpy as np
 import multiprocessing as mp
 import logging as log
 from astropy.coordinates import EarthLocation
+from astropy.time import Time
 # lofar specific imports
 import EMM.EMM as EMM
 from losoto.h5parm import h5parm
-from ..lib_tecscreen import get_PP_PD
+from ..lib_tecscreen import get_PP_PD, geocentric_to_geodetic
 from ..progress import progress
 
 log.debug('Loading FARADAY module.')
+
+R_earth = 6364.62e3
+
 
 def _run_parser(obs, parser, step):
     h5parmFilename = parser.getstr(step, 'h5parmFilename')
@@ -21,35 +25,23 @@ def _run_parser(obs, parser, step):
     parser.checkSpelling( step, ['h5parmFilename', 'hIono', 'ncpu'])
     return run(obs, h5parmFilename, hIono, ncpu)
 
-def geocentric_to_lonlat(stationpos, degrees = True):
-    '''
-    Convert a single or multiple geocentric values to geodetic.
-    Parameters
+def yearfrac_from_mjds(t):
+    ''' Get year + decimal fraction from MJD seconds. 
+    Parameters:
     ----------
-    gc_points : (3,) ndarray or (n,3) ndarray
-        Points in ITRS geocentric x, y, z. Values in meters.
-
+    t : float, MJDseconds time.
     Returns
     -------
-    lon : (n,) ndarray
-        Longitude in degree
-    lat : (n,) ndarray
-        Latitude in degrees
-    height : (n,) ndarray
-        Height in meter
+    year: flaot, year including decimal fraction.
     '''
-    #TODO: tecscreen XYZ_to_lonlat + this comined
-    stationpos = EarthLocation.from_geocentric(*stationpos.T, unit = 'meter')
-    stationpos = stationpos.to_geodetic()
-    lon, lat, height = stationpos.lon, stationpos.lat, stationpos.height
-    if (not degrees):
-        return np.deg2rad(lon.value), np.deg2rad(lat.value), height.value
-    else:
-        return lon.value, lat.value, height.value
-    
+    jd = Time(t/(3600.*24.), format = 'mjd')
+    year =  jd.to_datetime().year
+    month = jd.to_datetime().month
+    day = jd.to_datetime().day
+    return year + month/12 + day/30
 
 
-def Bfield(gc_points):
+def Bfield(gc_points, time = 5.0e9):
     '''
     Get Bfield value in nT.
     Parameters
@@ -57,59 +49,64 @@ def Bfield(gc_points):
     gc_points : (3,) or (n,3) ndarray
         Point(s) at which to evaluate the B field. Must be given in
         geocentric ITRS. Unit: meter       
-
+    time : float, optional. default = some time in 2017.
+        MJD seconds single timestep for the simulation.
     Returns
     -------
     Bfield : (3,) or (n,3) ndarray
-        B-field vectors (in nT??)
+        B-field vectors (in nT?)
     '''
-    # TODO: Iterating over everything + I/O from EMM takes ages. 
-    # There is probably room for speed gains
-    # TODO: date year fraction could be more accurately determined from timestamps. 
-    # lat and lon must be in degrees for EMM
-    lon, lat, h = geocentric_to_lonlat(gc_points)
-    h /= 1000. # Seems like EMM needs height in km
+    llr = geocentric_to_geodetic(gc_points)
+    lon = np.rad2deg(llr[...,0])
+    lat = np.rad2deg(llr[...,1])
+    height = (llr[...,2].mean() - R_earth) / 1000. # to km
+    year = yearfrac_from_mjds(time)
     if hasattr(lon, "__len__"):
         B_xyz = np.zeros((len(lon), 3))
-        for i, (lo, la, he) in enumerate(zip(lon, lat, h)):
-            emm = EMM.WMM(date = 2018., lon = lo, lat = la, h = he)
+        emm = EMM.WMM(date = year, lon = lon[0], lat = lat[0], h = height)
+        for i, (lo, la) in enumerate(zip(lon, lat)):
+            emm.lon = lo
+            emm.lat = la
             B_xyz[i] = emm.getXYZ()
         return B_xyz
     else:
-        emm = EMM.WMM(date = 2018., lon = lon, lat = lat, h = h)
+        emm = EMM.WMM(date = year, lon = lon, lat = lat, h = h)
         return emm.getXYZ()
     
-
-
 
 def run(obs, h5parmFilename, h_ion = 200.e3, stepname='rm', ncpu=0): 
     '''
     Add rotation measure Soltab to a TEC h5parm.
     '''
-    
+    if ncpu == 0:
+        ncpu = mp.cpu_count()
     h5 = h5parm(h5parmFilename, readonly=False)
     solset = h5.getSolset('sol000')
     soltab = solset.getSoltab('tec000') 
     sp = np.array(list(solset.getAnt().values()))  
     directions = np.array(list(solset.getSou().values()))
     times = soltab.getAxisValues('time')
+    
     sTEC = soltab.getValues()[0]
-    if ncpu == 0:
-        ncpu = mp.cpu_count()
+    if np.any(sTEC < 0): # Make sure absolute TEC is used
+        log.warning('''Negative TEC values in {}. You are porbably using 
+                    differential TEC. For an accurate estimate of the rotation
+                    measure, absolute TEC is required.'''.format(h5parmFilename))    
+    
+    
     log.info('''Calculating ionosphere pierce points for {} directions, {} 
               stations and {} timestamps...'''.format(len(directions), len(sp), 
               len(times)))
     
     PP, PD = get_PP_PD(sp, directions, times, h_ion, ncpu)
     
-    log.info('Calculating B-field vectors for {} points...'.format(
-              len(directions)*len(sp)*len(times)))
     pool = mp.Pool(processes = ncpu)
     B_vec = np.zeros_like(PP)
     for i in range(len(B_vec[0])): # iterate stations
-        progress(i, len(B_vec[0]), status='Get B-field values at piercpoints')
+        prnt = 'Get B-field for {} pierce points'.format(
+                                            len(directions)*len(sp)*len(times))
+        progress(i, len(B_vec[0]), status = prnt)
         B_vec[:,i] =  pool.map(Bfield, PP[:,i])
-    
     log.info('Calculate rotation measure...')   
     c = 29979245800 # cm/s
     m = 9.109 * 10**(-28) # g
@@ -118,12 +115,20 @@ def run(obs, h5parmFilename, h_ion = 200.e3, stepname='rm', ncpu=0):
     TECU = 10**16 # m**(-2)
     
     # Get B parallel to PD at PP
-    B_parallel = (PD[:,np.newaxis,:,:]*B_vec).sum(-1)     
-    
+    # TODO: In which way is parallel defined? Going from source to receiver
+    # or the other way around? Currently, PD is calculated such that it
+    # is going from source to receiver. 
+    B_parallel = (PD[:,np.newaxis,:,:]*B_vec).sum(-1)        
     RM = constants * TECU * B_parallel * sTEC # rad*m**-2
-    if 'rotationmeasure000' in solset.getSoltabs():
-        log.info('Soltab rotationmeasure000 already exists. Overwriting...')
-        solset.getSoltab('rotationmeasure000').delete()
+    
+    # Delete rotationmeasureXYZ if it already exists
+    stabnames = solset.getSoltabNames()
+    rmtabs = [_tab for _tab in stabnames if 'rotationmeasure' in _tab]
+    if 'rotationmeasure000' in solset.getSoltabNames():   
+        log.info('''There are already rotation measure solutions present in
+                 {}.'''.format(h5parmFilename+'/sol000'))    
+        for rmt in rmtabs:
+            solset.getSoltab(rmt).delete()
         
     st = solset.makeSoltab('rotationmeasure', 'rotationmeasure000', axesNames=
                            ['time', 'ant', 'dir'],
