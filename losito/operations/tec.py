@@ -16,10 +16,9 @@ from astropy.coordinates import EarthLocation, AltAz
 from astropy.utils.exceptions import AstropyWarning
 from losoto.h5parm import h5parm
 import RMextract.PosTools as post
-from ..lib_tecscreen import get_tecscreen
+from ..lib_tecscreen import get_tecscreen, daytime_tec_modulation
 
 log.debug('Loading TEC module.')
-
 warnings.simplefilter('ignore', category=AstropyWarning)
 
 def _run_parser(obs, parser, step):
@@ -29,12 +28,14 @@ def _run_parser(obs, parser, step):
     maxvtec = parser.getfloat(step, 'maxvtec', default=50.)
     seed = parser.getint(step, 'seed', default = 0)
     fitsFilename = parser.getstr(step, 'fitsFilename', default = '')
+    absoluteTEC = parser.getbool(step, 'absoluteTEC', default = True)
     ncpu = parser.getint( '_global', 'ncpu', 0)
        
     parser.checkSpelling( step, ['method', 'h5parmFilename', 'maxdtec',
-                                 'maxvtec', 'seed', ' fitsFilename', 'ncpu'])  
+                                 'maxvtec', 'seed', 'fitsFilename', 
+                                 'absoluteTEC', 'ncpu'])  
     return run(obs, method, h5parmFilename, maxdtec, maxvtec, seed, 
-               fitsFilename, step, ncpu)
+               fitsFilename, step, absoluteTEC, ncpu)
 
 def _getaltaz(radec):
     ra = radec[0]
@@ -50,7 +51,7 @@ def _gettec(altaz_args):
     altaz, stationpositions, A12, times, tidAmp, tidLen, tidVel = altaz_args
     # TODO: Why are the directions transformed to ecliptic reference frame?
     # In RMextract/PosTool.py it specifies ITRF as input frame.
-    # Does this make a difference?
+    # Does this make a difference/ is this the same?
     direction = altaz.geocentrictrueecliptic.cartesian.xyz.value
     for ant in stationpositions:
         pp, am = post.getPPsimple([200.e3]*direction[0].shape[0], ant, direction)
@@ -67,7 +68,7 @@ def _tid(x, t, amp=0.2, wavelength=200e3, omega=500.e3/3600.):
 
 
 def run(obs, method, h5parmFilename, maxdtec = 0.5, maxvtec = 50., seed = None,
-        fitsFilename = None, stepname='tec', ncpu=0):
+        fitsFilename = None, stepname='tec', absoluteTEC = True, ncpu=0):
     """
     Creates h5parm with TEC values from TEC FITS cube.
 
@@ -89,17 +90,21 @@ def run(obs, method, h5parmFilename, maxdtec = 0.5, maxvtec = 50., seed = None,
         Filename of input FITS cube with dTEC solutions.
     stepname _ str, optional
         Name of step to use in DPPP parset
+    absoluteTEC : bool, optional. Default = True
+        Whether to use absolute (vTEC) or differential (dTEC) TEC.
     ncpu : int, optional
         Number of cores to use, by default all available.
     """
     # Get sky model properties
+    method = method.lower()
+    if ncpu == 0:
+        ncpu = mp.cpu_count()
+        
     ras, decs = obs.get_patch_coords()
     source_names = obs.get_patch_names()
     ants = obs.stations
     sp = obs.stationpositions
-    times = obs.get_times()
-    if ncpu == 0:
-        ncpu = mp.cpu_count()
+    times = obs.get_times() # TODO debug
     
     tecvals = np.zeros((len(times), len(ants), len(ras)))
     weights = np.ones_like(tecvals)
@@ -107,19 +112,16 @@ def run(obs, method, h5parmFilename, maxdtec = 0.5, maxvtec = 50., seed = None,
     if method == 'turbulence':               
         directions = np.array([ras, decs]).T
         tecvals = get_tecscreen(sp, directions, times, screensize = 400, 
-                    h_ion = 200.e3, maxvtec = 50., maxdtec = 1.,  
-                    expfolder = 'export', ncpu = ncpu)           
+                    h_ion = 200.e3, maxvtec = 50., maxdtec = 1., ncpu = ncpu,  
+                    expfolder = None, absoluteTEC = absoluteTEC)           
 
     elif method == 'fits':
-        ''' TODO/Warning: Currently, this method is not optimized. 
-            Supports only dtec.
-        '''
         # Load solutions from FITS cube
         hdu = pyfits.open(fitsFilename, memmap=False)
         data = hdu[0].data
         header = hdu[0].header
         w = wcs.WCS(header)
-        ntimes, nfreqs, nstations, ny, nx = data.shape
+        ntimes, _, nstations, ny, nx = data.shape
 
         # Check that number of stations in input FITS cube matches MS
         if nstations != len(ants):
@@ -138,10 +140,15 @@ def run(obs, method, h5parmFilename, maxdtec = 0.5, maxvtec = 50., seed = None,
                 continue
             for t in range(ntimes):
                 for s in range(nstations):
-                    tecvals[t, s, d] = data[t, s, y, x]
+                    tecvals[t,s,d] = data[t,0,s,y,x]
+        if absoluteTEC:
+            tecvals = daytime_tec_modulation(times)[:,np.newaxis,np.newaxis]*(
+                tecvals + maxvtec)
+        else :
+            tecvals = (daytime_tec_modulation(times)[:,np.newaxis,np.newaxis]
+                       *tecvals) 
 
     elif method == 'tid':
-        #TODO: vTEC
         # Properties of TID wave
         tidLen=200e3
         tidVel=500e3/3600,
@@ -152,17 +159,24 @@ def run(obs, method, h5parmFilename, maxdtec = 0.5, maxvtec = 50., seed = None,
 
         aa = AltAz(location=A12, obstime=mjd)
         altazcoord = []
-        p = mp.Pool(processes=ncpu)
-        radec = [(r, d, aa) for r, d in zip(ras, decs)]
-        altazcoord = p.map(_getaltaz, radec)
-
         pool = mp.Pool(processes=ncpu)
+        radec = [(r, d, aa) for r, d in zip(ras, decs)]
+        altazcoord = pool.map(_getaltaz, radec)
         gettec_args = [(a, sp, A12, times, *tid_prop) for a in altazcoord]
         alltec = pool.map(_gettec, gettec_args)
+        pool.close()
+        pool.join()
         alltec = np.array(alltec) 
-
         # Fill the axis arrays
-        tecvals = alltec[:, :, 0, :].transpose([2, 1, 0])[:,:,:,0]
+        tecvals = alltec[:, :, 0, :].transpose([2, 1, 0])#[:,:,:,0]
+         # convert to vTEC
+        if absoluteTEC:
+            tecvals = daytime_tec_modulation(times)[:,np.newaxis,np.newaxis]*(
+                tecvals + maxvtec)
+        else :
+            tecvals = (daytime_tec_modulation(times)[:,np.newaxis,np.newaxis]
+                       *tecvals)        
+            
     else:
         log.error('method "{}" not understood'.format(method))
         return 1

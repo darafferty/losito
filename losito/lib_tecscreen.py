@@ -206,7 +206,8 @@ def screen_grid(edges, gridsize, R_earth = 6364.62e3, h_ion = 200.0e3):
     
     
 def get_tecscreen(sp, directions, times, h_ion = 200.e3, maxvtec = 50., 
-             maxdtec = 1., screensize = 400., ncpu = None, expfolder = None):
+                  maxdtec = 1., screensize = 400., ncpu = None, 
+                  expfolder = None, absoluteTEC = True):
     ''' Return a tecscreen-array. The TEC values represent a daily 
     sinusoidal modulation peaking at 15h, overlaid with von Karman 
     turbulences. 
@@ -226,8 +227,9 @@ def get_tecscreen(sp, directions, times, h_ion = 200.e3, maxvtec = 50.,
     maxdtec : float, optional. Default = 1.
         Maximum allowed dTEC of the screen for a single timestep. 
     savefile: str, optional. Default = None.
-        Filename of the output .npy tecscreen array.   
-        
+        Filename of the output .npy tecscreen array. 
+    absoluteTEC : bool, optional. Default = True
+        Whether to use absolute (vTEC) or differential (dTEC) TEC        
     Returns
     -------
     tecscreen : (n, i, j) ndarray
@@ -254,17 +256,19 @@ def get_tecscreen(sp, directions, times, h_ion = 200.e3, maxvtec = 50.,
         
     # Rescale each timestep screen to have max dtec 
     tecsc *= maxdtec / (np.max(tecsc, axis=0) - np.min(tecsc, axis=0))
-    tecsc = (daytime_tec_modulation(times)[:,np.newaxis,np.newaxis]
-             * (tecsc + maxvtec))
-        
+    if absoluteTEC:  
+        tecsc = (daytime_tec_modulation(times)[:,np.newaxis,np.newaxis]
+                 * (tecsc + maxvtec))
+    else:
+        tecsc = (daytime_tec_modulation(times)[:,np.newaxis,np.newaxis]*tecsc)
     cos_pierce = (unit_vec(PP)*unit_vec(PD)[:,np.newaxis,:,:]).sum(-1)
     
     # Interpolate screen for each time and get values at pierce points
     TEC = np.zeros((len(times), len(sp), len(directions)))
     for (i, sc) in enumerate(tecsc): # iterate times
         sc_interp = RectBivariateSpline(grid_lon, grid_lat, sc)
-        vTEC_ti = sc_interp.ev(PP_llr[i,:,:,0], PP_llr[i,:,:,1])
-        TEC[i] = vTEC_ti
+        TEC_ti = sc_interp.ev(PP_llr[i,:,:,0], PP_llr[i,:,:,1])
+        TEC[i] = TEC_ti
     # slant TEC from pierce angle: (e_r*e_d)**-1 = cos(pierce_angle)**-1
     TEC /= cos_pierce  
     
