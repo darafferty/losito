@@ -109,7 +109,7 @@ def get_PP_PD(sp, directions, times, h_ion = 200.e3, ncpu = None):
         Array containing timestamps in mjd seconds.
     h_ion : float, optional. Ionosphere height in m, default: 200km
     ncpu : int, optional. 
-            
+
     Returns
     -------
     PP : (n,m,l,3) ndarray
@@ -167,122 +167,145 @@ def daytime_tec_modulation(t):
     return modulation 
     
 
-def screen_grid(edges, gridsize, R_earth = 6364.62e3, h_ion = 200.0e3):
-    '''
-    
+def screen_grid(edges, angRes, h_ion):
+    '''Get the screen grid from the screen edges and the angular resolution.    
     Parameters
     ----------
     edges : (4,) ndarray
         Pierce point edges in minlon, maxlon, minlat, maxlat. (Radians)
-    gridsize : int
-        Resolution of the greater grid axis.
-    R_earth : TYPE, optional
-        DESCRIPTION. The default is 6364.62e3.
-    h_ion : TYPE, optional
-        DESCRIPTION. The default is 200.0e3.
-
+    angRes : float. Angular resoluation of grid in arcsec
+    
     Returns
     -------
-    None.
-
-    '''
+    grid_lon : (n,) ndarray
+        Longitude values of the grid in rad.
+    grid_lat : (m,) ndarray
+        Latitude values of the grid in rad.
+    cellsz_lon : float. Longitudinal size of grid cell.
+    cellsz_lat : flaot. Latidude size of grid cell.
+    '''    
     min_lon, max_lon, min_lat, max_lat,  = edges
-    lat_wdth, lat_center = max_lat - min_lat, np.mean([max_lat, min_lat])    
+    lat_wdth, lat_center = max_lat - min_lat, np.mean([max_lat, min_lat])  
     # To get similar length scale res, cosine factor
     lon_wdth = (max_lon - min_lon) 
-    res_rad = np.max([lat_wdth, lon_wdth * np.cos(lat_center)]) / gridsize
+    res_rad = np.arctan(np.tan(np.deg2rad(angRes / 3600) * h_ion 
+                                / (R_earth + h_ion))) 
     res_lon = res_rad / np.cos(lat_center)
-    
-    pixel_lat = np.ceil(lat_wdth/res_rad)
-    pixel_lon = np.ceil(lon_wdth/res_lon)  
-    
-    grid_lat = np.linspace(min_lat, max_lat, pixel_lat)
-    grid_lon = np.linspace(min_lon, max_lon, pixel_lon)
+    npixel_lat = np.ceil(lat_wdth/res_rad)
+    npixel_lon = np.ceil(lon_wdth/res_lon)  
+    print(npixel_lat, npixel_lon)
+    grid_lat = np.linspace(min_lat, max_lat, npixel_lat)
+    grid_lon = np.linspace(min_lon, max_lon, npixel_lon)
     # update resolution to get rid of rounding error
-    cellsz_lat = lat_wdth/pixel_lat
-    cellsz_lon = lon_wdth/pixel_lon
+    cellsz_lat = lat_wdth/npixel_lat
+    cellsz_lon = lon_wdth/npixel_lon
     
     return grid_lon, grid_lat, cellsz_lon, cellsz_lat
     
     
-def get_tecscreen(sp, directions, times, h_ion = 200.e3, maxvtec = 50., 
-                  maxdtec = 1., screensize = 400., ncpu = None, 
-                  expfolder = None, absoluteTEC = True):
-    ''' Return a tecscreen-array. The TEC values represent a daily 
-    sinusoidal modulation peaking at 15h, overlaid with von Karman 
-    turbulences. 
+def get_tecscreen(sp, directions, times, h_ion = 200.e3, absoluteTEC = True,
+                  maxvtec = 50.,  maxdtec = 1., angRes = 60, 
+                  ncpu = None, expfolder = None):
+    ''' Return TEC values for [times, station, source]. 
+    The differential TEC is modeled using a tecscreen with von-Karman
+    turbulence. Absolute TEC (optional) is modeled sinusoidal and peakes at 
+    15h. Airmass-effect caused by elevation of source is considered.
     Parameters
     ----------
-    PP : (l,m,n,3) ndarray
-        Ionospheric pierce points in geocentric coordinates.
-        Axes correspond to (time, station, direction, xyz)
-    PD : (l,n,3) ndarray
-        Pierce directions in geocentric coords. (time, direction, xyz)
+    sp : (n,3) ndarray
+        Station positions in geocentric coordinates (meters).
+    direction : (m,3) ndarray
+          Source directions RA and DEC in degree.
     times : (n,) ndarray
         Timestamps in MJDseconds
-    size : int
-        Size of the greater screen axis.
-    maxvtec : float, optinal. Default = 50.
-        Daytime vTEC peak value for tec modulation in TECU.
-    maxdtec : float, optional. Default = 1.
-        Maximum allowed dTEC of the screen for a single timestep. 
-    savefile: str, optional. Default = None.
-        Filename of the output .npy tecscreen array. 
+    h_ion : float, optional. Default = 200e3 meter.
+        Height of ionospheric layer in meter.
     absoluteTEC : bool, optional. Default = True
-        Whether to use absolute (vTEC) or differential (dTEC) TEC        
+        Whether to use absolute (vTEC) or differential (dTEC) TEC   
+    maxvtec : float, optinal. Default = 50
+        Daytime vTEC peak value for tec modulation in TECU.
+    maxdtec : float, optional. Default = 1
+        Maximum allowed dTEC of the screen for a single timestep. 
+    angRes : float, optional. Default = 60 arcseconds
+        Angular resolution of the tecscreen grid as seen from a station.
+    savefile: str, optional. Default = None.
+        If filename is set, tecscreen array and other data for a plot
+        are exported to the specified directory.
     Returns
     -------
-    tecscreen : (n, i, j) ndarray
+    TEC : (n, i, j) ndarray
         TECscreen time dependent grid, the axes are (time, lon, lat)
     '''    
     if ncpu == 0:
         ncpu = mp.cpu_count()
     # Get the ionospheric pierce points)
     PP, PD = get_PP_PD(sp, directions, times, h_ion, ncpu)   
-
     # Find the outermost piercepoints to define tecscreen size:
     PP_llr = geocentric_to_geodetic(PP)
     edges = [np.min(PP_llr[...,0]), np.max(PP_llr[...,0]), 
              np.min(PP_llr[...,1]), np.max(PP_llr[...,1])]
-    grid_lon, grid_lat, cellsz_lon, cellsz_lat = screen_grid(edges, screensize)
+    grid_lon, grid_lat, cellsz_lon, cellsz_lat = screen_grid(edges, angRes, 
+                                                             h_ion)
+    
+    # Find scales for von-Karman turbulence 
+    r0 =np.arctan(30e3/h_ion)/np.deg2rad(angRes/3600) # Assuming r0 = 30km 
+    L0 =np.arctan(1000e3/h_ion)/np.deg2rad(angRes/3600)  # Assuming L0 = 1000km
     # Get turbulent screen generator object and convert to array
-    # TODO: Make sure the r0 and L values for the screen are appropriate!
-    it = MegaScreen(1, 1000, windowShape = [len(grid_lon), len(grid_lat)], 
+    it = MegaScreen(r0, L0, windowShape = [len(grid_lon), len(grid_lat)], 
                dx = 1, theta = 0, seed = 10, numIter = len(times))
-    tecsc = np.zeros((len(times), len(grid_lon), len(grid_lat))) # this can't be parallelized :(
-    for i, sc in enumerate(it):
-        progress(i, len(tecsc), status='Generating tecscreen')
-        tecsc[i] = sc
-        
-    # Rescale each timestep screen to have max dtec 
-    tecsc *= maxdtec / (np.max(tecsc, axis=0) - np.min(tecsc, axis=0))
-    if absoluteTEC:  
-        tecsc = (daytime_tec_modulation(times)[:,np.newaxis,np.newaxis]
-                 * (tecsc + maxvtec))
-    else:
-        tecsc = (daytime_tec_modulation(times)[:,np.newaxis,np.newaxis]*tecsc)
-    cos_pierce = (unit_vec(PP)*unit_vec(PD)[:,np.newaxis,:,:]).sum(-1)
     
-    # Interpolate screen for each time and get values at pierce points
-    TEC = np.zeros((len(times), len(sp), len(directions)))
-    for (i, sc) in enumerate(tecsc): # iterate times
-        sc_interp = RectBivariateSpline(grid_lon, grid_lat, sc)
-        TEC_ti = sc_interp.ev(PP_llr[i,:,:,0], PP_llr[i,:,:,1])
-        TEC[i] = TEC_ti
-    # slant TEC from pierce angle: (e_r*e_d)**-1 = cos(pierce_angle)**-1
-    TEC /= cos_pierce  
-    
-    if expfolder:
-        if not os.path.exists(expfolder):
-            os.mkdir(expfolder) #exist_ok=True
+    cos_pierce = (unit_vec(PP)*unit_vec(PD)[:,np.newaxis]).sum(-1)
+    if expfolder is None: # Needs less memory
+        TEC = np.zeros((len(times), len(sp), len(directions)))
+        for i, tecsc in enumerate(it):
+            progress(i, len(times), status='Generating tecscreen')
+            # Rescale each timestep screen to have max dtec 
+            tecsc *= maxdtec / (np.max(tecsc, axis=0) - np.min(tecsc, axis=0))
+            if absoluteTEC:  
+                tecsc = (daytime_tec_modulation(times)[i,np.newaxis,np.newaxis]
+                         * (tecsc + maxvtec))
+            else:
+                tecsc = (daytime_tec_modulation(times)[i,np.newaxis,np.newaxis]
+                         *tecsc)            
+            # Interpolate screen for each time and get values at pierce points
+            sc_interp = RectBivariateSpline(grid_lon, grid_lat, tecsc)
+            TEC_ti = sc_interp.ev(PP_llr[i,:,:,0], PP_llr[i,:,:,1])
+            # slant TEC from pierce angle: (e_r*e_d)^-1 = cos(pierce_angle)^-1
+            TEC[i] = TEC_ti/cos_pierce[i]    
+        return TEC
+    else:  # Hard on mem
+        tecsc = np.zeros((len(times), len(grid_lon), len(grid_lat))) # this can't be parallelized :(
+        for i, sc in enumerate(it):
+            progress(i, len(tecsc), status='Generating tecscreen')
+            tecsc[i] = sc            
+        # Rescale each timestep screen to have max dtec 
+        tecsc *= maxdtec / (np.max(tecsc, axis=0) - np.min(tecsc, axis=0))
+        if absoluteTEC:  
+            tecsc = (daytime_tec_modulation(times)[:,np.newaxis,np.newaxis]
+                     * (tecsc + maxvtec))
+        else:
+            tecsc = (daytime_tec_modulation(times)[:,np.newaxis,np.newaxis]*tecsc)
+        cos_pierce = (unit_vec(PP)*unit_vec(PD)[:,np.newaxis,:,:]).sum(-1)
         
-        np.save(expfolder + '/tecscreen.npy', tecsc)
-        np.save(expfolder + '/piercepoints.npy', PP_llr)
-        np.save(expfolder + '/times.npy', times)
-        np.save(expfolder + '/grid.npy', np.array([grid_lon, grid_lat]))
-        np.save(expfolder + '/res.npy', np.array([cellsz_lon, cellsz_lat]))
-        logging.info('Exporting tecscreen data to: ' + expfolder+'/')        
-    return TEC
+        # Interpolate screen for each time and get values at pierce points
+        TEC = np.zeros((len(times), len(sp), len(directions)))
+        for (i, sc) in enumerate(tecsc): # iterate times
+            sc_interp = RectBivariateSpline(grid_lon, grid_lat, sc)
+            TEC_ti = sc_interp.ev(PP_llr[i,:,:,0], PP_llr[i,:,:,1])
+            TEC[i] = TEC_ti
+        # slant TEC from pierce angle: (e_r*e_d)**-1 = cos(pierce_angle)**-1
+        TEC /= cos_pierce  
+        
+        if expfolder:
+            if not os.path.exists(expfolder):
+                os.mkdir(expfolder) #exist_ok=True        
+            np.save(expfolder + '/tecscreen.npy', tecsc)
+            np.save(expfolder + '/piercepoints.npy', PP_llr)
+            np.save(expfolder + '/times.npy', times)
+            np.save(expfolder + '/grid.npy', np.array([grid_lon, grid_lat]))
+            np.save(expfolder + '/res.npy', np.array([cellsz_lon, cellsz_lat]))
+            logging.info('Exporting tecscreen data to: ' + expfolder+'/')        
+        return TEC
 
 
 

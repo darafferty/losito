@@ -19,6 +19,7 @@ import RMextract.PosTools as post
 from ..lib_tecscreen import get_tecscreen, daytime_tec_modulation
 
 log.debug('Loading TEC module.')
+# Mute AP warnings for now... 
 warnings.simplefilter('ignore', category=AstropyWarning)
 
 def _run_parser(obs, parser, step):
@@ -29,19 +30,20 @@ def _run_parser(obs, parser, step):
     seed = parser.getint(step, 'seed', default = 0)
     fitsFilename = parser.getstr(step, 'fitsFilename', default = '')
     absoluteTEC = parser.getbool(step, 'absoluteTEC', default = True)
+    angRes = parser.getfloat(step, 'angRes', default = 60.)
     ncpu = parser.getint( '_global', 'ncpu', 0)
        
     parser.checkSpelling( step, ['method', 'h5parmFilename', 'maxdtec',
                                  'maxvtec', 'seed', 'fitsFilename', 
-                                 'absoluteTEC', 'ncpu'])  
+                                 'absoluteTEC', 'angRes', 'ncpu'])  
     return run(obs, method, h5parmFilename, maxdtec, maxvtec, seed, 
-               fitsFilename, step, absoluteTEC, ncpu)
+               fitsFilename, step, absoluteTEC, angRes, ncpu)
 
 def _getaltaz(radec):
     ra = radec[0]
     dec = radec[1]
     aa = radec[2]
-    # TODO: RA should be in u.deg instead of u.hourangle ?
+    
     mycoord = coord.SkyCoord(ra, dec, frame=coord.FK5, unit=(u.hourangle, u.deg))
     mycoord_aa = mycoord.transform_to(aa)
     return mycoord_aa
@@ -49,9 +51,6 @@ def _getaltaz(radec):
 def _gettec(altaz_args):
     alltec = []
     altaz, stationpositions, A12, times, tidAmp, tidLen, tidVel = altaz_args
-    # TODO: Why are the directions transformed to ecliptic reference frame?
-    # In RMextract/PosTool.py it specifies ITRF as input frame.
-    # Does this make a difference/ is this the same?
     direction = altaz.geocentrictrueecliptic.cartesian.xyz.value
     for ant in stationpositions:
         pp, am = post.getPPsimple([200.e3]*direction[0].shape[0], ant, direction)
@@ -68,7 +67,8 @@ def _tid(x, t, amp=0.2, wavelength=200e3, omega=500.e3/3600.):
 
 
 def run(obs, method, h5parmFilename, maxdtec = 0.5, maxvtec = 50., seed = None,
-        fitsFilename = None, stepname='tec', absoluteTEC = True, ncpu=0):
+        fitsFilename = None, stepname='tec', absoluteTEC = True, 
+        angRes = 60, ncpu=0):
     """
     Creates h5parm with TEC values from TEC FITS cube.
 
@@ -92,26 +92,27 @@ def run(obs, method, h5parmFilename, maxdtec = 0.5, maxvtec = 50., seed = None,
         Name of step to use in DPPP parset
     absoluteTEC : bool, optional. Default = True
         Whether to use absolute (vTEC) or differential (dTEC) TEC.
+    angRes : float, optional. Default = 60.
+        Angular resolution of the screen [arcsec]. Only for turbulent model.
     ncpu : int, optional
         Number of cores to use, by default all available.
     """
-    # Get sky model properties
     method = method.lower()
     if ncpu == 0:
         ncpu = mp.cpu_count()
-        
+    # Get sky model properties
     ras, decs = obs.get_patch_coords()
     source_names = obs.get_patch_names()
     ants = obs.stations
     sp = obs.stationpositions
-    times = obs.get_times() # TODO debug
+    times = obs.get_times()
     
     tecvals = np.zeros((len(times), len(ants), len(ras)))
     weights = np.ones_like(tecvals)
     
     if method == 'turbulence':               
         directions = np.array([ras, decs]).T
-        tecvals = get_tecscreen(sp, directions, times, screensize = 400, 
+        tecvals = get_tecscreen(sp, directions, times, angRes = angRes, 
                     h_ion = 200.e3, maxvtec = 50., maxdtec = 1., ncpu = ncpu,  
                     expfolder = None, absoluteTEC = absoluteTEC)           
 
