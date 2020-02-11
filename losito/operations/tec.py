@@ -70,7 +70,7 @@ def _tid(x, t, amp=0.2, wavelength=200e3, omega=500.e3/3600.):
 
 
 def run(obs, method, h5parmFilename, maxdtec = 0.5, maxvtec = 50, hIon = 200e3,
-        vIon = 50, seed = None, fitsFilename = None, stepname='tec', 
+        vIon = 50, seed = 0, fitsFilename = None, stepname='tec', 
         absoluteTEC = True, angRes = 60, ncpu=0):
     """
     Creates h5parm with TEC values from TEC FITS cube.

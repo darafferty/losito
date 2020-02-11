@@ -242,7 +242,7 @@ def screen_grid_comoving(edges, angRes, hIon):
 
 def fixed_tecscreen(sp, directions, times, hIon = 200.e3, vIon = 50,
                        absoluteTEC = True, maxvtec = 50,  maxdtec = 1, 
-                       angRes = 60, ncpu = None, seed = None, expfolder = None):
+                       angRes = 60, ncpu = None, seed = 0, expfolder = None):
     ''' Return TEC values for [times, station, source]. 
     The differential TEC is modeled using a tecscreen with von-Karman
     turbulence. Absolute TEC (optional) is modeled sinusoidal and peakes at 
@@ -294,7 +294,6 @@ def fixed_tecscreen(sp, directions, times, hIon = 200.e3, vIon = 50,
     dx = vIon /(hIon*np.tan(np.deg2rad(angRes/3600))) # pixel per second
     dx *= (times[-1] - times[0])/len(times) # pixel per step
     # Get turbulent screen generator object and convert to array
-    # TODO seed
     it = MegaScreen(r0, L0, windowShape = [len(grid_lon), len(grid_lat)], 
                dx = dx, theta = 0, seed = seed, numIter = len(times))
     
@@ -354,7 +353,7 @@ def fixed_tecscreen(sp, directions, times, hIon = 200.e3, vIon = 50,
 
 def comoving_tecscreen(sp, directions, times, hIon = 200.e3, vIon = 50,
                        absoluteTEC = True, maxvtec = 50,  maxdtec = 1, 
-                       angRes = 60, ncpu = None, seed = None,expfolder = None):
+                       angRes = 60, ncpu = None, seed = 0, expfolder = None):
     ''' Return TEC values for [times, station, source]. 
     The differential TEC is modeled using a tecscreen with von-Karman
     turbulence. Absolute TEC (optional) is modeled sinusoidal and peakes at 
@@ -421,7 +420,6 @@ def comoving_tecscreen(sp, directions, times, hIon = 200.e3, vIon = 50,
     L0 = np.arctan(1000e3/hIon)/np.deg2rad(angRes/3600) # Assuming L0 = 1000km
     dx = vIon /(hIon*np.tan(np.deg2rad(angRes/3600))) # pixel per second
     dx *= (times[-1] - times[0])/len(times) # pixel per step
-    # TODO seed
     sc_gen = MegaScreen(r0, L0, windowShape = [len(grid_lon[0]), 
                                                len(grid_lat[0])], 
                         dx = dx, theta = 0, seed = seed, numIter = len(times))
@@ -476,7 +474,7 @@ def VonKarmanSpectrum(f, r0, L0=1e6, alpha=11.0 / 3.0):
     return 0.0229 * r0 ** (2.0 - alpha) * (f ** 2 + 1 / L0 ** 2) ** (-alpha / 2)
 
 
-def FftScreen(spectrum, shape, pixelSize=1.0, seed = None):
+def FftScreen(spectrum, shape, pixelSize=1.0, seed = 0):
     """Generate infinite sequence of screens based on filtered 2D white noise
     Parameters
     ----------
@@ -493,8 +491,8 @@ def FftScreen(spectrum, shape, pixelSize=1.0, seed = None):
     """
     f = FrequencyGrid(shape, pixelSize)
     filter = sqrt(spectrum(f) * f[0, 1] * f[1, 0])
-    if not seed:
-        seed = np.random.randint(0,10000)
+    if seed == 0:
+        seed = np.random.randint(0, 10000)
     random.seed(int(seed))
     while 1:
         sample = random.normal(size=(2,) + filter.shape)
@@ -641,7 +639,7 @@ def NestedScreen(
     fractionalSupport=0.5,
     debug=False,
     numIter=None,
-    seed = None
+    seed = 0
 ):
     """Generate a sequence of phase screens for an arbitrary spectrum
     Parameters
@@ -652,6 +650,8 @@ def NestedScreen(
     -----
     See MegaScreen() for the other parameters
     """
+    if seed == 0:
+        seed = np.random.randint(0,10000)
     wooferPixelSize = nfftTweeter / (2 * frequencyOverlap)
     f0 = 1 / (2 * wooferPixelSize) * fractionalSupport
     wooferSpectrum, tweeterSpectrum = NestedSpectra(spectrum, f0)
@@ -703,7 +703,7 @@ def MegaScreen(
     fractionalSupport=1.0,
     debug=False,
     numIter=None,
-    seed = None
+    seed = 0
 ):
     """
     Generate a sequence of phase screens with a Von Karman spectrum.

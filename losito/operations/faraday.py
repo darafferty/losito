@@ -5,7 +5,6 @@ FARADAY operation for LoSiTo
 import numpy as np
 import multiprocessing as mp
 import logging as log
-from astropy.coordinates import EarthLocation
 from astropy.time import Time
 # lofar specific imports
 import EMM.EMM as EMM
@@ -16,7 +15,6 @@ from ..progress import progress
 log.debug('Loading FARADAY module.')
 
 R_earth = 6364.62e3
-
 
 def _run_parser(obs, parser, step):
     h5parmFilename = parser.getstr(step, 'h5parmFilename')
