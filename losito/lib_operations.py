@@ -6,6 +6,7 @@ import logging
 import multiprocessing
 import numpy as np
 from astropy.io import fits as pyfits
+import casacore.tables as pt
 import os
 import sys
 from configparser import ConfigParser
@@ -323,3 +324,20 @@ def make_template_image(image_name, reference_ra_deg, reference_dec_deg,
     hdulist[0].header = header
     hdulist.writeto(image_name, overwrite=True)
     hdulist.close()
+
+
+def reset_beam_keyword(ms_filename, colname='DATA'):
+    """
+    Unsets the LOFAR_APPLIED_BEAM_MODE keyword for the given column
+
+    Parameters
+    ----------
+    ms_filename : str
+        Filename of MS
+    colname : str, optional
+        Name of column
+    """
+    t = pt.table(ms_filename, readonly=False, ack=False)
+    if colname in t.colnames() and 'LOFAR_APPLIED_BEAM_MODE' in t.getcolkeywords(colname):
+        t.putcolkeyword(colname, 'LOFAR_APPLIED_BEAM_MODE', 'None')
+    t.close()

@@ -20,7 +20,7 @@ def _run_parser(obs, parser, step):
 
 def run(obs, mode='default', usechannelfreq=True, onebeamperpatch=False):
     """
-    Adds Gaussian noise to a data column.
+    Corrupts with the beam model.
 
     Parameters
     ----------
@@ -29,8 +29,10 @@ def run(obs, mode='default', usechannelfreq=True, onebeamperpatch=False):
     mode : str, optional
         Beam mode to use: 'default' (= array factor + element), 'array_factor',
         or 'element'
-    outputColumn : str, optional
-        Name of output column to which noise is added
+    usechannelfreq : bool, optional
+        If True, compute the beam for each channel of the measurement set separately
+    onebeamperpatch : bool, optional
+        If True, compute the beam only for the center of each patch.
     """
     if mode not in ['default', 'array_factor', 'element']:
         logging.error('mode "{}" not understood'.format(mode))
