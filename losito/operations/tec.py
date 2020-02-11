@@ -16,7 +16,7 @@ from astropy.coordinates import EarthLocation, AltAz
 from astropy.utils.exceptions import AstropyWarning
 from losoto.h5parm import h5parm
 import RMextract.PosTools as post
-from ..lib_tecscreen import get_tecscreen, daytime_tec_modulation
+from ..lib_tecscreen import comoving_tecscreen, daytime_tec_modulation
 
 log.debug('Loading TEC module.')
 # Mute AP warnings for now... 
@@ -25,8 +25,10 @@ warnings.simplefilter('ignore', category=AstropyWarning)
 def _run_parser(obs, parser, step):
     method = parser.getstr(step, 'method', default = 'turbulence')
     h5parmFilename = parser.getstr(step, 'h5parmFilename', )
-    maxdtec = parser.getfloat(step, 'maxdtec', default=.5)
-    maxvtec = parser.getfloat(step, 'maxvtec', default=50.)
+    maxdtec = parser.getfloat(step, 'maxdtec', default = .5)
+    maxvtec = parser.getfloat(step, 'maxvtec', default = 50.)
+    hIon = parser.getfloat(step, 'hIon', default = 200e3)
+    vIon= parser.getfloat(step, 'hIon', default = 50)
     seed = parser.getint(step, 'seed', default = 0)
     fitsFilename = parser.getstr(step, 'fitsFilename', default = '')
     absoluteTEC = parser.getbool(step, 'absoluteTEC', default = True)
@@ -34,9 +36,10 @@ def _run_parser(obs, parser, step):
     ncpu = parser.getint( '_global', 'ncpu', 0)
        
     parser.checkSpelling( step, ['method', 'h5parmFilename', 'maxdtec',
-                                 'maxvtec', 'seed', 'fitsFilename', 
-                                 'absoluteTEC', 'angRes', 'ncpu'])  
-    return run(obs, method, h5parmFilename, maxdtec, maxvtec, seed, 
+                                 'maxvtec', 'hIon', 'vIon', 'seed', 
+                                 'fitsFilename', 'absoluteTEC', 'angRes', 
+                                 'ncpu'])  
+    return run(obs, method, h5parmFilename, maxdtec, maxvtec, hIon, vIon, seed, 
                fitsFilename, step, absoluteTEC, angRes, ncpu)
 
 def _getaltaz(radec):
@@ -66,9 +69,9 @@ def _tid(x, t, amp=0.2, wavelength=200e3, omega=500.e3/3600.):
     return amp*np.sin((x+omega*t)*2*np.pi/wavelength)
 
 
-def run(obs, method, h5parmFilename, maxdtec = 0.5, maxvtec = 50., seed = None,
-        fitsFilename = None, stepname='tec', absoluteTEC = True, 
-        angRes = 60, ncpu=0):
+def run(obs, method, h5parmFilename, maxdtec = 0.5, maxvtec = 50, hIon = 200e3,
+        vIon = 50, seed = None, fitsFilename = None, stepname='tec', 
+        absoluteTEC = True, angRes = 60, ncpu=0):
     """
     Creates h5parm with TEC values from TEC FITS cube.
 
@@ -84,6 +87,10 @@ def run(obs, method, h5parmFilename, maxdtec = 0.5, maxvtec = 50., seed = None,
         Maximum screen dTEC per timestep in TECU.
     maxvtec: float, optional. Default = 50.
         Highest vTEC in daily modulation in TECU.
+    hIon : float, optional. Default = 200 km
+        Height of thin layer ionoshpere.
+    vIono : float, optional. Default = 50 m/s
+        Velocity of tecscreen. This controls the tec variation frequency.
     seed: int, optional.
         Radnom screen seed. Use for reproducibility.
     fitsFilename : str, optional
@@ -112,9 +119,10 @@ def run(obs, method, h5parmFilename, maxdtec = 0.5, maxvtec = 50., seed = None,
     
     if method == 'turbulence':               
         directions = np.array([ras, decs]).T
-        tecvals = get_tecscreen(sp, directions, times, angRes = angRes, 
-                    h_ion = 200.e3, maxvtec = 50., maxdtec = 1., ncpu = ncpu,  
-                    expfolder = None, absoluteTEC = absoluteTEC)           
+        tecvals = comoving_tecscreen(sp, directions, times, angRes = angRes, 
+                                     hIon = 200.e3, maxvtec = 50, maxdtec = 1, 
+                                     ncpu = ncpu, expfolder = None, seed =seed, 
+                                     absoluteTEC = absoluteTEC)           
 
     elif method == 'fits':
         # Load solutions from FITS cube
