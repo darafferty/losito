@@ -68,7 +68,7 @@ def Bfield(gc_points, time = 5.0e9):
             B_xyz[i] = emm.getXYZ()
         return B_xyz
     else:
-        emm = EMM.WMM(date = year, lon = lon, lat = lat, h = h)
+        emm = EMM.WMM(date = year, lon = lon, lat = lat, h = height)
         return emm.getXYZ()
     
 

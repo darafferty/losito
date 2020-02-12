@@ -4,9 +4,9 @@
 Noise operation for losito: adds Gaussian noise to a data column
 """
 import logging
-from losito.lib_operations import *
-import casacore.tables as pt
 import numpy as np
+import casacore.tables as pt
+from ..progress import progress
 
 logging.debug('Loading NOISE module.')
 
@@ -30,28 +30,28 @@ def run(obs, column='DATA'):
     column : str, optional
         Name of column to which noise is added
     """
-    # TODO: test HBA
     # TODO: ensure eta = 1 is accurate enough
     tab = pt.table(obs.ms_filename, readonly=False)
     eta = 1. # system efficiency. Roughly 1.0
+    
     def SEFD(station1, station2, freq):
         '''
-        Return the source equivalent flux density (SEFD) per baseline and
-        frequency. The values for the SEFD were derived from van Haarlem 
+        Return the source equivalent flux density (SEFD) for all rows and a
+        single fequency channel.
+        The values for the SEFD were derived from van Haarlem 
         et al. (2013) by fitting a 5th degree polynomial to the datapoints.
         
         Parameters
         ----------
-        station1 : TYPE
-            DESCRIPTION.
-        station2 : TYPE
-            DESCRIPTION.
-        freq : TYPE
-            DESCRIPTION.
-
+        station1 : (n,) ndarray, dtype = int
+            ANTENNA1 indices.
+        station2 : (n,) ndarray, dtpe = int
+            ANTENNA2 indices.
+        freq : float
+            Channel frequency in Hz.
         Returns
         -------
-        SEFD : () array
+        SEFD : (n,) ndarray
             SEFD in Jansky.
         '''       
         if obs.antenna == 'LBA':
@@ -67,13 +67,12 @@ def run(obs, column='DATA'):
                 logging.error('LBA mode "{}" not supported'.format(lba_mode))
                 return 1
             SEFD = np.polynomial.polynomial.polyval(freq, coeffs)
-            return np.tile(SEFD, (len(station1), 1)) # SEFD same for all BL
+            return np.repeat(SEFD, len(station1))#np.tile(SEFD, (len(station1), 1)) # SEFD same for all BL
                 
         if obs.antenna == 'HBA':
             # For HBA, the SEFD differs between core and remote stations
-            names = np.array([n[0:2] for n in tab.ANTENNA.getcol('NAME')])
-            ids = tab.ANTENNA.getcol('LOFAR_STATION_ID')
-            CS = ids[np.where(names == 'CS')]
+            names = np.array([_n[0:2] for _n in tab.ANTENNA.getcol('NAME')])            
+            CS = tab.ANTENNA.getcol('LOFAR_STATION_ID')[np.where(names =='CS')]
             lim = np.max(CS) # this id seperates the core/remote stations                       
             # coeffs for grade 5 polynomial of SEFD model 
             coeffs_cs = [1.61262289e+06, -4.77373916e-02, 5.58287303e-10, 
@@ -84,26 +83,28 @@ def run(obs, column='DATA'):
             # SEFD per station
             SEFD_cs = np.polynomial.polynomial.polyval(freq, coeffs_cs)
             SEFD_rs = np.polynomial.polynomial.polyval(freq, coeffs_rs)
-            
-            SEFD_s1 = np.where(station1[:,np.newaxis] <= lim, SEFD_cs, SEFD_rs)
-            SEFD_s2 = np.where(station2[:,np.newaxis] <= lim, SEFD_cs, SEFD_rs)
+            SEFD_s1 = np.where(station1 <= lim, SEFD_cs, SEFD_rs)
+            SEFD_s2 = np.where(station2 <= lim, SEFD_cs, SEFD_rs)
             return np.sqrt(SEFD_s1*SEFD_s2)
         
-    chan_width = tab.SPECTRAL_WINDOW.getcol('CHAN_WIDTH') 
-    freq = tab.SPECTRAL_WINDOW.getcol('CHAN_FREQ')
-    rows = pt.taql('SELECT EXPOSURE, ANTENNA1, ANTENNA2 FROM $tab')
-    # Calculate correct standard deviation for each (row, SB) 
-    std = (SEFD(rows.getcol('ANTENNA1'), rows.getcol('ANTENNA2'), freq)
-           / np.sqrt(2*np.outer(rows.getcol('EXPOSURE'), chan_width)))/eta
-    # draw complex valued samples of shape (row, SB, corr_pol)
-    noise = np.random.normal(loc=0, scale=std, size=[4,*np.shape(std)])
-    noise = np.moveaxis(noise, 0, 2)
-    noise = noise + 1.j*np.moveaxis(np.random.normal(loc=0, scale=std, 
-                                                     size=[4,*np.shape(std)]), 
-                                    0, 2)
-    prediction = tab.getcol(column) 
-
-    tab.putcol(column, prediction + noise)
-    tab.close()
-
-    return 0
+    chan_width = tab.SPECTRAL_WINDOW.getcol('CHAN_WIDTH').flatten()
+    freq = tab.SPECTRAL_WINDOW.getcol('CHAN_FREQ').flatten()
+    ant1 = tab.getcol('ANTENNA1')
+    ant2 = tab.getcol('ANTENNA2')
+    exposure = tab.getcol('EXPOSURE')
+    
+    # Iterate over frequency channels to save memory.    
+    for i, nu in enumerate(freq):
+        progress(i, len(freq), status = 'estimating noise') # progress bar
+        # find correct standard deviation from SEFD
+        std = eta * SEFD(ant1, ant2, nu)
+        std /= np.sqrt(2*exposure*chan_width[i])
+        # draw complex valued samples of shape (row, corr_pol)
+        noise = np.random.normal(loc=0, scale=std, size=[4,*np.shape(std)]).T
+        noise = noise + 1.j*np.random.normal(loc=0, scale=std, size=[4,*np.shape(std)]).T
+        noise = noise[:,np.newaxis,:]
+        prediction = tab.getcolslice(column, blc = [i,-1], trc = [i,-1])     
+        tab.putcolslice(column, prediction + noise,  blc = [i,-1], trc = [i,-1])
+    tab.close()    
+    return 0        
+    
