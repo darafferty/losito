@@ -67,7 +67,7 @@ def run(obs, column='DATA'):
                 logging.error('LBA mode "{}" not supported'.format(lba_mode))
                 return 1
             SEFD = np.polynomial.polynomial.polyval(freq, coeffs)
-            return np.repeat(SEFD, len(station1))#np.tile(SEFD, (len(station1), 1)) # SEFD same for all BL
+            return np.repeat(SEFD, len(station1)) # SEFD same for all BL
                 
         if obs.antenna == 'HBA':
             # For HBA, the SEFD differs between core and remote stations
@@ -103,6 +103,8 @@ def run(obs, column='DATA'):
         noise = np.random.normal(loc=0, scale=std, size=[4,*np.shape(std)]).T
         noise = noise + 1.j*np.random.normal(loc=0, scale=std, size=[4,*np.shape(std)]).T
         noise = noise[:,np.newaxis,:]
+        # TODO: is there a more efficient way to do this in taql?
+        # Probably loading the predicted column is not necessary
         prediction = tab.getcolslice(column, blc = [i,-1], trc = [i,-1])     
         tab.putcolslice(column, prediction + noise,  blc = [i,-1], trc = [i,-1])
     tab.close()    

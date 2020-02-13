@@ -105,6 +105,8 @@ def run(obs, h5parmFilename, h_ion = 200.e3, stepname='rm', ncpu=0):
                                             len(directions)*len(sp)*len(times))
         progress(i, len(B_vec[0]), status = prnt)
         B_vec[:,i] =  pool.map(Bfield, PP[:,i])
+    pool.close()
+    pool.join()
     log.info('Calculate rotation measure...')   
     c = 29979245800 # cm/s
     m = 9.109 * 10**(-28) # g
