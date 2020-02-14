@@ -98,7 +98,7 @@ def run(obs, method, h5parmFilename, maxdtec = 0.5, maxvtec = 50, hIon = 200e3,
     stepname _ str, optional
         Name of step to use in DPPP parset
     absoluteTEC : bool, optional. Default = True
-        Whether to use absolute (vTEC) or differential (dTEC) TEC.
+        Whether to use absoluteTEC (vTEC) or differential (dTEC) TEC.
     angRes : float, optional. Default = 60.
         Angular resolution of the screen [arcsec]. Only for turbulent model.
     ncpu : int, optional
@@ -117,7 +117,7 @@ def run(obs, method, h5parmFilename, maxdtec = 0.5, maxvtec = 50, hIon = 200e3,
     tecvals = np.zeros((len(times), len(ants), len(ras)))
     weights = np.ones_like(tecvals)
     
-    if method == 'turbulence':               
+    if method == 'turbulence': 
         directions = np.array([ras, decs]).T
         tecvals = comoving_tecscreen(sp, directions, times, angRes = angRes, 
                                      hIon = 200.e3, maxvtec = 50, maxdtec = 1, 
@@ -205,13 +205,22 @@ def run(obs, method, h5parmFilename, maxdtec = 0.5, maxvtec = 50, hIon = 200e3,
         log.error('method "{}" not understood'.format(method))
         return 1
     
-    if os.path.exists(h5parmFilename):
-        log.info(h5parmFilename +' already exists. Overwriting file...')
-        os.remove(h5parmFilename)
+    # TODO: How should the h5parms be handled? Should there be only one h5parm
+    # for all solutiontables? 
     
-    # Write tec values to h5parm file as DPPP input    
+    # Write tec values to h5parm file as DPPP input  
     ho = h5parm(h5parmFilename, readonly=False)
-    solset = ho.makeSolset(solsetName='sol000')
+    
+    if 'sol000' in ho.getSolsetNames():   
+        solset = ho.getSolset('sol000')
+    else:
+        solset = ho.makeSolset(solsetName = 'sol000')
+        
+    if 'tec000' in solset.getSoltabNames(): 
+        log.info('''Solution-table tec000 is already present in
+                 {}. It will be overwritten.'''.format(h5parmFilename + '/sol000'))  
+        solset.getSoltab('tec000').delete()
+        
     st = solset.makeSoltab('tec', 'tec000', axesNames=['time','ant','dir'],
                            axesVals=[times, ants, source_names], vals=tecvals,
                            weights=weights)

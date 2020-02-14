@@ -61,14 +61,24 @@ def run(obs, h5parmFilename, stepname='rm'):
             delays[:,i] = remote_station_delay(times) - cs_delay            
         else:
             continue
-    np.save('delays.npy', delays)
-    if os.path.exists(h5parmFilename):
-        log.info(h5parmFilename +' already exists. Overwriting file...')
-        os.remove(h5parmFilename)        
+    #np.save('delays.npy', delays)
+    #if os.path.exists(h5parmFilename):
+    #    log.info(h5parmFilename +' already exists. Overwriting file...')
+    #    os.remove(h5parmFilename)        
     
     # Write clock values to h5parm file as DPPP input    
     ho = h5parm(h5parmFilename, readonly=False)
-    solset = ho.makeSolset(solsetName='sol000')
+    print(ho.getSolsetNames())
+    if 'sol000' in ho.getSolsetNames():   
+        solset = ho.getSolset('sol000')
+    else:
+        solset = ho.makeSolset(solsetName = 'sol000')
+        
+    if 'clock000' in solset.getSoltabNames(): 
+        log.info('''Solution-table clock000 is already present in
+                 {}. It will be overwritten.'''.format(h5parmFilename + '/sol000'))  
+        solset.getSoltab('clock000').delete()
+        
     delays = delays[..., np.newaxis]
     weights = np.ones_like(delays)
 
@@ -92,8 +102,11 @@ def run(obs, h5parmFilename, stepname='rm'):
     if 'predict.applycal.steps' in obs.parset_parameters:
         obs.parset_parameters['predict.applycal.steps'].append(stepname)
     else:
-        obs.parset_parameters['predict.applycal.steps'] = [stepname]
-    obs.parset_parameters['predict.applycal.correction'] = 'clock000' # Is this line needed?
+        obs.parset_parameters['predict.applycal.steps'] = [stepname]    
+        
+    if 'predict.applycal.correction' not in obs.parset_parameters:
+        obs.parset_parameters['predict.applycal.correction'] = 'clock000' 
+        
     obs.parset_parameters['predict.applycal.{}.correction'.format(stepname)] = 'clock000'
     obs.parset_parameters['predict.applycal.{}.parmdb'.format(stepname)] = h5parmFilename
 
