@@ -47,7 +47,7 @@ def run(obs, outputColumn='DATA', predictType='h5parmpredict',
     # memory usage with large tables
     if resetWeights:
         logging.info('Reset entries in WEIGHT_SPECTRUM...')
-        pt.taql("UPDATE {0} SET WEIGHT_SPECTRUM=0.0".format(obs.ms_filename))
+        pt.taql("UPDATE {0} SET WEIGHT_SPECTRUM=1.0".format(obs.ms_filename))
 
     # Make sourcedb from sky model
     obs.make_sourcedb()
