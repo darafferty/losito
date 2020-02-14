@@ -351,8 +351,8 @@ def fixed_tecscreen(sp, directions, times, hIon = 200.e3, vIon = 50,
         return TEC
 
 
-def comoving_tecscreen(sp, directions, times, hIon = 200.e3, vIon = 50,
-                       absoluteTEC = True, maxvtec = 50,  maxdtec = 1, 
+def comoving_tecscreen(sp, directions, times, hIon = 200.e3, vIon = 10,
+                       absoluteTEC = True, maxvtec = 50,  maxdtec = 0.3, 
                        angRes = 60, ncpu = None, seed = 0, expfolder = None):
     ''' Return TEC values for [times, station, source]. 
     The differential TEC is modeled using a tecscreen with von-Karman
@@ -371,13 +371,13 @@ def comoving_tecscreen(sp, directions, times, hIon = 200.e3, vIon = 50,
         Timestamps in MJDseconds
     hIon : float, optional. Default = 200e3 meter.
         Height of ionospheric layer in meter.
-    vIon : float, optional. Default = 50 m/s
+    vIon : float, optional. Default = 10 m/s
         Velocity of tecscreen in frozen turbulence model.
     absoluteTEC : bool, optional. Default = True
         Whether to use absolute (vTEC) or differential (dTEC) TEC   
     maxvtec : float, optinal. Default = 50
         Daytime vTEC peak value for tec modulation in TECU.
-    maxdtec : float, optional. Default = 1
+    maxdtec : float, optional. Default = 0.3
         Maximum allowed dTEC of the screen for a single timestep. 
     angRes : float, optional. Default = 60 arcseconds
         Angular resolution of the tecscreen grid as seen from a station.
@@ -429,7 +429,7 @@ def comoving_tecscreen(sp, directions, times, hIon = 200.e3, vIon = 50,
         # Rescale each timestep screen to have max dtec 
         tecsc *= maxdtec / (np.max(tecsc, axis=0) - np.min(tecsc, axis=0))
         if absoluteTEC:  
-            tecsc = daily_modulation[i] * (tecsc + maxvtec)
+            tecsc = daily_modulation[i] * (tecsc + maxvtec) 
         else:
             tecsc = daily_modulation[i] * tecsc
         # Interpolate screen for each time and get values at pierce points

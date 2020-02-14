@@ -28,7 +28,8 @@ def run(obs, h5parmFilename, corruption, stepname='use_h5'):
             obs.parset_parameters['predict.applycal.steps'].append(stepname)
         else:
             obs.parset_parameters['predict.applycal.steps'] = [stepname]
-        obs.parset_parameters['predict.applycal.correction'] = 'clock000'
+        if 'predict.applycal.correction' not in obs.parset_parameters:
+            obs.parset_parameters['predict.applycal.correction'] = 'clock000'         
         obs.parset_parameters['predict.applycal.{}.correction'.format(stepname)] = 'clock000'
         obs.parset_parameters['predict.applycal.{}.parmdb'.format(stepname)] = h5parmFilename
         log.info('Including solution-table clock000 in {} in simulation.'.format(
@@ -55,7 +56,8 @@ def run(obs, h5parmFilename, corruption, stepname='use_h5'):
             obs.parset_parameters['predict.applycal.steps'].append(stepname)
         else:
             obs.parset_parameters['predict.applycal.steps'] = [stepname]
-        obs.parset_parameters['predict.applycal.correction'] = 'rotationmeasure000'
+        if 'predict.applycal.correction' not in obs.parset_parameters:
+            obs.parset_parameters['predict.applycal.correction'] = 'rotationmeasure000' 
         obs.parset_parameters['predict.applycal.{}.correction'.format(stepname)] = 'rotationmeasure000'
         obs.parset_parameters['predict.applycal.{}.parmdb'.format(stepname)] = h5parmFilename
         log.info('Including solution-table rotationmeasurem000 in {} in simulation.'.format(
