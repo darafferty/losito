@@ -21,7 +21,7 @@ def _run_parser(obs, parser, step):
     hIono = parser.getfloat(step, 'hIono', 200.e3)
     ncpu = parser.getint('_global', 'ncpu', 0)
     parser.checkSpelling( step, ['h5parmFilename', 'hIono', 'ncpu'])
-    return run(obs, h5parmFilename, hIono, ncpu)
+    return run(obs, h5parmFilename, hIono, step, ncpu)
 
 def yearfrac_from_mjds(t):
     ''' Get year + decimal fraction from MJD seconds. 

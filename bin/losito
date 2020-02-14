@@ -58,6 +58,8 @@ if __name__ == '__main__':
     ops = {
            "TEC": operations.tec,
            "FARADAY": operations.faraday,
+           "USE_H5": operations.use_h5,
+           "CLOCK": operations.clock,
            "BEAM": operations.beam,
            "PREDICT": operations.predict,
            "NOISE": operations.noise

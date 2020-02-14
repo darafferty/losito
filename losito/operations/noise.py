@@ -71,6 +71,7 @@ def run(obs, column='DATA'):
                 
         if obs.antenna == 'HBA':
             # For HBA, the SEFD differs between core and remote stations
+            # TODO: [True if 'RS' in st else False for st in stations]
             names = np.array([_n[0:2] for _n in tab.ANTENNA.getcol('NAME')])            
             CS = tab.ANTENNA.getcol('LOFAR_STATION_ID')[np.where(names =='CS')]
             lim = np.max(CS) # this id seperates the core/remote stations                       

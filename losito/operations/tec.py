@@ -184,7 +184,22 @@ def run(obs, method, h5parmFilename, maxdtec = 0.5, maxvtec = 50, hIon = 200e3,
                 tecvals + maxvtec)
         else :
             tecvals = (daytime_tec_modulation(times)[:,np.newaxis,np.newaxis]
-                       *tecvals)        
+                       *tecvals)       
+    
+    elif method == 'applyh5':
+        # This step generates the DPPP parset entry for an already existing
+        # tec h5parm file.
+        log.info('Add {} to prediction step...'.format(h5parmFilename))
+        # Update predict parset parameters for the obs
+        obs.parset_parameters['predict.applycal.parmdb'] = h5parmFilename
+        if 'predict.applycal.steps' in obs.parset_parameters:
+            obs.parset_parameters['predict.applycal.steps'].append(stepname)
+        else:
+            obs.parset_parameters['predict.applycal.steps'] = [stepname]
+        obs.parset_parameters['predict.applycal.correction'] = 'tec000'
+        obs.parset_parameters['predict.applycal.{}.correction'.format(stepname)] = 'tec000'
+        obs.parset_parameters['predict.applycal.{}.parmdb'.format(stepname)] = h5parmFilename
+        return 0
             
     else:
         log.error('method "{}" not understood'.format(method))
@@ -219,7 +234,7 @@ def run(obs, method, h5parmFilename, maxdtec = 0.5, maxvtec = 50, hIon = 200e3,
         obs.parset_parameters['predict.applycal.steps'].append(stepname)
     else:
         obs.parset_parameters['predict.applycal.steps'] = [stepname]
-    obs.parset_parameters['predict.applycal.correction'] = 'tec000'
+    obs.parset_parameters['predict.applycal.correction'] = 'tec000' 
     obs.parset_parameters['predict.applycal.{}.correction'.format(stepname)] = 'tec000'
     obs.parset_parameters['predict.applycal.{}.parmdb'.format(stepname)] = h5parmFilename
 
