@@ -5,7 +5,6 @@ Created on Thu Feb 13 15:10:06 2020
 
 @author: p1uy068
 """
-import os
 import logging as log
 import numpy as np
 from losoto.h5parm import h5parm
@@ -68,7 +67,6 @@ def run(obs, h5parmFilename, stepname='rm'):
     
     # Write clock values to h5parm file as DPPP input    
     ho = h5parm(h5parmFilename, readonly=False)
-    print(ho.getSolsetNames())
     if 'sol000' in ho.getSolsetNames():   
         solset = ho.getSolset('sol000')
     else:

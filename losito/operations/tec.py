@@ -25,7 +25,7 @@ warnings.simplefilter('ignore', category=AstropyWarning)
 def _run_parser(obs, parser, step):
     method = parser.getstr(step, 'method', default = 'turbulence')
     h5parmFilename = parser.getstr(step, 'h5parmFilename', )
-    maxdtec = parser.getfloat(step, 'maxdtec', default = .4)
+    maxdtec = parser.getfloat(step, 'maxdtec', default = .5)
     maxvtec = parser.getfloat(step, 'maxvtec', default = 50.)
     hIon = parser.getfloat(step, 'hIon', default = 200e3)
     vIon= parser.getfloat(step, 'hIon', default = 50)
@@ -69,7 +69,7 @@ def _tid(x, t, amp=0.2, wavelength=200e3, omega=500.e3/3600.):
     return amp*np.sin((x+omega*t)*2*np.pi/wavelength)
 
 
-def run(obs, method, h5parmFilename, maxdtec = 0.3, maxvtec = 50, hIon = 200e3,
+def run(obs, method, h5parmFilename, maxdtec = 0.5, maxvtec = 50, hIon = 200e3,
         vIon = 50, seed = 0, fitsFilename = None, stepname='tec', 
         absoluteTEC = True, angRes = 60, ncpu=0):
     """
@@ -83,7 +83,7 @@ def run(obs, method, h5parmFilename, maxdtec = 0.3, maxvtec = 50, hIon = 200e3,
         "tid": generate a traveling ionospheric disturbance (TID) wave
     h5parmFilename : str
         Filename of output h5parm file.
-    maxdtec : float, optional. Default = 0.3
+    maxdtec : float, optional. Default = 0.5
         Maximum screen dTEC per timestep in TECU.
     maxvtec: float, optional. Default = 50.
         Highest vTEC in daily modulation in TECU.

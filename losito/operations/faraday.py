@@ -81,8 +81,16 @@ def run(obs, h5parmFilename, h_ion = 200.e3, stepname='rm', ncpu=0):
     h5 = h5parm(h5parmFilename, readonly=False)
     solset = h5.getSolset('sol000')
     soltab = solset.getSoltab('tec000') 
-    sp = np.array(list(solset.getAnt().values()))  
-    directions = np.array(list(solset.getSou().values()))
+    sp = np.array(list(solset.getAnt().values())) 
+    
+    # Use only the directions specified in tec000 soltab. If there is e.g.
+    # a dummy direction for the clock000 soltab, it has to be excluded from
+    # the RM computation.
+    directions = []
+    for srcname in solset.getSou():
+        if srcname in soltab.dir:
+            directions.append(solset.getSou()[srcname])        
+    directions = np.array(directions)
     times = soltab.getAxisValues('time')
     
     sTEC = soltab.getValues()[0]
@@ -95,7 +103,6 @@ def run(obs, h5parmFilename, h_ion = 200.e3, stepname='rm', ncpu=0):
     log.info('''Calculating ionosphere pierce points for {} directions, {} 
               stations and {} timestamps...'''.format(len(directions), len(sp), 
               len(times)))
-    
     PP, PD = get_PP_PD(sp, directions, times, h_ion, ncpu)
     
     pool = mp.Pool(processes = ncpu)
@@ -115,11 +122,14 @@ def run(obs, h5parmFilename, h_ion = 200.e3, stepname='rm', ncpu=0):
     TECU = 10**16 # m**(-2)
     
     # Get B parallel to PD at PP
-    # TODO: In which way is parallel defined? Going from source to receiver
+    # In which way is parallel defined? Going from source to receiver
     # or the other way around? Currently, PD is calculated such that it
-    # is going from source to receiver. 
-    B_parallel = (PD[:,np.newaxis,:,:]*B_vec).sum(-1)        
+    # is going from source to receiver. Here, a minus sign is added to 
+    # reverse the PD. This makes dRM align with dTEC
+    B_parallel = (-PD[:,np.newaxis,:,:]*B_vec).sum(-1)        
     RM = constants * TECU * B_parallel * sTEC # rad*m**-2
+    # reference RM to 1st antenna:
+    RM = RM - RM[:,0,:][:,np.newaxis]
     
     # Delete rotationmeasureXYZ if it already exists
     stabnames = solset.getSoltabNames()

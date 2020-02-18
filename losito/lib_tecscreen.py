@@ -227,8 +227,8 @@ def screen_grid_comoving(edges, angRes, hIon):
     # Since sources move on sky grid size changes.
     # But MegaScreen needs constant screen size. So the smaller screens have
     # to be extended. They are extended in pos. lon / lat direction.
-    npixel_lat = np.ceil((max_lat - min_lat)/res_rad)
-    npixel_lon = np.ceil((max_lon - min_lon)/res_lon)
+    npixel_lat = np.ceil((max_lat - min_lat)/res_rad).astype(int)
+    npixel_lon = np.ceil((max_lon - min_lon)/res_lon).astype(int)
     mssng_px_lt = np.max(npixel_lat) - npixel_lat
     mssng_px_ln = np.max(npixel_lon) - npixel_lon
     max_lat += mssng_px_lt * res_rad # Fill for timesteps where screen smaller
@@ -352,7 +352,7 @@ def fixed_tecscreen(sp, directions, times, hIon = 200.e3, vIon = 50,
 
 
 def comoving_tecscreen(sp, directions, times, hIon = 200.e3, vIon = 10,
-                       absoluteTEC = True, maxvtec = 50,  maxdtec = 0.3, 
+                       absoluteTEC = True, maxvtec = 50,  maxdtec = 0.5, 
                        angRes = 60, ncpu = None, seed = 0, expfolder = None):
     ''' Return TEC values for [times, station, source]. 
     The differential TEC is modeled using a tecscreen with von-Karman
@@ -377,8 +377,8 @@ def comoving_tecscreen(sp, directions, times, hIon = 200.e3, vIon = 10,
         Whether to use absolute (vTEC) or differential (dTEC) TEC   
     maxvtec : float, optinal. Default = 50
         Daytime vTEC peak value for tec modulation in TECU.
-    maxdtec : float, optional. Default = 0.3
-        Maximum allowed dTEC of the screen for a single timestep. 
+    maxdtec : float, optional. Default = 0.5
+        Maximum allowed dTEC for whole observation.
     angRes : float, optional. Default = 60 arcseconds
         Angular resolution of the tecscreen grid as seen from a station.
     seed : int, optional. 
@@ -427,7 +427,6 @@ def comoving_tecscreen(sp, directions, times, hIon = 200.e3, vIon = 10,
     for i, tecsc in enumerate(sc_gen):
         progress(i, len(times), status='Generating tecscreen')        
         # Rescale each timestep screen to have max dtec 
-        tecsc *= maxdtec / (np.max(tecsc, axis=0) - np.min(tecsc, axis=0))
         if absoluteTEC:  
             tecsc = daily_modulation[i] * (tecsc + maxvtec) 
         else:
@@ -436,11 +435,14 @@ def comoving_tecscreen(sp, directions, times, hIon = 200.e3, vIon = 10,
         sc_interp = RectBivariateSpline(grid_lon[i], grid_lat[i], tecsc)
         TEC_ti = sc_interp.ev(PP_llr[i,:,:,0], PP_llr[i,:,:,1])
         # slant TEC from pierce angle: (e_r*e_d)^-1 = cos(pierce_angle)^-1
-        TEC[i] = TEC_ti/cos_pierce[i]    
-        
+        TEC[i] = TEC_ti/cos_pierce[i]       
         if expfolder:
             export[i] = tecsc
-    if expfolder:
+    
+    # rescale tecvalues to match maxdtec
+    TEC *= maxdtec / (np.max(TEC) - np.min(TEC))     
+       
+    if expfolder: # TODO check plotting maxsize
         np.save(expfolder + '/tecscreen.npy', expfolder)
         np.save(expfolder + '/piercepoints.npy', PP_llr)
         np.save(expfolder + '/times.npy', times)
