@@ -3,48 +3,53 @@
 """
 TEC operation for losito: generates dTEC corruptions
 """
-import logging
-from losito.lib_operations import *
-from astropy.io import fits as pyfits
-from astropy import wcs
-from losoto.h5parm import h5parm
+import warnings, os
+import logging as log
+import multiprocessing as mp
 import numpy as np
 from astropy import units as u
-import astropy.coordinates as coord
+from astropy import wcs
+from astropy.io import fits as pyfits
 from astropy.time import Time
-from astropy.coordinates import EarthLocation
-from astropy.coordinates import AltAz
-import multiprocessing
-from multiprocessing import Pool
+import astropy.coordinates as coord
+from astropy.coordinates import EarthLocation, AltAz
+from astropy.utils.exceptions import AstropyWarning
+from losoto.h5parm import h5parm
 import RMextract.PosTools as post
-import os
+from ..lib_tecscreen import comoving_tecscreen, daytime_tec_modulation
 
-logging.debug('Loading TEC module.')
-
+log.debug('Loading TEC module.')
+# Mute AP warnings for now... 
+warnings.simplefilter('ignore', category=AstropyWarning)
 
 def _run_parser(obs, parser, step):
-    method = parser.getstr( step, 'method')
-    h5parmFilename = parser.getstr( step, 'h5parmFilename')
-    fitsFilename = parser.getstr( step, 'fitsFilename', '')
-    tidAmp = parser.getfloat( step, 'tidAmp', 0.2)
-    tidLen = parser.getfloat( step, 'tidLen', 200e3)
-    tidVel = parser.getfloat( step, 'tidVel', 500.e3/3600.)
+    method = parser.getstr(step, 'method', default = 'turbulence')
+    h5parmFilename = parser.getstr(step, 'h5parmFilename', )
+    maxdtec = parser.getfloat(step, 'maxdtec', default = .5)
+    maxvtec = parser.getfloat(step, 'maxvtec', default = 50.)
+    hIon = parser.getfloat(step, 'hIon', default = 200e3)
+    vIon= parser.getfloat(step, 'hIon', default = 50)
+    seed = parser.getint(step, 'seed', default = 0)
+    fitsFilename = parser.getstr(step, 'fitsFilename', default = '')
+    absoluteTEC = parser.getbool(step, 'absoluteTEC', default = True)
+    angRes = parser.getfloat(step, 'angRes', default = 60.)
     ncpu = parser.getint( '_global', 'ncpu', 0)
-
-    parser.checkSpelling( step, ['method', 'fitsFilename', 'h5parmFilename', 
-                                 'tidAmp', 'tidLen', 'tidVel'])
-    return run(obs, method, h5parmFilename, fitsFilename, tidAmp, 
-               tidLen, tidVel, step, ncpu)
-
+       
+    parser.checkSpelling( step, ['method', 'h5parmFilename', 'maxdtec',
+                                 'maxvtec', 'hIon', 'vIon', 'seed', 
+                                 'fitsFilename', 'absoluteTEC', 'angRes', 
+                                 'ncpu'])  
+    return run(obs, method, h5parmFilename, maxdtec, maxvtec, hIon, vIon, seed, 
+               fitsFilename, step, absoluteTEC, angRes, ncpu)
 
 def _getaltaz(radec):
     ra = radec[0]
     dec = radec[1]
     aa = radec[2]
+    
     mycoord = coord.SkyCoord(ra, dec, frame=coord.FK5, unit=(u.hourangle, u.deg))
     mycoord_aa = mycoord.transform_to(aa)
     return mycoord_aa
-
 
 def _gettec(altaz_args):
     alltec = []
@@ -60,13 +65,13 @@ def _gettec(altaz_args):
         alltec.append([tec, x, y, altaz.secz])
     return alltec
 
-
 def _tid(x, t, amp=0.2, wavelength=200e3, omega=500.e3/3600.):
     return amp*np.sin((x+omega*t)*2*np.pi/wavelength)
 
 
-def run(obs, method, h5parmFilename, fitsFilename=None, tidAmp=0.2, 
-        tidLen=200e3, tidVel=500e3/3600, stepname='tec', ncpu=0):
+def run(obs, method, h5parmFilename, maxdtec = 0.5, maxvtec = 50, hIon = 200e3,
+        vIon = 50, seed = 0, fitsFilename = None, stepname='tec', 
+        absoluteTEC = True, angRes = 60, ncpu=0):
     """
     Creates h5parm with TEC values from TEC FITS cube.
 
@@ -78,138 +83,145 @@ def run(obs, method, h5parmFilename, fitsFilename=None, tidAmp=0.2,
         "tid": generate a traveling ionospheric disturbance (TID) wave
     h5parmFilename : str
         Filename of output h5parm file.
+    maxdtec : float, optional. Default = 0.5
+        Maximum screen dTEC per timestep in TECU.
+    maxvtec: float, optional. Default = 50.
+        Highest vTEC in daily modulation in TECU.
+    hIon : float, optional. Default = 200 km
+        Height of thin layer ionoshpere.
+    vIono : float, optional. Default = 50 m/s
+        Velocity of tecscreen. This controls the tec variation frequency.
+    seed: int, optional.
+        Radnom screen seed. Use for reproducibility.
     fitsFilename : str, optional
         Filename of input FITS cube with dTEC solutions.
-    tidAmp : float, optional
-        Amplitude of TID wave (in TECU)
-    tidLen : float, optional
-        Wavelength of TID wave (in m). default = 300 km
-    tidVel : float, optional
-        Velocity (?) of TID wave (in m/s). default = 500 km/h 
     stepname _ str, optional
         Name of step to use in DPPP parset
+    absoluteTEC : bool, optional. Default = True
+        Whether to use absoluteTEC (vTEC) or differential (dTEC) TEC.
+    angRes : float, optional. Default = 60.
+        Angular resolution of the screen [arcsec]. Only for turbulent model.
     ncpu : int, optional
         Number of cores to use, by default all available.
     """
+    method = method.lower()
+    if ncpu == 0:
+        ncpu = mp.cpu_count()
     # Get sky model properties
     ras, decs = obs.get_patch_coords()
     source_names = obs.get_patch_names()
-    ndirs = len(source_names)
-    if ncpu == 0:
-        ncpu = multiprocessing.cpu_count()
+    ants = obs.stations
+    sp = obs.stationpositions
+    times = obs.get_times()
+    
+    tecvals = np.zeros((len(times), len(ants), len(ras)))
+    weights = np.ones_like(tecvals)
+    
+    if method == 'turbulence': 
+        directions = np.array([ras, decs]).T
+        tecvals = comoving_tecscreen(sp, directions, times, angRes = angRes, 
+                                     hIon = hIon, maxvtec = maxvtec, 
+                                     maxdtec = maxdtec, ncpu = ncpu, 
+                                     expfolder = None, seed =seed, 
+                                     absoluteTEC = absoluteTEC)           
 
-    if method == 'fits':
+    elif method == 'fits':
         # Load solutions from FITS cube
         hdu = pyfits.open(fitsFilename, memmap=False)
         data = hdu[0].data
         header = hdu[0].header
         w = wcs.WCS(header)
-        ntimes, nfreqs, nstations, ny, nx = data.shape
+        ntimes, _, nstations, ny, nx = data.shape
 
         # Check that number of stations in input FITS cube matches MS
-        if nstations != len(obs.stations):
-            logging.error('Number of stations in input FITS cube does not match that '
-                          'in the input MS')
+        if nstations != len(ants):
+            log.error('Number of stations in input FITS cube does not '
+                          'match that in the input MS')
             return 1
 
         # Get solutions at the source coords
-        vals = np.zeros((ntimes, nstations, ndirs, nfreqs))
-        weights = np.ones(vals.shape)
         for d, (ra_deg, dec_deg) in enumerate(zip(ras, decs)):
             ra_dec = np.array([[ra_deg, dec_deg, 0, 0, 0]])
             x = int(w.wcs_world2pix(ra_dec, 0)[0][0])
             y = int(w.wcs_world2pix(ra_dec, 0)[0][1])
             if x < 0 or x > nx or y < 0 or y > ny:
-                vals[:, :, d, :] = 0.0
+                tecvals[:, :, d, :] = 0.0
                 weights[:, :, d, :] = 0.0
                 continue
             for t in range(ntimes):
-                for f in range(nfreqs):
-                    for s in range(nstations):
-                        vals[t, s, d, f] = data[t, f, s, y, x]
-
-        # Fill the axis arrays
-        t_ref = header['CRVAL5']
-        t_del = header['CDELT5']
-        times = [t_ref+(t_del*i) for i in range(ntimes)]
-        f_ref = header['CRVAL4']
-        f_del = header['CDELT4']
-        freqs = [f_ref+(f_del*i) for i in range(nfreqs)]
-        ants = obs.stations
-
-        # Make h5parm with solutions and write to disk
-        if os.path.exists(h5parmFilename):
-            os.remove(h5parmFilename)
-        ho = h5parm(h5parmFilename, readonly=False)
-        solset = ho.makeSolset(solsetName='sol000')
-        st = solset.makeSoltab('tec', 'tec000', axesNames=['time', 'ant', 'dir', 'freq'],
-                               axesVals=[times, ants, source_names, freqs], vals=vals,
-                               weights=weights)
-        antennaTable = solset.obj._f_get_child('antenna')
-        antennaTable.append(list(zip(*(obs.stations, obs.stationpositions))))
-        sourceTable = solset.obj._f_get_child('source')
-        vals = [[ra, dec] for ra, dec in zip(ras, decs)]
-        sourceTable.append(list(zip(*(source_names, vals))))
-
-        # Add CREATE entry to history
-        soltabs = solset.getSoltabs()
-        for st in soltabs:
-            st.addHistory('CREATE (by TEC operation of LoSiTo from '
-                          'obs {0} and FITS cube {1})'.format(h5parmFilename, fitsFilename))
-        ho.close()
+                for s in range(nstations):
+                    tecvals[t,s,d] = data[t,0,s,y,x]
+        if absoluteTEC:
+            tecvals = daytime_tec_modulation(times)[:,np.newaxis,np.newaxis]*(
+                tecvals + maxvtec)
+        else :
+            tecvals = (daytime_tec_modulation(times)[:,np.newaxis,np.newaxis]
+                       *tecvals) 
 
     elif method == 'tid':
         # Properties of TID wave
-        tid_prop = [tidAmp, tidLen, tidVel]
+        tidLen=200e3
+        tidVel=500e3/3600,
+        tid_prop = [maxdtec, tidLen, tidVel]
         # Generate solutions for TID wave
-        times = np.array([obs.starttime+i*obs.timepersample for i in range(obs.numsamples)])
-        times /= 3600.0 * 24.0
-
         A12 = EarthLocation(lat=52.91*u.deg, lon=6.87*u.deg, height=1*u.m)
-        time = Time(times, format="mjd")
+        mjd = Time(times/(3600.0 * 24.0), format="mjd")
 
-        aa = AltAz(location=A12, obstime=time)
+        aa = AltAz(location=A12, obstime=mjd)
         altazcoord = []
-        p = Pool(processes=ncpu)
+        pool = mp.Pool(processes=ncpu)
         radec = [(r, d, aa) for r, d in zip(ras, decs)]
-        altazcoord = p.map(_getaltaz, radec)
-
-        p = Pool(processes=ncpu)
-        gettec_args = [(a, obs.stationpositions, A12, times, *tid_prop) for a in altazcoord]
-        alltec = p.map(_gettec, gettec_args)
+        altazcoord = pool.map(_getaltaz, radec)
+        gettec_args = [(a, sp, A12, times, *tid_prop) for a in altazcoord]
+        alltec = pool.map(_gettec, gettec_args)
+        pool.close()
+        pool.join()
         alltec = np.array(alltec) 
-
         # Fill the axis arrays
-        times *= 3600.0 * 24.0
-        freqs = [obs.referencefreq]
-        ants = obs.stations
-        vals = np.zeros((len(times), len(ants), len(source_names), 1))
-        weights = np.ones(vals.shape)
-        vals[:, :, :, 0] = alltec[:, :, 0, :].transpose([2, 1, 0])
-
-        # Make h5parm with solutions and write to disk
-        if os.path.exists(h5parmFilename):
-            os.remove(h5parmFilename)
-        ho = h5parm(h5parmFilename, readonly=False)
-        solset = ho.makeSolset(solsetName='sol000')
-        st = solset.makeSoltab('tec', 'tec000', axesNames=['time', 'ant', 'dir', 'freq'],
-                               axesVals=[times, ants, source_names, freqs], vals=vals,
-                               weights=weights)
-        antennaTable = solset.obj._f_get_child('antenna')
-        antennaTable.append(list(zip(*(obs.stations, obs.stationpositions))))
-        sourceTable = solset.obj._f_get_child('source')
-        vals = [[ra, dec] for ra, dec in zip(ras, decs)]
-        sourceTable.append(list(zip(*(source_names, vals))))
-
-        # Add CREATE entry to history
-        soltabs = solset.getSoltabs()
-        for st in soltabs:
-            st.addHistory('CREATE (by TEC operation of LoSiTo from '
-                          'obs {0} and method="wave")'.format(h5parmFilename))
-        ho.close()
+        tecvals = alltec[:, :, 0, :].transpose([2, 1, 0])#[:,:,:,0]
+         # convert to vTEC
+        if absoluteTEC:
+            tecvals = daytime_tec_modulation(times)[:,np.newaxis,np.newaxis]*(
+                tecvals + maxvtec)
+        else :
+            tecvals = (daytime_tec_modulation(times)[:,np.newaxis,np.newaxis]
+                       *tecvals)       
+            
     else:
-        logging.error('method "{}" not understood'.format(method))
+        log.error('method "{}" not understood'.format(method))
         return 1
+    
+    # TODO: How should the h5parms be handled? Should there be only one h5parm
+    # for all solutiontables? 
+    
+    # Write tec values to h5parm file as DPPP input  
+    ho = h5parm(h5parmFilename, readonly=False)
+    
+    if 'sol000' in ho.getSolsetNames():   
+        solset = ho.getSolset('sol000')
+    else:
+        solset = ho.makeSolset(solsetName = 'sol000')
+        
+    if 'tec000' in solset.getSoltabNames(): 
+        log.info('''Solution-table tec000 is already present in
+                 {}. It will be overwritten.'''.format(h5parmFilename + '/sol000'))  
+        solset.getSoltab('tec000').delete()
+        
+    st = solset.makeSoltab('tec', 'tec000', axesNames=['time','ant','dir'],
+                           axesVals=[times, ants, source_names], vals=tecvals,
+                           weights=weights)
+    antennaTable = solset.obj._f_get_child('antenna')
+    antennaTable.append(list(zip(*(ants, sp))))
+    sourceTable = solset.obj._f_get_child('source')
+    vals = [[ra, dec] for ra, dec in zip(ras, decs)]
+    sourceTable.append(list(zip(*(source_names, vals))))
+
+    # Add CREATE entry to history
+    soltabs = solset.getSoltabs()
+    for st in soltabs:
+        st.addHistory('CREATE (by TEC operation of LoSiTo from obs {0} '
+                      'and method="{{1}}")'.format(h5parmFilename, method))
+    ho.close()
 
     # Update predict parset parameters for the obs
     obs.parset_parameters['predict.applycal.parmdb'] = h5parmFilename
@@ -217,7 +229,7 @@ def run(obs, method, h5parmFilename, fitsFilename=None, tidAmp=0.2,
         obs.parset_parameters['predict.applycal.steps'].append(stepname)
     else:
         obs.parset_parameters['predict.applycal.steps'] = [stepname]
-    obs.parset_parameters['predict.applycal.correction'] = 'tec000'
+    obs.parset_parameters['predict.applycal.correction'] = 'tec000' 
     obs.parset_parameters['predict.applycal.{}.correction'.format(stepname)] = 'tec000'
     obs.parset_parameters['predict.applycal.{}.parmdb'.format(stepname)] = h5parmFilename
 

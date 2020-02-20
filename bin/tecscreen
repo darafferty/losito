@@ -121,12 +121,10 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('msfile', help='Input MS filename.', type=str, default=None)
     parser.add_argument("fitsfile", help="Output FITS fileneam", type=str, default=None)
+
     parser.add_argument("--polygrade", help="define grade of polynomial", type=check_positive, default=3)
     parser.add_argument("--npixels", help="number of screen pixels", type=check_positive, default=100)
     parser.add_argument("--size", help="width of screen in degrees", type=float, default=None)
-    parser.add_argument("--vid", help="toggle video output", type=bool, default=False)
-    parser.add_argument("--vidname", help="video output filename", type=bool, default=False)
-    parser.add_argument("--fits", help="toggle fits output", type=bool, default=True)
     parser.add_argument("--seed", help="define random seed", type=int, default=None)
     parser.add_argument("--maxdtec", help="maximum dTEC value in screen", type=float, default=1.0)
     parser.add_argument("--freq", help="factor controlling frequency", type=float, default=1.0)
