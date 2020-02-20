@@ -4,12 +4,14 @@ import logging, argparse, sys
 import numpy as np
 import casacore.tables as pt
 import astropy.coordinates as apy
+import random
 
 logging.basicConfig(level=logging.INFO)
 
-def add_source(src, ref_freq, name, Jy = 1.0, s_idx = -.5):
+def add_source(src, ref_freq, name, Jy = 1.0, s_idx = -.5, log_si='true',
+               maj_axis=0.0, min_axis=0.0, pa=0.0, type='POINT'):
     '''Generate a sky model entry for a single source.
-    
+
     Parameters
     ----------
     src : SkyCoord object
@@ -19,27 +21,36 @@ def add_source(src, ref_freq, name, Jy = 1.0, s_idx = -.5):
         Source flux density in Jy. The default is 1.0.
     s_idx : float, optional
         Source spectral index. The default is -.5.
-        
+    log_si : str, optional
+        Value to use for the 'LogarithmicSI' column of the sky model: true or false
+    maj_axis : float, optional
+        Major axis in arcsec (type = GAUSSIAN only)
+    min_axis : float, optional
+        Minor axis in arcsec (type = GAUSSIAN only)
+    pa : float, optional
+        Position angle in degrees (type = GAUSSIAN only)
+    type : str, optional
+        Source type: POINT or GAUSSIAN
+
     Returns
     -------
     add_opt : str
         Output string to be added to sky model.'''
-    
+
     ra = '{:0>2.0f}:{:0>2.0f}:{:0>2.3f}'.format(*src.ra.hms)
     dec = '{:+.0f}.{:0>2.0f}.{:0>2.3f}'.format(*src.dec.dms)
-    # add patch		
-    patch = 'patch_' + name 
+    # add patch
+    patch = 'patch_' + name
     add_opt = ' , , {}, {}, {}\n'.format(patch, ra, dec)
     # add source
-    add_opt += '{}, POINT, {}, {}, {}, {}, 0.0, 0.0, '.format(name, patch, ra, 
-                                                              dec, Jy)
-    add_opt += '0.0, 0.0, 0.0, 0.0, {}, [{}]\n'.format(ref_freq, s_idx)
+    add_opt += '{}, {}, {}, {}, {}, {}, 0.0, 0.0, 0.0, '.format(name, type, patch, ra, dec, Jy)
+    add_opt += '{}, {}, {}, {}, [{}], {}\n'.format(maj_axis, min_axis, pa, ref_freq, s_idx, log_si)
     return add_opt
 
 def add_cross(phs_c, ref_freq, angle = 0.5):
     '''Add five sources to the sky model. One is located in the
     phase center, the others are spaced evenly around it.
-        
+
 
     Parameters
     ----------
@@ -48,7 +59,7 @@ def add_cross(phs_c, ref_freq, angle = 0.5):
     ref_freq : float
         Reference frequency of the measurement.
     angle : float, optional
-        Distance (degree) between the central and the four outer 
+        Distance (degree) between the central and the four outer
         sources.
         The default is 0.5.
 
@@ -56,10 +67,10 @@ def add_cross(phs_c, ref_freq, angle = 0.5):
     -------
     add_opt : str
         Output string to be added to sky model.'''
-    
+
     # calculate ra, dec of cross
-    ra_1 = (phs_c.ra.rad + np.arccos((np.cos(angle*np.pi/180) - np.sin(phs_c.dec.rad)**2)	/ (np.cos(phs_c.dec.rad)**2)))
-    ra_2 = (phs_c.ra.rad - np.arccos((np.cos(angle*np.pi/180) - np.sin(phs_c.dec.rad)**2)	/ (np.cos(phs_c.dec.rad)**2)))
+    ra_1 = (phs_c.ra.rad + np.arccos((np.cos(angle*np.pi/180) - np.sin(phs_c.dec.rad)**2)   / (np.cos(phs_c.dec.rad)**2)))
+    ra_2 = (phs_c.ra.rad - np.arccos((np.cos(angle*np.pi/180) - np.sin(phs_c.dec.rad)**2)   / (np.cos(phs_c.dec.rad)**2)))
     dec_1 = phs_c.dec.rad + angle*np.pi/180
     dec_2 = phs_c.dec.rad - angle*np.pi/180
     # generate sources as SkyCoord objects
@@ -73,7 +84,7 @@ def add_cross(phs_c, ref_freq, angle = 0.5):
     add_opt += add_source(tgt_2, ref_freq, 's3')
     add_opt += add_source(tgt_3, ref_freq, 's4')
     add_opt += add_source(tgt_4, ref_freq, 's5')
-    
+
     return add_opt
 
 def add_spiral(phs_c, ref_freq, max_angle = 0.5, npoints = 10):
@@ -86,8 +97,8 @@ def add_spiral(phs_c, ref_freq, max_angle = 0.5, npoints = 10):
     ref_freq : float
             Reference frequency of the measurement.
     angle : float, optional
-        Ra & dec distance in degree between the central and the 
-        outermost source. 
+        Ra & dec distance in degree between the central and the
+        outermost source.
         (Source is on diagonal, so actual distance has factor sqrt(2).)
         The default is 0.5.
     npoints: int, optional
@@ -97,18 +108,18 @@ def add_spiral(phs_c, ref_freq, max_angle = 0.5, npoints = 10):
     -------
     add_opt : str
         Output string to be added to sky model.'''
-    # spiral-space points starting at [0, 0, 1]    
+    # spiral-space points starting at [0, 0, 1]
     t_max = np.sin(np.deg2rad(max_angle))
     omega = 25.1*np.pi/(8*t_max)
     steps = np.linspace(0, t_max, num = npoints)
     pts = np.zeros((npoints, 3))
     for i, t in enumerate(steps):
-        
+
         pts[i] = [t * np.cos(omega*t), t * np.sin(omega*t), np.sqrt(1-t**2)]
-        
+
     # find rot. mat. that aligns [0,0,1] with phase center
-    r = np.array([np.cos(phs_c.ra.rad)*np.cos(phs_c.dec.rad), 
-                  np.sin(phs_c.ra.rad)*np.cos(phs_c.dec.rad), 
+    r = np.array([np.cos(phs_c.ra.rad)*np.cos(phs_c.dec.rad),
+                  np.sin(phs_c.ra.rad)*np.cos(phs_c.dec.rad),
                   np.sin(phs_c.dec.rad)])
     e_z = np.array([0, 0, 1])
     v = np.cross(e_z, r)
@@ -123,113 +134,243 @@ def add_spiral(phs_c, ref_freq, max_angle = 0.5, npoints = 10):
     for i, p in enumerate(pts):
         x, y, z = np.dot(mat_R, p)
         dec[i] = np.arcsin(z)
-        ra[i] = np.arccos(x/np.cos(dec[i]))# case cos = 0 
-      
+        ra[i] = np.arccos(x/np.cos(dec[i]))# case cos = 0
+
     # sources to SkyCoord, get string return
-    sources = apy.SkyCoord(ra, dec, unit = 'rad')    
+    sources = apy.SkyCoord(ra, dec, unit = 'rad')
     add_opt = add_source(sources[0], ref_freq, 's0')
     for i, src in enumerate(sources[1:]):
         add_opt += add_source(src, ref_freq, 's'+str(i+1))
-        
+
     return add_opt
 
 def add_tree(phs_c, ref_freq, scale = 1.):
-        '''Add a chrsitmas tree to the sky model.
-        Parameters
-        ----------
-        phs_c : SkyCoord object
-            Phase center of observation.
-        ref_freq : float, optional
-            Reference frequency of the measurement.
-        scale: angular scale of the tree    
-        Returns
-        -------
-        add_opt : str
-        Output string to be added to sky model.'''
-        a = float(1/3.6056)
-        def steps(start, stop, dens = 1000):
-            return np.linspace(start, stop, int(np.linalg.norm(stop-start)*dens))[0:-1]
-        # Parametrize half of the tree and mirror it.
-        path = np.array([[[0,  2*a], [-a/3,  a]],
-                        [[-a/3,1*a], [-a/6,  a]],
-                        [[-a/6,1*a], [-2*a/3,0]],
-                        [[-2*a/3,0], [-a/2,  0]],
-                        [[-a/2,  0], [-a   ,-a]],
-                        [[-a,   -a], [0   , -a]],
-                        [[-a/8, -a],[-a/8,-a*4/3]],
-                        [[-a/8,-4*a/3],[0,-a*4/3]]])
-        path *= np.tan(np.deg2rad(scale))
+    '''Add a chrsitmas tree to the sky model.
+    Parameters
+    ----------
+    phs_c : SkyCoord object
+        Phase center of observation.
+    ref_freq : float, optional
+        Reference frequency of the measurement.
+    scale: angular scale of the tree
+    Returns
+    -------
+    add_opt : str
+    Output string to be added to sky model.'''
+    a = float(1/3.6056)
+    def steps(start, stop, dens = 1000):
+        return np.linspace(start, stop, int(np.linalg.norm(stop-start)*dens))[0:-1]
+    # Parametrize half of the tree and mirror it.
+    path = np.array([[[0,  2*a], [-a/3,  a]],
+                    [[-a/3,1*a], [-a/6,  a]],
+                    [[-a/6,1*a], [-2*a/3,0]],
+                    [[-2*a/3,0], [-a/2,  0]],
+                    [[-a/2,  0], [-a   ,-a]],
+                    [[-a,   -a], [0   , -a]],
+                    [[-a/8, -a],[-a/8,-a*4/3]],
+                    [[-a/8,-4*a/3],[0,-a*4/3]]])
+    path *= np.tan(np.deg2rad(scale))
 
-        path = np.concatenate([steps(step[0], step[1]) for step in path])
-        path_r = path.copy()
-        path_r[:,0] = - path_r[:,0]
-        path = np.concatenate([path, path_r])
+    path = np.concatenate([steps(step[0], step[1]) for step in path])
+    path_r = path.copy()
+    path_r[:,0] = - path_r[:,0]
+    path = np.concatenate([path, path_r])
 
-        # Add z-values = 1
-        path = np.pad(path, (0,1))[:-1]
-        path[:,2] = np.ones(len(path))
-        
-        # find rot. mat. that aligns [0,0,1] with phase center
-        r = np.array([np.cos(phs_c.ra.rad)*np.cos(phs_c.dec.rad), 
-                      np.sin(phs_c.ra.rad)*np.cos(phs_c.dec.rad), 
-                      np.sin(phs_c.dec.rad)])
-        e_z = np.array([0, 0, 1])
-        v = np.cross(e_z, r)
-        mat_V = np.array([[ 0,   -v[2], v[1]],
-                          [ v[2], 0,   -v[0]],
-                          [-v[1], v[0], 0  ]])
-        mat_R =  np.identity(3) + mat_V
-        mat_R += np.linalg.matrix_power(mat_V, 2) / (1+np.sqrt(1-(v**2).sum(-1)))
+    # Add z-values = 1
+    path = np.pad(path, (0,1))[:-1]
+    path[:,2] = np.ones(len(path))
 
-        # rotate the points and get ra, dec from cartesian
-        ra, dec = np.zeros((2, len(path)))
-        for i, p in enumerate(path):
-            x, y, z = np.dot(mat_R, p)
-            dec[i] = np.arcsin(z)
-            ra[i] = np.arccos(x/np.cos(dec[i])) # care case cos = 0 
-          
-        # sources to SkyCoord, get string return
-        sources = apy.SkyCoord(ra, dec, unit = 'rad')    
-        add_opt = add_source(sources[0], ref_freq, 's0')
-        for i, src in enumerate(sources[1:]):
-            add_opt += add_source(src, ref_freq, 's'+str(i+1))
-            
-        return add_opt
-                            
-   
+    # find rot. mat. that aligns [0,0,1] with phase center
+    r = np.array([np.cos(phs_c.ra.rad)*np.cos(phs_c.dec.rad),
+                  np.sin(phs_c.ra.rad)*np.cos(phs_c.dec.rad),
+                  np.sin(phs_c.dec.rad)])
+    e_z = np.array([0, 0, 1])
+    v = np.cross(e_z, r)
+    mat_V = np.array([[ 0,   -v[2], v[1]],
+                      [ v[2], 0,   -v[0]],
+                      [-v[1], v[0], 0  ]])
+    mat_R =  np.identity(3) + mat_V
+    mat_R += np.linalg.matrix_power(mat_V, 2) / (1+np.sqrt(1-(v**2).sum(-1)))
+
+    # rotate the points and get ra, dec from cartesian
+    ra, dec = np.zeros((2, len(path)))
+    for i, p in enumerate(path):
+        x, y, z = np.dot(mat_R, p)
+        dec[i] = np.arcsin(z)
+        ra[i] = np.arccos(x/np.cos(dec[i])) # care case cos = 0
+
+    # sources to SkyCoord, get string return
+    sources = apy.SkyCoord(ra, dec, unit = 'rad')
+    add_opt = add_source(sources[0], ref_freq, 's0')
+    for i, src in enumerate(sources[1:]):
+        add_opt += add_source(src, ref_freq, 's'+str(i+1))
+
+    return add_opt
+
+
+def add_random(phs_c, ref_freq, max_angle = 0.5, nptsrc=100, ngauss=100, min_flux_jy=0.1,
+               max_flux_jy=5.0, min_maj_arcsec=5.0, max_maj_arcsec=100.0, max_ell=0.5,
+               min_s_idx=-1.2, max_s_idx=-0.6, log_si='false'):
+    """
+    Creates sky model with randomly distributed sources
+
+    Parameters
+    ----------
+    phs_c : SkyCoord object
+        Phase center of observation.
+    ref_freq : float, optional
+        Reference frequency of the measurement.
+    max_angle : float, optional
+        Maximum distance in degrees from phase center within which sources are added
+    nptsrc : int, optional
+        Number of point sources to generate
+    ngauss : int, optional
+        Number of Gaussians to generate
+    min_flux_jy : float, optional
+        Minimum peak flux density in Jy of sources
+    max_flux_jy : float, optional
+        Maximum peak flux density in Jy of sources
+    min_maj_arcsec : float, optional
+        Minimum major axis in arcsec of Gaussian sources
+    max_maj_arcsec : float, optional
+        Maximum major axis in arcsec of Gaussian sources
+    max_ell : float, optional
+        Maximum ellipticity (1 - maj/min) of Gaussian sources (0 = circular Gaussian)
+    min_s_idx : float, optional
+        Minimum spectral index of sources
+    max_s_idx : float, optional
+        Maximum spectral index of sources
+    log_si : str, optional
+        Value to use for the 'LogarithmicSI' column of the sky model: 'true' or 'false'.
+        If 'false', the spectral index is transformed to that appropriate for non-log
+        polynomials
+
+    Returns
+    -------
+    add_opt : str
+        Output string to be added to sky model.
+    """
+    max_angle_rad = max_angle * np.pi / 180.0
+    ra_list = []
+    dec_list = []
+    flux_list = []
+    s_idx_list = []
+    maj_list = []
+    min_list = []
+    pa_list = []
+    type_list = []
+
+    # Generate random RA and Dec, peak flux density, spectral index
+    ntot = nptsrc + ngauss
+    ra_list = []
+    try:
+        del_ra = max_angle_rad / np.cos(phs_c.dec.rad)
+    except ZeroDivisionError:
+        del_ra = np.pi
+    if del_ra > np.pi:
+        del_ra = np.pi
+    while len(ra_list) < ntot:
+        ra = random.uniform(phs_c.ra.rad-del_ra, phs_c.ra.rad+del_ra)
+        dec = random.uniform(phs_c.dec.rad-max_angle_rad, phs_c.dec.rad+max_angle_rad)
+        dist = apy.angle_utilities.angular_separation(phs_c.ra.rad, phs_c.dec.rad, ra, dec)
+        if dist < max_angle_rad:
+            ra_list.append(ra)
+            dec_list.append(dec)
+
+            # For peak flux density, use a Euclidean distribution (N ~ S^(-5/2)) to
+            # better approximate the actual radio sky
+            if min_flux_jy == max_flux_jy:
+                flux_list.append(min_flux_jy)
+            else:
+                r = random.uniform(0, 1)
+                flux = min(min_flux_jy * (1.0 - r)**(-1.0 / (5.0/2.0 - 1)), max_flux_jy)
+                flux_list.append(flux)
+
+            # Generate spectral index, assuming logarithmic polynomial:
+            #   S = e^(log(S0) + s_idx * log(nu/refnu - 1))
+            s_idx = random.uniform(min_s_idx, max_s_idx)
+            if log_si == 'false':
+                # Convert spectral index to approximate non-logarithmic polynomial if
+                # log_si = 'false':
+                #   S = S0 + s_idx * (nu/refnu - 1)
+                # We use a Taylor series expansion of the logarithmic equation and keep just the
+                # first two terms: S = S0 + s_idx * S0 * (nu/refnu - 1), so the new s_idx
+                # becomes s_idx * S0
+                s_idx *= flux
+            s_idx_list.append(s_idx)
+
+    # Set source size and shape
+    for i in range(nptsrc):
+        maj_list.append(0.0)
+        min_list.append(0.0)
+        pa_list.append(0.0)
+        type_list.append('POINT')
+    for i in range(ngauss):
+        maj = random.uniform(min_maj_arcsec, max_maj_arcsec)
+        ell = random.uniform(0.0, max_ell)
+        maj_list.append(maj)
+        min_list.append(maj*(1.0-ell))
+        pa_list.append(random.uniform(0.0, 180.0))
+        type_list.append('GAUSSIAN')
+
+    # sources to SkyCoord, get string return
+    sources = apy.SkyCoord(ra_list, dec_list, unit='rad')
+    add_opt = ''
+    for i, src in enumerate(sources):
+        add_opt += add_source(src, ref_freq, 's'+str(i), Jy=flux_list[i],
+                              s_idx=s_idx_list[i], log_si=log_si, maj_axis=maj_list[i],
+                              min_axis=min_list[i], pa=pa_list[i], type=type_list[i])
+
+    return add_opt
+
+
 if __name__ == '__main__':
-	# Options
-    parser = argparse.ArgumentParser(description='gen_skymodel - ')
+    # Options
+    parser = argparse.ArgumentParser(description='skymodel - ')
     parser.add_argument('msfile', help='Input MS filename.', default= 'test.MS', type=str)
-    parser.add_argument('--output', help='Ouput .sky filename.', default= 'mock.sky', type=str)
-    parser.add_argument('--kind', help='Kind of sky model.', default= 'cross', type=str)
+    parser.add_argument('--output', help='Ouput sky model filename.', default= 'mock.sky', type=str)
+    parser.add_argument('--kind', help='Kind of sky model: cross, spiral, tree, or random.', default= 'cross', type=str)
+    parser.add_argument('--radius', help='Radius in degrees within which sources are added.', default=2.0, type=float)
+    parser.add_argument('--nptsrc', help='Number of point sources to generate.', default=10, type=int)
+    parser.add_argument('--ngauss', help='Number of Gaussians to generate (type=random only).', default=10, type=int)
+    parser.add_argument('--minflux', help='Minimum peak flux density in Jy (type=random only).', default=0.1, type=float)
+    parser.add_argument('--maxflux', help='Maximum peak flux density in Jy (type=random only).', default=5.0, type=float)
+    parser.add_argument('--minmaj', help='Minimum major axis in arcsec of Gaussian sources.', default=5.0, type=float)
+    parser.add_argument('--maxmaj', help='Maximum major axis in arcsec of Gaussian sources.', default=30.0, type=float)
+    parser.add_argument('--maxell', help='Maximum ellipticity (1 - maj/min) of Gaussian sources.', default=0.25, type=float)
+    parser.add_argument('--minspidx', help='Minimum spectral index of sources (type=random only).', default=-1.2, type=float)
+    parser.add_argument('--maxspidx', help='Maximum spectral index of sources (type=random only).', default=-0.6, type=float)
+    parser.add_argument('--logsi', help='Value for LogarithmicSI: true or false (type=random only).', default='true', type=str)
 
     args = parser.parse_args()
-    msfile = args.msfile   
+    msfile = args.msfile
     tab = pt.table(msfile)
     logging.info('Create sky model for ' + msfile)
 
-    phs_c = apy.SkyCoord(*tab.FIELD[0]['PHASE_DIR'][0], frame='icrs', unit='rad')    
+    phs_c = apy.SkyCoord(*tab.FIELD[0]['PHASE_DIR'][0], frame='icrs', unit='rad')
     ref_freq = tab.SPECTRAL_WINDOW[0]['REF_FREQUENCY']
-    
+
     opt = 'format = Name, Type, Patch, Ra, Dec, I, Q, U, V, MajorAxis, '
     opt += 'MinorAxis, Orientation, ReferenceFrequency, '
-    opt += 'SpectralIndex\n'
-    
+    opt += 'SpectralIndex, LogarithmicSI\n'
+
     if args.kind == 'cross':
         opt += add_cross(phs_c, ref_freq)
     elif args.kind == 'spiral':
-        opt += add_spiral(phs_c, ref_freq, max_angle = 2.0)
+        opt += add_spiral(phs_c, ref_freq, max_angle=args.radius, npoints=args.nptsrc)
     elif args.kind == 'tree':
-        opt += add_tree(phs_c, ref_freq, scale = 2.0)
+        opt += add_tree(phs_c, ref_freq, scale=args.radius)
+    elif args.kind == 'random':
+        opt += add_random(phs_c, ref_freq, max_angle=args.radius, nptsrc=args.nptsrc,
+                          ngauss=args.ngauss, min_flux_jy=args.minflux, max_flux_jy=args.maxflux,
+                          min_maj_arcsec=args.minmaj, max_maj_arcsec=args.maxmaj, max_ell=args.maxell,
+                          min_s_idx=args.minspidx, max_s_idx=args.maxspidx, log_si=args.logsi)
     else:
         logging.error(args.kind + ' is not a valid sky model kind.')
         sys.exit('Stop.')
-        
+
     output_file = args.output
     logging.info('Output file: ' + output_file)
     with open(output_file, "w+") as f:
         f.write(opt)
-        f.close()  
-                
-
+        f.close()
