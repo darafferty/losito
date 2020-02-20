@@ -60,6 +60,7 @@ if __name__ == '__main__':
            "FARADAY": operations.faraday,
            "USE_H5": operations.use_h5,
            "CLOCK": operations.clock,
+           "POLMISALIGN": operations.polmisalign,
            "BEAM": operations.beam,
            "PREDICT": operations.predict,
            "NOISE": operations.noise

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-Created on Thu Feb 13 14:01:05 2020
+Add an existing solution-table to the DPPP prediction step.
 """
 import logging as log
 log.debug('Loading USE_H5 module.')
@@ -15,57 +15,57 @@ def _run_parser(obs, parser, step):
     return run(obs, h5parmFilename, corruption, step)
 
 
-def run(obs, h5parmFilename, corruption, stepname='use_h5'): 
+def include_soltab(obs, h5parmFilename, soltab, step):    
+     # Update predict parset parameters for the obs
+    obs.parset_parameters['predict.applycal.parmdb'] = h5parmFilename
+    if 'predict.applycal.steps' in obs.parset_parameters:
+        obs.parset_parameters['predict.applycal.steps'].append(step)
+    else:
+        obs.parset_parameters['predict.applycal.steps'] = [step]
+    obs.parset_parameters['predict.applycal.correction'] = soltab 
+    obs.parset_parameters['predict.applycal.{}.correction'.format(step)] = soltab
+    obs.parset_parameters['predict.applycal.{}.parmdb'.format(step)] = h5parmFilename
+    log.info('Including solution-table {} in {} in simulation.'.format(soltab, 
+      h5parmFilename))
+    
+def run(obs, h5parmFilename, corruption, step='use_h5'): 
     '''
-    Add either a clock000, tec000 or rotationmeasure000 from a matching .h5 
+    Add either a clock000 (for clock delay), clock001 (for polarization
+    misalignment), tec000 or rotationmeasure000 from a matching .h5 
     file to the simulation.
     '''
     corruption = corruption.lower()
     if corruption == 'clock':
-        # Update predict parset parameters for the obs
-        obs.parset_parameters['predict.applycal.parmdb'] = h5parmFilename
-        if 'predict.applycal.steps' in obs.parset_parameters:
-            obs.parset_parameters['predict.applycal.steps'].append(stepname)
-        else:
-            obs.parset_parameters['predict.applycal.steps'] = [stepname]
-        if 'predict.applycal.correction' not in obs.parset_parameters:
-            obs.parset_parameters['predict.applycal.correction'] = 'clock000'         
-        obs.parset_parameters['predict.applycal.{}.correction'.format(stepname)] = 'clock000'
-        obs.parset_parameters['predict.applycal.{}.parmdb'.format(stepname)] = h5parmFilename
-        log.info('Including solution-table clock000 in {} in simulation.'.format(
-                  h5parmFilename))
-        return 0
-    elif corruption == 'tec':
-        # Update predict parset parameters for the obs
-        obs.parset_parameters['predict.applycal.parmdb'] = h5parmFilename
-        if 'predict.applycal.steps' in obs.parset_parameters:
-            obs.parset_parameters['predict.applycal.steps'].append(stepname)
-        else:
-            obs.parset_parameters['predict.applycal.steps'] = [stepname]
-        obs.parset_parameters['predict.applycal.correction'] = 'tec000'
-        obs.parset_parameters['predict.applycal.{}.correction'.format(stepname)] = 'tec000'
-        obs.parset_parameters['predict.applycal.{}.parmdb'.format(stepname)] = h5parmFilename
-        log.info('Including solution-table tec000 in {} in simulation.'.format(
-                  h5parmFilename))
+        step = 'clock'
+        soltab = 'clock000'
+        # Add soltab to DPPP parset
+        include_soltab(obs, h5parmFilename, soltab, step)
         return 0
     
-    elif corruption == 'rm': 
-          # Update predict parset parameters for the obs
-        obs.parset_parameters['predict.applycal.parmdb'] = h5parmFilename
-        if 'predict.applycal.steps' in obs.parset_parameters:
-            obs.parset_parameters['predict.applycal.steps'].append(stepname)
-        else:
-            obs.parset_parameters['predict.applycal.steps'] = [stepname]
-        if 'predict.applycal.correction' not in obs.parset_parameters:
-            obs.parset_parameters['predict.applycal.correction'] = 'rotationmeasure000' 
-        obs.parset_parameters['predict.applycal.{}.correction'.format(stepname)] = 'rotationmeasure000'
-        obs.parset_parameters['predict.applycal.{}.parmdb'.format(stepname)] = h5parmFilename
-        log.info('Including solution-table rotationmeasurem000 in {} in simulation.'.format(
-          h5parmFilename))
+    elif corruption == 'polmisalign':
+        step = 'polmisalign'
+        soltab = 'clock001' 
+        # Add soltab to DPPP parset
+        include_soltab(obs, h5parmFilename, soltab, step)
+        return 0   
+    
+    elif (corruption == 'rm') or (corruption == 'rotationmeasure'):
+        step = 'rm'
+        soltab = 'rotationmeasure000'
+        # Add soltab to DPPP parset
+        include_soltab(obs, h5parmFilename, soltab, step)
+        return 0
+    
+    elif corruption == 'tec': 
+        step = 'tec'
+        soltab = 'tec000'
+        # Add soltab to DPPP parset
+        include_soltab(obs, h5parmFilename, soltab, step)
         return 0
         
     else: 
         log.warning('''Corruption {} is not supported. Please choose <clock>,
-                    <tec> or <rm>.'''.format(corruption))
+                    <polmisalign>, <tec> or <rm>.'''.format(corruption))
         return 1
         
+

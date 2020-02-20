@@ -1,9 +1,7 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-Created on Thu Feb 13 15:10:06 2020
-
-@author: p1uy068
+Clock-operation: Creat soltab for clock-delay corruption.
 """
 import logging as log
 import numpy as np
@@ -13,9 +11,10 @@ log.debug('Loading CLOCK module.')
 
 def _run_parser(obs, parser, step):
     h5parmFilename = parser.getstr(step, 'h5parmFilename', )
-    # TODO seed, maybe add amplitude options       
-    parser.checkSpelling( step, ['h5parmFilename'])  
-    return run(obs, h5parmFilename, step)
+    seed = parser.getint(step, 'seed', default = 0)
+    
+    parser.checkSpelling( step, ['h5parmFilename', 'seed'])  
+    return run(obs, h5parmFilename, seed, step)
 
 def remote_station_delay(times):
     '''
@@ -40,13 +39,22 @@ def remote_station_delay(times):
     return delay
 
 
-def run(obs, h5parmFilename, stepname='rm'): 
+def run(obs, h5parmFilename, seed = 0, stepname='clock'): 
     '''
-    Add rotation measure Soltab to a TEC h5parm.
+    Add clock delay Soltab to h5parm.
+    
+    Parameters
+    ----------
+    seed : unsigned int, optional. default = 0
+        Set the random seed. Seed = 0 (default) will set no seed.
     '''
+    # If provided, set random seed:
+    if seed != 0:
+        np.random.seed(int(seed))
     stations = obs.stations    
     times = obs.get_times()
     ras, decs = obs.get_patch_coords()
+    source_names = obs.get_patch_names()
     is_rs_list = [False if 'CS' in st else True for st in stations]
     delays = np.zeros((len(times), len(stations)))
     
@@ -60,10 +68,6 @@ def run(obs, h5parmFilename, stepname='rm'):
             delays[:,i] = remote_station_delay(times) - cs_delay            
         else:
             continue
-    #np.save('delays.npy', delays)
-    #if os.path.exists(h5parmFilename):
-    #    log.info(h5parmFilename +' already exists. Overwriting file...')
-    #    os.remove(h5parmFilename)        
     
     # Write clock values to h5parm file as DPPP input    
     ho = h5parm(h5parmFilename, readonly=False)
@@ -72,23 +76,24 @@ def run(obs, h5parmFilename, stepname='rm'):
     else:
         solset = ho.makeSolset(solsetName = 'sol000')
         
+    # Definition: clock000 is delay, clock001 is pol misalignment
     if 'clock000' in solset.getSoltabNames(): 
         log.info('''Solution-table clock000 is already present in
                  {}. It will be overwritten.'''.format(h5parmFilename + '/sol000'))  
         solset.getSoltab('clock000').delete()
         
-    delays = delays[..., np.newaxis]
-    weights = np.ones_like(delays)
-
+    # h5parmpredict needs direction axis with directions from sky model.
+    delays = np.repeat(delays[...,np.newaxis], len(source_names), axis = -1)
+    weights = np.ones_like(delays)    
     st = solset.makeSoltab('clock', 'clock000', axesNames = ['time','ant','dir'],
-                           axesVals = [times, stations, ['[pointing]']], vals = delays,
+                          axesVals = [times, stations, source_names], vals = delays,
                            weights = weights)   
     
     antennaTable = solset.obj._f_get_child('antenna')
     antennaTable.append(list(zip(*(stations, obs.stationpositions))))
     sourceTable = solset.obj._f_get_child('source')
-    vals = [obs.ra, obs.dec]
-    sourceTable.append([('[pointing]', vals)])
+    vals = [[ra, dec] for ra, dec in zip(ras, decs)]
+    sourceTable.append(list(zip(*(source_names, vals))))
 
     soltabs = solset.getSoltabs()
     for st in soltabs:
@@ -101,10 +106,7 @@ def run(obs, h5parmFilename, stepname='rm'):
         obs.parset_parameters['predict.applycal.steps'].append(stepname)
     else:
         obs.parset_parameters['predict.applycal.steps'] = [stepname]    
-        
-    if 'predict.applycal.correction' not in obs.parset_parameters:
-        obs.parset_parameters['predict.applycal.correction'] = 'clock000' 
-        
+    obs.parset_parameters['predict.applycal.correction'] = 'clock000'         
     obs.parset_parameters['predict.applycal.{}.correction'.format(stepname)] = 'clock000'
     obs.parset_parameters['predict.applycal.{}.parmdb'.format(stepname)] = h5parmFilename
 
