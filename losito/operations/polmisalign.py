@@ -52,7 +52,7 @@ def run(obs, h5parmFilename, seed = 0, stepname='pol_misalign'):
     if 'clock001' in solset.getSoltabNames(): 
         log.info('''Solution-table clock001 is already present in
                  {}. It will be overwritten.'''.format(h5parmFilename + '/clock001'))  
-        solset.getSoltab('clock000').delete()
+        solset.getSoltab('clock001').delete()
 
     st = solset.makeSoltab('clock', 'clock001', axesNames = ['pol','ant', 'dir'],
                            axesVals = [pol, stations, source_names], 
