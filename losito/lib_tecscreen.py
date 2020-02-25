@@ -329,7 +329,6 @@ def fixed_tecscreen(sp, directions, times, hIon = 200.e3, vIon = 50,
         else:
             tecsc = (daytime_tec_modulation(times)[:,np.newaxis,np.newaxis]*tecsc)
         cos_pierce = (unit_vec(PP)*unit_vec(PD)[:,np.newaxis,:,:]).sum(-1)
-        
         # Interpolate screen for each time and get values at pierce points
         TEC = np.zeros((len(times), len(sp), len(directions)))
         for (i, sc) in enumerate(tecsc): # iterate times
@@ -411,7 +410,7 @@ def comoving_tecscreen(sp, directions, times, hIon = 200.e3, vIon = 10,
     if expfolder: # Export for plotting etc.
         if not os.path.exists(expfolder):
             os.mkdir(expfolder) #exist_ok=True
-        export = np.zeros((len(times), len(grid_lon), len(grid_lat)))
+        export = np.zeros((len(times), len(grid_lon[0]), len(grid_lat[0])))
         
     # Get the ionospheric pierce points and inclination angle
     # Get turbulent screen generator object and convert to array
@@ -443,10 +442,11 @@ def comoving_tecscreen(sp, directions, times, hIon = 200.e3, vIon = 10,
     TEC *= maxdtec / (np.max(TEC) - np.min(TEC))     
        
     if expfolder: # TODO check plotting maxsize
-        np.save(expfolder + '/tecscreen.npy', expfolder)
+        np.save(expfolder + '/tecscreen.npy', export)
         np.save(expfolder + '/piercepoints.npy', PP_llr)
         np.save(expfolder + '/times.npy', times)
-        np.save(expfolder + '/grid.npy', np.array([grid_lon, grid_lat]))
+        np.save(expfolder + '/grid_lon.npy', grid_lon )
+        np.save(expfolder + '/grid_lat.npy', grid_lat)
         np.save(expfolder + '/res.npy', np.array([cs_lon, cs_lat]))
         logging.info('Exporting tecscreen data to: ' + expfolder+'/')        
     return TEC

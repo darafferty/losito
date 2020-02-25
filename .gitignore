@@ -106,3 +106,4 @@ venv.bak/
 # Emacs and vim buffer files:
 *~
 .#
+.*.swp

@@ -33,14 +33,15 @@ def _run_parser(obs, parser, step):
     fitsFilename = parser.getstr(step, 'fitsFilename', default = '')
     absoluteTEC = parser.getbool(step, 'absoluteTEC', default = True)
     angRes = parser.getfloat(step, 'angRes', default = 60.)
+    expfolder = parser.getstr(step, 'expfolder', default = None)
     ncpu = parser.getint( '_global', 'ncpu', 0)
        
     parser.checkSpelling( step, ['method', 'h5parmFilename', 'maxdtec',
                                  'maxvtec', 'hIon', 'vIon', 'seed', 
                                  'fitsFilename', 'absoluteTEC', 'angRes', 
-                                 'ncpu'])  
+                                 'expfolder', 'ncpu'])  
     return run(obs, method, h5parmFilename, maxdtec, maxvtec, hIon, vIon, seed, 
-               fitsFilename, step, absoluteTEC, angRes, ncpu)
+               fitsFilename, step, absoluteTEC, angRes, expfolder, ncpu)
 
 def _getaltaz(radec):
     ra = radec[0]
@@ -71,7 +72,7 @@ def _tid(x, t, amp=0.2, wavelength=200e3, omega=500.e3/3600.):
 
 def run(obs, method, h5parmFilename, maxdtec = 0.5, maxvtec = 50, hIon = 200e3,
         vIon = 50, seed = 0, fitsFilename = None, stepname='tec', 
-        absoluteTEC = True, angRes = 60, ncpu=0):
+        absoluteTEC = True, angRes = 60, expfolder = None, ncpu=0):
     """
     Creates h5parm with TEC values from TEC FITS cube.
 
@@ -101,6 +102,10 @@ def run(obs, method, h5parmFilename, maxdtec = 0.5, maxvtec = 50, hIon = 200e3,
         Whether to use absoluteTEC (vTEC) or differential (dTEC) TEC.
     angRes : float, optional. Default = 60.
         Angular resolution of the screen [arcsec]. Only for turbulent model.
+    expfolder : str, optional. Default = None
+        Export the tecscreen data to this folder for plotting. Depending on
+        system memory, this will not work for very large/highres screens.
+        Only for 'turbulence' method.
     ncpu : int, optional
         Number of cores to use, by default all available.
     """
@@ -122,7 +127,7 @@ def run(obs, method, h5parmFilename, maxdtec = 0.5, maxvtec = 50, hIon = 200e3,
         tecvals = comoving_tecscreen(sp, directions, times, angRes = angRes, 
                                      hIon = hIon, maxvtec = maxvtec, 
                                      maxdtec = maxdtec, ncpu = ncpu, 
-                                     expfolder = None, seed =seed, 
+                                     expfolder = expfolder, seed =seed, 
                                      absoluteTEC = absoluteTEC)           
 
     elif method == 'fits':
@@ -190,9 +195,6 @@ def run(obs, method, h5parmFilename, maxdtec = 0.5, maxvtec = 50, hIon = 200e3,
     else:
         log.error('method "{}" not understood'.format(method))
         return 1
-    
-    # TODO: How should the h5parms be handled? Should there be only one h5parm
-    # for all solutiontables? 
     
     # Write tec values to h5parm file as DPPP input  
     ho = h5parm(h5parmFilename, readonly=False)
