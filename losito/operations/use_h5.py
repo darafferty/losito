@@ -30,8 +30,9 @@ def include_soltab(obs, h5parmFilename, soltab, step):
     
 def run(obs, h5parmFilename, corruption, step='use_h5'): 
     '''
-    Add either a clock000 (for clock delay), clock001 (for polarization
-    misalignment), tec000 or rotationmeasure000 from a matching .h5 
+    Add either a clock000 (clock delay), clock001 (polarization
+    misalignment), amplitude000 (bandpass), tec000 (iono 1st order) 
+    or rotationmeasure000 (iono 2nd order) from a matching h5parm 
     file to the simulation.
     '''
     corruption = corruption.lower()
@@ -48,7 +49,13 @@ def run(obs, h5parmFilename, corruption, step='use_h5'):
         # Add soltab to DPPP parset
         include_soltab(obs, h5parmFilename, soltab, step)
         return 0   
-    
+
+    elif corruption == 'bandpass':
+        step = 'bandpass'
+        soltab = 'amplitude000'
+        # Add soltab to DPPP parset
+        include_soltab(obs, h5parmFilename, soltab, step)
+        return 0
     elif (corruption == 'rm') or (corruption == 'rotationmeasure'):
         step = 'rm'
         soltab = 'rotationmeasure000'
