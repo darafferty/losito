@@ -59,13 +59,14 @@ if __name__ == '__main__':
            "TEC": operations.tec,
            "FARADAY": operations.faraday,
            "BEAM": operations.beam,
-           "BANDPASS": operations.bandpass,
            "POLMISALIGN": operations.polmisalign,
            "CLOCK": operations.clock,
            "USE_H5": operations.use_h5,
+           "BANDPASS": operations.bandpass,
            "PREDICT": operations.predict,
            "NOISE": operations.noise
           }
+    # TODO: Raise warning if unphysical order of steps.
 
     globalstart = time.time()
     for step in steps:

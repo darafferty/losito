@@ -33,7 +33,7 @@ def _run_parser(obs, parser, step):
     fitsFilename = parser.getstr(step, 'fitsFilename', default = '')
     absoluteTEC = parser.getbool(step, 'absoluteTEC', default = True)
     angRes = parser.getfloat(step, 'angRes', default = 60.)
-    expfolder = parser.getstr(step, 'expfolder', default = None)
+    expfolder = parser.getstr(step, 'expfolder', default = '')
     ncpu = parser.getint( '_global', 'ncpu', 0)
        
     parser.checkSpelling( step, ['method', 'h5parmFilename', 'maxdtec',
@@ -72,7 +72,7 @@ def _tid(x, t, amp=0.2, wavelength=200e3, omega=500.e3/3600.):
 
 def run(obs, method, h5parmFilename, maxdtec = 0.5, maxvtec = 50, hIon = 200e3,
         vIon = 50, seed = 0, fitsFilename = None, stepname='tec', 
-        absoluteTEC = True, angRes = 60, expfolder = None, ncpu=0):
+        absoluteTEC = True, angRes = 60, expfolder = '', ncpu=0):
     """
     Creates h5parm with TEC values from TEC FITS cube.
 

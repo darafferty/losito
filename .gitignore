@@ -103,6 +103,9 @@ venv.bak/
 # mypy
 .mypy_cache/
 
+# pycharm project files
+.idea/
+
 # Emacs and vim buffer files:
 *~
 .#
