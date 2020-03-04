@@ -46,6 +46,7 @@ The LoSiTo Operations
    polmisalign
    faraday
    clock
+   bandpass
    use_h5
    predict
 
