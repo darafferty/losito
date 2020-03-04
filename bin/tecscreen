@@ -15,7 +15,7 @@ from losito.lib_operations import make_template_image
 
 
 def create_images(ntimes, coeffs, seed, pixels=100, max_dtec=1., freq=1.):
-    '''    
+    '''
 
     Parameters
     ----------
@@ -29,7 +29,7 @@ def create_images(ntimes, coeffs, seed, pixels=100, max_dtec=1., freq=1.):
         Number of pixels per for x / y
     max_dtec : float, optional
         Maximum amplitude of dTec
-    freq : float, optional    
+    freq : float, optional
 
     Returns
     -------
@@ -42,7 +42,7 @@ def create_images(ntimes, coeffs, seed, pixels=100, max_dtec=1., freq=1.):
 
     # Scale coefficients to values between -1 and 1
     ai = np.sin(value)
-    
+
     # generate 2 2d grids for the x & y bounds
     pxspace = np.linspace(-1.0, 1.0, pixels)
     y, x = np.meshgrid(pxspace, pxspace)
@@ -65,7 +65,7 @@ def create_images(ntimes, coeffs, seed, pixels=100, max_dtec=1., freq=1.):
         value += ((np.random.rand(*np.shape(value)))-1) * 0.025 * freq
         ai = np.sin(value)
         # slightly move polynom origin:
-        y0, x0 = [y0, x0] + (2 * np.random.rand(2) - 1) / 50 
+        y0, x0 = [y0, x0] + (2 * np.random.rand(2) - 1) / 50
 
         data[i, :, :] = z
 
@@ -118,9 +118,9 @@ def coeff_map(antpos, seed, polygrade):
 
 if __name__ == '__main__':
     # Options
-    parser = argparse.ArgumentParser()
-    parser.add_argument('msfile', help='Input MS filename.', type=str, default=None)
-    parser.add_argument("fitsfile", help="Output FITS fileneam", type=str, default=None)
+    parser = argparse.ArgumentParser(description='tecscreen - generate simple TEC screen FITS files')
+    parser.add_argument('msfile', help='Input MS filename', type=str, default=None)
+    parser.add_argument("fitsfile", help="Output FITS filename", type=str, default=None)
 
     parser.add_argument("--polygrade", help="define grade of polynomial", type=check_positive, default=3)
     parser.add_argument("--npixels", help="number of screen pixels", type=check_positive, default=100)
@@ -140,12 +140,12 @@ if __name__ == '__main__':
     sp = obs.stationpositions
     times = obs.get_times()
     freqs = obs.get_frequencies()
-    
-    
+
+
     #TODO:  Project station positions on Plane fitted to 3d point cloud
     #right now, everything is only projected to x-y plane ?
     #A = np.concatenate((sp[:,0:2], np.ones(len(sp))[:, None]), axis = 1)
-    
+
     # Map station locations to x-y grid defined in 1-km cells
     antpos = ((sp - np.min(sp, axis = 0)) / 1000)[:,0:2]
 
@@ -169,8 +169,8 @@ if __name__ == '__main__':
     for i in range(obs.numstations):
         c = coeffs[i, :]
         c = np.reshape(c, (args.polygrade, args.polygrade))
-        data[:, 0, i, :, :] = create_images(obs.numsamples, c, args.seed, 
-                                            args.npixels, args.maxdtec, 
+        data[:, 0, i, :, :] = create_images(obs.numsamples, c, args.seed,
+                                            args.npixels, args.maxdtec,
                                             args.freq)
         if i > 0:
             data[:, :, i, :, :] -= data[:, :, 0, :, :]

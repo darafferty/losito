@@ -326,21 +326,21 @@ def add_random(phs_c, ref_freq, max_angle = 0.5, nptsrc=100, ngauss=100, min_flu
 
 if __name__ == '__main__':
     # Options
-    parser = argparse.ArgumentParser(description='skymodel - ')
+    parser = argparse.ArgumentParser(description='skymodel - generate simple sky models')
     parser.add_argument('msfile', help='Input MS filename.', default= 'test.MS', type=str)
     parser.add_argument('--output', help='Ouput sky model filename.', default= 'mock.sky', type=str)
     parser.add_argument('--kind', help='Kind of sky model: cross, spiral, tree, or random.', default= 'cross', type=str)
     parser.add_argument('--radius', help='Radius in degrees within which sources are added.', default=2.0, type=float)
     parser.add_argument('--nptsrc', help='Number of point sources to generate.', default=10, type=int)
-    parser.add_argument('--ngauss', help='Number of Gaussians to generate (type=random only).', default=10, type=int)
-    parser.add_argument('--minflux', help='Minimum peak flux density in Jy (type=random only).', default=0.1, type=float)
-    parser.add_argument('--maxflux', help='Maximum peak flux density in Jy (type=random only).', default=5.0, type=float)
+    parser.add_argument('--ngauss', help='Number of Gaussians to generate (kind=random only).', default=10, type=int)
+    parser.add_argument('--minflux', help='Minimum peak flux density in Jy (kind=random only).', default=0.1, type=float)
+    parser.add_argument('--maxflux', help='Maximum peak flux density in Jy (kind=random only).', default=5.0, type=float)
     parser.add_argument('--minmaj', help='Minimum major axis in arcsec of Gaussian sources.', default=5.0, type=float)
     parser.add_argument('--maxmaj', help='Maximum major axis in arcsec of Gaussian sources.', default=30.0, type=float)
     parser.add_argument('--maxell', help='Maximum ellipticity (1 - maj/min) of Gaussian sources.', default=0.25, type=float)
-    parser.add_argument('--minspidx', help='Minimum spectral index of sources (type=random only).', default=-1.2, type=float)
-    parser.add_argument('--maxspidx', help='Maximum spectral index of sources (type=random only).', default=-0.6, type=float)
-    parser.add_argument('--logsi', help='Value for LogarithmicSI: true or false (type=random only).', default='true', type=str)
+    parser.add_argument('--minspidx', help='Minimum spectral index of sources (kind=random only).', default=-1.2, type=float)
+    parser.add_argument('--maxspidx', help='Maximum spectral index of sources (kind=random only).', default=-0.6, type=float)
+    parser.add_argument('--logsi', help='Value for LogarithmicSI: true or false (kind=random only).', default='true', type=str)
 
     args = parser.parse_args()
     msfile = args.msfile

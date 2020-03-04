@@ -15,7 +15,7 @@ import argparse
 
 if __name__ == '__main__':
     # Options
-    parser = argparse.ArgumentParser(description='losito - ')
+    parser = argparse.ArgumentParser(description='losito -  - The LOFAR Simulation Tool')
     parser.add_argument('--version', action='version', version=_version.__version__)
     parser.add_argument('--quiet', '-q', dest='quiet', help='Quiet', default=False, action='store_true')
     parser.add_argument('--verbose', '-V', '-v', dest='verbose', help='Verbose', default=False, action='store_true')
@@ -23,6 +23,10 @@ if __name__ == '__main__':
     parser.add_argument('skymodel', help='Input sky model filename.', default=None, type=str)
     parser.add_argument('parset', help='LoSiTo parset.', nargs='?', default='losito.parset', type=str)
     args = parser.parse_args()
+
+    if len(args) != 3:
+        opt.print_help()
+        sys.exit()
 
     if args.quiet:
         _logging.setLevel('warning')
