@@ -1,0 +1,73 @@
+.. _tec:
+
+TEC operation
+-------------
+
+The TEC operation produces TEC corruptions that emulate the first-order phase delays due to time- and direction-dependent ionospheric effects. A number of methods for generating the corruptions are available:
+
+
+.. _tec_methods:
+
+Available Methods
+=================
+
+.. glossary::
+
+    FITS
+        This method reads the TEC values from the FITS cube specified by :term:`fitsFilename`. The FITS cube must conform to format accepted by WSClean (see https://sourceforge.net/p/wsclean/wiki/ImageDomainGridder/#tec-correction). The LoSiTo :ref:`tecscreen_script` can be used to generate such a FITS cube for a simple TEC screen.
+
+    TID
+        This method generates TEC values from a traveling ionospheric disturbance (TID) wave. The wave has an altitude of 200 km, a peak-to-peak length of 200 km and travels at a speed of 500 km/hr. The amplitude of the wave can be specified with :term:`maxdtec`, the maximum differential TEC parameter.
+
+    Turbulence
+        This method generates TEC values using a model of a turbulent ionosphere. The model adopts a Von Karmen spectrum for the turbulence and is based on the implementation of Buscher (2016) [#f1]_. The ionosphere is approximated as a thin layer at a height given by :term:`hIon` and with a velocity given by :term:`vIono`.  The maximum differential TEC can be specified with :term:`maxdtec`.
+
+
+
+.. _tec_pars:
+
+Parameters
+==========
+
+The following parameters are available for this operation:
+
+.. glossary::
+
+    method
+        This parameter is a string (no default) that sets the method to use to generate the TEC corruptions (see :ref:`tec_methods` for details):
+
+        * ``'fits'`` - read TEC values from the FITS cube specified by :term:`fitsFilename` .
+
+        * ``'tid'`` - generate TEC values from a traveling ionospheric disturbance (TID) wave.
+
+        * ``'turbulence'`` - generate TEC values from a turbulent ionosphere.
+
+    h5parmFilename
+        This parameter is a string (no default) that sets the filename of the input/output h5parm file.
+
+    maxdtec
+        This parameter is a float (default is ``0.5``) that sets the maximum screen dTEC per timestep in TECU (:term:`method` = ``'turbulence'`` or ``'tid'`` only).
+
+    maxvtec:
+        This parameter is a float (default is ``50``) that sets the highest absolute TEC values in the daily modulation in TECU (:term:`absoluteTEC` = ``True`` only).
+
+    hIon
+        This parameter is a float (default is ``200``) that sets the height of thin layer ionoshpere in km (:term:`method` = ``'turbulence'`` only).
+
+    vIono
+        This parameter is a float (default is ``50``) that sets the velocity of the TEC screen in m/s (:term:`method` = ``'turbulence'`` only), which controls the TEC variation frequency.
+
+    seed
+        This parameter is an integer (default is ``0``) that sets the random screen seed. Use for reproducibility (:term:`method` = ``'turbulence'`` only).
+
+    fitsFilename
+        This parameter is a string (default is ``None``) that sets the filename of input FITS cube with dTEC solutions (:term:`method` = ``'fits'`` only).
+
+    absoluteTEC
+        This parameter is a boolean (default is ``True``) that sets whether to use absolute (vTEC) or differential (dTEC) TEC.
+
+    angRes
+        This parameter is a float (default is ``60``) that sets the angular resolution of the screen in arcsec. (:term:`method` = ``'turbulence'`` only).
+
+
+.. [#f1] Buscher D. 2016, Optics Express, Vol. 24, Issue 20, pp. 23566
