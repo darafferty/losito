@@ -1,0 +1,45 @@
+#LoSiTo parset 
+
+############ APPLY CORRUPTIONS ########################
+# Add the corruptions stored in the h5parm file:
+[tec]
+operation = USE_H5
+corruption = tec
+h5parmFilename = corruptions.h5
+
+[rotationmeasure]
+operation = USE_H5
+corruption = rm
+h5parmFilename = corruptions.h5
+
+[polmisalign]
+operation = USE_H5
+corruption = polmisalign
+h5parmFilename = corruptions.h5
+
+[clock]
+operation = USE_H5
+corruption = clock
+h5parmFilename = corruptions.h5
+
+# Add the Beam
+[beam]
+operation = beam
+mode = default
+
+# Do the predict
+[predict]
+operation = PREDICT
+outputColumn = DATA
+predictType = h5parmpredict
+
+# Add bandpass to predicted visibilities
+[bandpass]
+operation = BANDPASS
+outputColumn = DATA
+method = ms
+
+# Add noise to the predicted visibilities
+[noise]
+operation = NOISE
+outputColumn = DATA

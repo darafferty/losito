@@ -1,0 +1,25 @@
+#LoSiTo parset 
+#ncpu = 6 
+
+############## CREATE H5PARM FILE ####################
+# Add TEC values from von Karman tecscreen
+[tec]
+operation = TEC
+method = turbulence
+h5parmFilename = corruptions.h5
+
+# Compute faraday rotation 
+[rm]
+operation = FARADAY
+h5parmFilename = corruptions.h5
+
+# Clock delay
+[clock]
+operation = CLOCK
+h5parmFilename = corruptions.h5
+
+# Polarization misalignment 
+[polmisalign] 
+operation = POLMISALIGN 
+h5parmFilename = corruptions.h5
+

@@ -31,6 +31,7 @@ Setting Up and Running LoSiTo
    running
    examples
    scripts
+   multims
    help
 
 

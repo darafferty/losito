@@ -20,7 +20,11 @@ Available Methods
         This method generates TEC values from a traveling ionospheric disturbance (TID) wave. The wave has an altitude of 200 km, a peak-to-peak length of 200 km and travels at a speed of 500 km/hr. The amplitude of the wave can be specified with :term:`maxdtec`, the maximum differential TEC parameter.
 
     Turbulence
-        This method generates TEC values using a model of a turbulent ionosphere. The model adopts a Von Karmen spectrum for the turbulence and is based on the implementation of Buscher (2016) [#f1]_. The ionosphere is approximated as a thin layer at a height given by :term:`hIon` and with a velocity given by :term:`vIono`.  The maximum differential TEC can be specified with :term:`maxdtec`.
+        This method generates TEC values using a model of a turbulent ionosphere. The model adopts a Von Karman -
+        spectrum for the turbulence and is based on the implementation of Buscher (2016) [#f1]_. The ionosphere is
+        modeled as a single thin layer at a height given by :term:`hIon` using the frozen turbulence approximation: the
+        screen structure itself is constant in time, but moves with a velocity given by :term:`vIono`.
+        The maximum differential TEC can be specified with :term:`maxdtec`.
 
 
 
@@ -64,7 +68,9 @@ The following parameters are available for this operation:
         This parameter is a string (default is ``None``) that sets the filename of input FITS cube with dTEC solutions (:term:`method` = ``'fits'`` only).
 
     absoluteTEC
-        This parameter is a boolean (default is ``True``) that sets whether to use absolute (vTEC) or differential (dTEC) TEC.
+        This parameter is a boolean (default is ``True``) that sets whether to use absolute (vTEC) or differential
+        (dTEC) TEC. If more than one TEC - step should be used, ``absoluteTEC`` should be ``False`` for all but one
+        step. Otherwise, the constant TEC component will be added multiple times.
 
     angRes
         This parameter is a float (default is ``60``) that sets the angular resolution of the screen in arcsec. (:term:`method` = ``'turbulence'`` only).

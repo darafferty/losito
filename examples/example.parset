@@ -18,6 +18,7 @@ h5parmFilename = tec1.h5
 operation = TEC
 method = tid
 tidAmp = 0.3
+absoluteTEC = False
 h5parmFilename = tec2.h5
 
 # Do the predict

@@ -12,11 +12,17 @@ log.debug('Loading CLOCK module.')
 def _run_parser(obs, parser, step):
     h5parmFilename = parser.getstr(step, 'h5parmFilename', )
     seed = parser.getint(step, 'seed', default = 0)
+    clockAmp = parser.getfloat(step, 'clockAmp', default = 0.7e-8)
+    clockOffset = parser.getfloat(step, 'clockOffset', default = 2e-8)
+    clockOmega = parser.getfloat(step, 'clockOmega', default = 1.)
     
-    parser.checkSpelling( step, ['h5parmFilename', 'seed'])  
-    return run(obs, h5parmFilename, seed, step)
+    parser.checkSpelling( step, ['h5parmFilename', 'seed', 'clockAmp',
+                                 'clockOffset', 'clockOmega'])
+    return run(obs, h5parmFilename, seed, clockAmp, clockOffset, clockOmega,
+               step)
 
-def remote_station_delay(times):
+def remote_station_delay(times, clockAmp=0.7e-8, clockOffset=2e-8,
+                         clockOmega=1.0):
     '''
     Get clock delay for one station. Only the remote and international 
     stations have an indipendent clock.
@@ -24,22 +30,28 @@ def remote_station_delay(times):
     Parameters
     ----------
     times : (n,) ndarray
-
+    clockAmp : float, default = 7e-9 s
+        Standard deviation of clock delay amplitude.
+    clockOffset : float, default = 20e-9 s
+        Standard deviation of clock delay offset.
+    clockOmega: float, default = 1
+        Frequency factor for clock drift oscillation.
     Returns
     -------
     delay : (n,) ndarray
         Time delay w.r.t. central stations in seconds.
     '''
     time_delta = times - np.min(times)       
-    amp = np.random.normal(0.0, 0.7e-8) 
-    const = np.random.normal(0, 2e-8)
-    omega = np.random.normal(loc = 1.0, scale = 0.15)
+    clockAmp = np.random.normal(0.0, clockAmp)
+    clockOffset = np.random.normal(0, clockOffset)
+    clockOmega = np.random.normal(loc = clockOmega, scale = 0.15 * clockOmega)
     t0 = 28800*np.random.random()
-    delay = amp*np.sin(omega*np.pi*(time_delta - t0)/7200) + const
+    delay = clockAmp*np.sin(clockOmega*np.pi*(time_delta - t0)/7200) + clockOffset
     return delay
 
 
-def run(obs, h5parmFilename, seed = 0, stepname='clock'): 
+def run(obs, h5parmFilename, seed = 0, clockAmp=0.7e-8, clockOffset=2e-8,
+                         clockOmega=1.0, stepname='clock'):
     '''
     Add clock delay Soltab to h5parm.
     
@@ -60,12 +72,13 @@ def run(obs, h5parmFilename, seed = 0, stepname='clock'):
     
     # Get the delay for all of the CS to substract from the RS.
     # This will make the TS delays partially correlated.
-    cs_delay = remote_station_delay(times)
+    cs_delay = remote_station_delay(times, clockAmp, clockOffset, clockOmega)
     
     # Get delay for each individual RS:
     for i, is_rs in enumerate(is_rs_list):
         if is_rs:
-            delays[:,i] = remote_station_delay(times) - cs_delay            
+            delays[:,i] = (remote_station_delay(times, clockAmp, clockOffset,
+                                                clockOmega) - cs_delay )
         else:
             continue
     

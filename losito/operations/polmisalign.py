@@ -11,12 +11,13 @@ log.debug('Loading POLMISALIGN module.')
 def _run_parser(obs, parser, step):
     h5parmFilename = parser.getstr(step, 'h5parmFilename', )
     seed = parser.getint(step, 'seed', default = 0)
+    polDelay = parser.getfloat(step, 'polDelay', default = 1.0e-9)
 
-    parser.checkSpelling( step, ['h5parmFilename', 'seed'])  
-    return run(obs, h5parmFilename, seed, step)
+    parser.checkSpelling( step, ['h5parmFilename', 'seed', 'polDelay'])
+    return run(obs, h5parmFilename, seed, polDelay, step)
 
 
-def run(obs, h5parmFilename, seed = 0, stepname='pol_misalign'): 
+def run(obs, h5parmFilename, seed = 0, polDelay = 1e-9, stepname='pol_misalign'):
     '''
     Simulate polarization misalignment.
     
@@ -24,6 +25,8 @@ def run(obs, h5parmFilename, seed = 0, stepname='pol_misalign'):
     ----------
     seed : unsigned int, optional. default = 0
         Set the random seed. Seed = 0 (default) will set no seed.
+    polDelay : float, optional. The default value is 1e-9 s.
+        Standard deviation of the polarization dependent constant clok delay.
     '''
     if seed != 0: # Set random seed if provided.
         np.random.seed(int(seed))
@@ -36,7 +39,7 @@ def run(obs, h5parmFilename, seed = 0, stepname='pol_misalign'):
     # draw time delays and reference them w.r.t. station 1.
     # Polarization Y is delayed w.r.t. X
     delays = np.zeros((2, len(stations)))  
-    delays[1] = np.random.normal(0, 1e-9, len(stations))    
+    delays[1] = np.random.normal(0, polDelay, len(stations))
     delays[1] -= delays[1,0]
     delays = np.repeat(delays[...,np.newaxis], len(source_names), axis = -1)    
     weights = np.ones_like(delays)
