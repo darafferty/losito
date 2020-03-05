@@ -23,4 +23,5 @@ The following parameters are available for this operation:
         This parameter is a string (no default) that sets the filename of input/output h5parm file.
 
     seed
-        This parameter is an integer (default is ``0``) that sets the random seed. Use for reproducibility.
+        This parameter is an integer (default is ``0``) that sets the seed for random number generation. Use for
+        reproducibility. The default value of ``seed = 0`` means that a random seed is used.

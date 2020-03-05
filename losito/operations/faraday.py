@@ -124,9 +124,8 @@ def run(obs, h5parmFilename, h_ion = 200.e3, stepname='rm', ncpu=0):
     # Get B parallel to PD at PP
     # In which way is parallel defined? Going from source to receiver
     # or the other way around? Currently, PD is calculated such that it
-    # is going from source to receiver. Here, a minus sign is added to 
-    # reverse the PD. This makes dRM align with dTEC
-    B_parallel = (-PD[:,np.newaxis,:,:]*B_vec).sum(-1)        
+    # is going from receriver to source --> matches LiLF
+    B_parallel = (PD[:,np.newaxis,:,:]*B_vec).sum(-1)
     RM = constants * TECU * B_parallel * sTEC # rad*m**-2
     # reference RM to 1st antenna:
     RM = RM - RM[:,0,:][:,np.newaxis]

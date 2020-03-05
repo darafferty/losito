@@ -23,10 +23,11 @@ if __name__ == '__main__':
     parser.add_argument('skymodel', help='Input sky model filename.', default=None, type=str)
     parser.add_argument('parset', help='LoSiTo parset.', nargs='?', default='losito.parset', type=str)
     args = parser.parse_args()
-
-    if len(args) != 3:
-        opt.print_help()
-        sys.exit()
+    
+    # TODO: len(args) --> TypeError
+    #if len(args) != 3:
+    #    opt.print_help()
+    #    sys.exit()
 
     if args.quiet:
         _logging.setLevel('warning')

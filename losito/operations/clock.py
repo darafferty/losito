@@ -25,7 +25,7 @@ def remote_station_delay(times, clockAmp=0.7e-8, clockOffset=2e-8,
                          clockOmega=1.0):
     '''
     Get clock delay for one station. Only the remote and international 
-    stations have an indipendent clock.
+    stations have an independent clock.
     
     Parameters
     ----------
