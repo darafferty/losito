@@ -40,6 +40,7 @@ LoSiTo was developed by:
 * David Rafferty
 * Henrik Edler
 * Francesco de Gasperin
+
 with contributed code from:
 * Maaijke Mevius
 * Peter Dorman
