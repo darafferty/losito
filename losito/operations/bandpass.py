@@ -104,7 +104,7 @@ def run(obs, h5parmFilename='', column='',method='h5parm', stepname='bandpass'):
         log.info('Applying bandpass to column ' + column+'.')
         tab = pt.table(obs.ms_filename, readonly=False)
         vis = tab.getcol(column)
-        vis = vis * bp_amplitude[np.newaxis, :]
+        vis = vis * bp_amplitude[:, np.newaxis]
         tab.putcol(column, vis)
         tab.close()
         return 0
