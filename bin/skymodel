@@ -1,11 +1,12 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
+import os
 import logging, argparse, sys
 import numpy as np
 import casacore.tables as pt
 import astropy.coordinates as apy
 import random
-
+import lsmtool
 logging.basicConfig(level=logging.INFO)
 
 def add_source(src, ref_freq, name, Jy = 1.0, s_idx = -.5, log_si='true',
@@ -323,7 +324,32 @@ def add_random(phs_c, ref_freq, max_angle = 0.5, nptsrc=100, ngauss=100, min_flu
 
     return add_opt
 
+def add_catalogue(output_file, phs_c, ref_freq, angle = 4., minflux = 0.5):
+    '''
+    Create a skymodel from a catalouge. Every source will be assigned to
+    an individual patch.
 
+    Parameters
+    ----------
+    output_file : string
+        Name of output sky model
+    phs_c : SkyCoord object
+        Phase center of MS
+    ref_freq : float
+        Reference frequency.
+    angle : float, default = 3 
+        Radius of the sky model sources
+    minflux : float, default = 0.5
+        Lower limit for sources to consider
+    '''
+    radeg = phs_c.ra.deg
+    decdeg = phs_c.dec.deg
+    os.system('wget -O {} "https://lcs165.lofar.eu/cgi-bin/gsmv1.cgi?coord={},{}&radius={}&unit=deg"'.format(output_file, radeg, decdeg, angle)) # ASTRON
+    lsm = lsmtool.load(output_file)
+    lsm.remove('I<{}'.format(minflux))
+    lsm.group(algorithm='every', applyBeam=False)
+    lsm.write(output_file, clobber=True)
+                                                                                                
 if __name__ == '__main__':
     # Options
     parser = argparse.ArgumentParser(description='skymodel - generate simple sky models')
@@ -365,6 +391,11 @@ if __name__ == '__main__':
                           ngauss=args.ngauss, min_flux_jy=args.minflux, max_flux_jy=args.maxflux,
                           min_maj_arcsec=args.minmaj, max_maj_arcsec=args.maxmaj, max_ell=args.maxell,
                           min_s_idx=args.minspidx, max_s_idx=args.maxspidx, log_si=args.logsi)
+    elif args.kind == 'cat' or args.kind == 'catalogue':
+        add_catalogue(args.output, phs_c, ref_freq, angle=args.radius, 
+            minflux = args.minflux)
+        logging.info('writing '+ args.output + ' from catalogue')
+        sys.exit()
     else:
         logging.error(args.kind + ' is not a valid sky model kind.')
         sys.exit('Stop.')
