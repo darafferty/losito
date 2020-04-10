@@ -3,8 +3,9 @@
 """
 Noise operation for losito: adds Gaussian noise to a data column
 """
-import logging
+import logging, os
 import numpy as np
+from scipy.interpolate import interp1d
 import casacore.tables as pt
 from ..progress import progress
 
@@ -39,7 +40,7 @@ def run(obs, column='DATA'):
         Return the source equivalent flux density (SEFD) for all rows and a
         single fequency channel.
         The values for the SEFD were derived from van Haarlem 
-        et al. (2013) by fitting a 5th degree polynomial to the datapoints.
+        et al. (2013).
         
         Parameters
         ----------
@@ -53,37 +54,44 @@ def run(obs, column='DATA'):
         -------
         SEFD : (n,) ndarray
             SEFD in Jansky.
-        '''       
+        '''
+        mod_dir = os.path.dirname(os.path.abspath(__file__))
+
         if obs.antenna == 'LBA':
             lba_mode = tab.OBSERVATION.getcol('LOFAR_ANTENNA_SET')[0] 
             if lba_mode == 'LBA_OUTER':
-                # coeffs for grade 5 polynomial of SEFD model
-                coeffs = [4.46492043e+05, -4.04156579e-02,  1.58636639e-09,
-                         -3.09364148e-17,  2.93955326e-25, -1.06998148e-33]
+                points = np.loadtxt(mod_dir+'/../../data/SEFD_LBA_OUTER.csv',
+                                    dtype=float, delimiter=',')
             elif lba_mode == 'LBA_INNER':
-                coeffs = [8.32889327e+05, -8.93829326e-02,  3.90153820e-09,
-                          -8.23245656e-17,  8.35181243e-25, -3.25202160e-33]
+                points = np.loadtxt(mod_dir+'/../../data/SEFD_LBA_OUTER.csv',
+                                    dtype=float, delimiter=',')
+            elif lba_mode == 'LBA_ALL':
+                points = np.loadtxt(mod_dir+'/../../data/SEFD_LBA_FULL.csv',
+                                    dtype=float, delimiter=',')
             else: 
                 logging.error('LBA mode "{}" not supported'.format(lba_mode))
                 return 1
-            SEFD = np.polynomial.polynomial.polyval(freq, coeffs)
+            # Lin. extrapolation, so edge band noise is not very accurate.
+            SEFD = interp1d(points[:, 0], points[:, 1], fill_value='extrapolate',
+                            kind='linear')(freq)
             return np.repeat(SEFD, len(station1)) # SEFD same for all BL
                 
         if obs.antenna == 'HBA':
             # For HBA, the SEFD differs between core and remote stations
-            # TODO: [True if 'RS' in st else False for st in stations]
+            p_cs = np.loadtxt(mod_dir + '/../../data/SEFD_HBA_CS.csv',
+                                dtype=float, delimiter=',')
+            p_rs = np.loadtxt(mod_dir + '/../../data/SEFD_HBA_RS.csv',
+                                dtype=float, delimiter=',')
             names = np.array([_n[0:2] for _n in tab.ANTENNA.getcol('NAME')])            
             CS = tab.ANTENNA.getcol('LOFAR_STATION_ID')[np.where(names =='CS')]
-            lim = np.max(CS) # this id seperates the core/remote stations                       
-            # coeffs for grade 5 polynomial of SEFD model 
-            coeffs_cs = [1.61262289e+06, -4.77373916e-02, 5.58287303e-10, 
-                         -3.21467027e-18, 9.09997476e-27, -1.01106905e-35]
-            coeffs_rs = [1.14718003e+06, -3.39191007e-02, 3.96252077e-10,
-                         -2.27947113e-18, 6.44567520e-27, -7.14899170e-36]   
+            lim = np.max(CS) # this id separates the core/remote stations
+
             # The SEFD for 1 BL is the sqrt of the products of the 
             # SEFD per station
-            SEFD_cs = np.polynomial.polynomial.polyval(freq, coeffs_cs)
-            SEFD_rs = np.polynomial.polynomial.polyval(freq, coeffs_rs)
+            SEFD_cs = interp1d(p_cs[:, 0], p_cs[:, 1], fill_value='extrapolate',
+                            kind='linear')(freq)
+            SEFD_rs = interp1d(p_rs[:, 0], p_rs[:, 1], fill_value='extrapolate',
+                            kind='linear')(freq)
             SEFD_s1 = np.where(station1 <= lim, SEFD_cs, SEFD_rs)
             SEFD_s2 = np.where(station2 <= lim, SEFD_cs, SEFD_rs)
             return np.sqrt(SEFD_s1*SEFD_s2)

@@ -54,9 +54,9 @@ def get_sb_spectral_window(sb, stationtype):
                       'are from 150 to 393.')
     d_freq = 48828.125
     if stationtype == 'LBA':
-        lowest_freq =  29_222_106.93359375
+        lowest_freq =  29222106.93359375
     elif stationtype == 'HBA':
-        lowest_freq = 120_237_731.93359375
+        lowest_freq = 120237731.93359375
     else:
         logging.error('Stationtype '+ stationtype +' not understood. Select' 
                       'either LBA or HBA')
@@ -81,7 +81,7 @@ def make_copy_change_frequency(inputms, outputsb, outputname, stationtype):
     outtab.close()
 
 
-def make_sb150(name, start, tobs, ra, dec, stationtype):
+def make_minsb(name, start, tobs, ra, dec, stationtype, minsb=150):
     '''Generate a measurement set for the lowest frequency sub-band.
     One subband contains four frequency channels.
 
@@ -99,7 +99,6 @@ def make_sb150(name, start, tobs, ra, dec, stationtype):
     stationtype : string
         Either LBA or HBA.
     ----------'''
-    sb = 150 # Make for SB 150
     # Load template table
     if stationtype == 'LBA':
         template = tab.table(template_dir+'LBA_LOFAR2.MS', readonly=True,
@@ -114,17 +113,20 @@ def make_sb150(name, start, tobs, ra, dec, stationtype):
     times = np.arange(start, start + 3600 * tobs, 4.00556032) # 4s exposure
     end = start + 3600 * tobs
     p = np.array([[ra, dec]])
-    f, ref_freq = get_sb_spectral_window(sb, stationtype)
-    msname = '{}_t{}_SB{}{}.MS'.format(name, timestamp(start), stationtype[0], sb)
-    sbname = 'SB-'+str(sb)
+    f, ref_freq = get_sb_spectral_window(minsb, stationtype)
+    msname = '{}_t{}_SB{}{}.MS'.format(name, timestamp(start), stationtype[0],
+                                       minsb)
+    sbname = 'SB-'+str(minsb)
     n_stations = len(template.ANTENNA)
     # MAIN TABLE
     out_ms = template.copy(msname, deep = True, valuecopy=True)
+    tab.taql('UPDATE $out_ms SET TIME=$start, TIME_CENTROID=$start')
     logging.info('Expand in time')
-    for i, t in enumerate(times):
-        progress(i, len(times), status = 'Make first SB')
+
+    for i, t in enumerate(times[1::]):
+        progress(i, len(times)-1, status = 'Make first SB')
         tab.taql('INSERT INTO $out_ms SELECT FROM $template')
-        offset = i*len(template)
+        offset = (i+1) * len(template)
         tab.taql('UPDATE $out_ms SET TIME=$t, TIME_CENTROID=$t OFFSET $offset')
     template.close()
 
@@ -151,7 +153,7 @@ def make_sb150(name, start, tobs, ra, dec, stationtype):
     origin = 'LOSITO - THE LOFAR SIMULATION TOOL. THIS MEASUREMENT SET WAS CREATED BY THE SYNTHMS SCRIPT'
     # ::HISTORY
     tab.taql('UPDATE $out_ms::HISTORY SET ORIGIN=$origin, TIME=$start')
-    out_ms.close()
+    return out_ms
 
 
 if __name__ == '__main__':
@@ -164,6 +166,9 @@ if __name__ == '__main__':
     parser.add_argument('--dec', help='Target declination in rad', default=0.61219363, type=float)
     parser.add_argument('--station', help='>LBA<, >HBA< or >both<', default='both', type = str)
     parser.add_argument('--lofarversion', help='LOFAR1 or LOFAR2', default='LOFAR2', type=str)
+    parser.add_argument('--minsb', help='Lowest sub band, >= 150', default=150, type=int)
+    parser.add_argument('--maxsb', help='Highest sub band', default=393, type=int)
+
     # Parse parset
     args = parser.parse_args()
     name = args.name
@@ -171,6 +176,7 @@ if __name__ == '__main__':
     tobs = args.tobs
     ra = args.ra
     dec = args.dec
+    minsb, maxsb = args.minsb, args.maxsb
 
     if args.lofarversion != 'LOFAR2':
         logging.error('Cuurrently, only LOFAR2 is supported in synthms')
@@ -179,28 +185,28 @@ if __name__ == '__main__':
     # Make LBA MSs
     if args.station == 'LBA' or args.station == 'both':
         logging.info('Start synthesizing measurement sets for LBA')
-        make_sb150(name, start, tobs, ra, dec, 'LBA')
-        msname_sbl150 = '{}_t{}_SBL{}.MS'.format(name, timestamp(start), 150)
-        sbl150 = tab.table(msname_sbl150, readonly=True, ack = True)
+        # Make lowest freq. subband from template
+        min_sbl = make_minsb(name, start, tobs, ra, dec, 'LBA', minsb=minsb)
+        # Get other subbands from first sb
         logging.info('Expand in frequency')
-        for sb in range(151,394):
-            progress(sb-151, 243, status='Make SB {}'.format(sb))
+        for sb in range(minsb+1, maxsb + 1):
+            progress(sb-minsb, maxsb-minsb, status='Make SB {}'.format(sb))
             output_name = '{}_t{}_SBL{}.MS'.format(name, timestamp(start), sb)
-            make_copy_change_frequency(sbl150, sb, output_name, 'LBA')
-        sbl150.close()
+            make_copy_change_frequency(min_sbl, sb, output_name, 'LBA')
+        min_sbl.close()
 
     # Make HBA MSs
     if args.station == 'HBA' or args.station == 'both':
         logging.info('Start synthesizing measurement sets for HBA')
-        make_sb150(name, start, tobs, ra, dec, 'HBA')
-        msname_sbh150 = '{}_t{}_SBH{}.MS'.format(name, timestamp(start), 150)
-        sbh150 = tab.table(msname_sbh150, readonly=True, ack = True)
+        # Make lowest freq. subband from template
+        min_sbh = make_minsb(name, start, tobs, ra, dec, 'HBA', minsb=minsb)
+        # Get other subbands from first sb
         logging.info('Expand in frequency')
-        for sb in range(151,394):
-            progress(sb-151, 243, status='Make SB {}'.format(sb))
+        for sb in range(minsb+1, maxsb + 1):
+            progress(sb-minsb, maxsb-minsb, status='Make SB {}'.format(sb))
             output_name = '{}_t{}_SBH{}.MS'.format(name, timestamp(start), sb)
-            make_copy_change_frequency(sbh150, sb, output_name, 'HBA')
-        sbh150.close()
+            make_copy_change_frequency(min_sbh, sb, output_name, 'HBA')
+        min_sbh.close()
 
     logging.info('finished')
 
