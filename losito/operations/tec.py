@@ -47,7 +47,6 @@ def _getaltaz(radec):
     ra = radec[0]
     dec = radec[1]
     aa = radec[2]
-
     mycoord = coord.SkyCoord(ra, dec, frame=coord.FK5, unit=(u.hourangle, u.deg))
     mycoord_aa = mycoord.transform_to(aa)
     return mycoord_aa

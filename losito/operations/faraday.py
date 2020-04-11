@@ -10,7 +10,7 @@ from astropy.time import Time
 import EMM.EMM as EMM
 from losoto.h5parm import h5parm
 from ..lib_tecscreen import get_PP_PD, geocentric_to_geodetic
-from ..progress import progress
+from ..lib_operations import progress
 
 log.debug('Loading FARADAY module.')
 

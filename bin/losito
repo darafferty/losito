@@ -8,10 +8,9 @@ import sys
 import time
 import logging
 from losito import _version, _logging
-from losito.obs import Observation
+from losito.lib_observation import Observation
 from losito.lib_operations import ParsetParser
 import argparse
-
 
 if __name__ == '__main__':
     # Options
@@ -19,44 +18,46 @@ if __name__ == '__main__':
     parser.add_argument('--version', action='version', version=_version.__version__)
     parser.add_argument('--quiet', '-q', dest='quiet', help='Quiet', default=False, action='store_true')
     parser.add_argument('--verbose', '-V', '-v', dest='verbose', help='Verbose', default=False, action='store_true')
-    parser.add_argument('msfile', help='Input MS filename.', default=None, type=str)
-    parser.add_argument('skymodel', help='Input sky model filename.', default=None, type=str)
     parser.add_argument('parset', help='LoSiTo parset.', nargs='?', default='losito.parset', type=str)
+    parser.add_argument('skymodel', help='Input sky model filename.', default=None, type=str)
     args = parser.parse_args()
     
-    # TODO: len(args) --> TypeError
-    #if len(args) != 3:
-    #    opt.print_help()
-    #    sys.exit()
+    # read parset
+    parser = ParsetParser(args.parset)
+    steps = parser.sections()
+    parser.checkSpelling('_global', ['msin', 'ncpu'])
 
+    #msin = parser.getarraystr('_global', 'msin')
+    msin = parser.getfilename('_global', 'msin')
+
+    print(msin)
     if args.quiet:
         _logging.setLevel('warning')
     if args.verbose:
         _logging.setLevel('debug')
 
     # Check input MS and sky model
-    if args.msfile is None:
-        logging.error('No input MS file given.')
+    if msin is None:
+        logging.error('No input MS file given. Please specify at least '
+                      'one MS file for parameter \'msin\' in the LoSiTo '
+                       'parameter set.')
         sys.exit(1)
-    if not os.path.isdir(args.msfile):
-        logging.critical("Missing input MS file.")
-        sys.exit(1)
+    for ms in msin:
+        if not os.path.isdir(ms):
+            logging.critical("Missing input MS file {}.".format(ms))
+            sys.exit(1)
     if args.skymodel is None:
         logging.error('No input sky model file given.')
         sys.exit(1)
     if not os.path.isfile(args.skymodel):
         logging.critical("Missing input sky model file.")
         sys.exit(1)
-    obs = Observation(args.msfile, args.skymodel)
 
     # check parset
     if not os.path.isfile(args.parset):
         logging.critical("Missing parset file, I don't know what to do :'(")
         sys.exit(1)
-
-    # read parset
-    parser = ParsetParser(args.parset)
-    steps = parser.sections()
+    obs = Observation(msin, args.skymodel)
 
     # Possible operations, linked to relative function
     import losito.operations as operations

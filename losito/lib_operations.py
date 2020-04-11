@@ -3,6 +3,7 @@
 Libraries for operations
 """
 import logging
+import glob
 import multiprocessing
 import numpy as np
 from astropy.io import fits as pyfits
@@ -18,7 +19,7 @@ else:
 
 class ParsetParser(ConfigParser):
     """
-    A parser for losoto parset files.
+    A parser for losito parset files.
 
     Parameters
     ----------
@@ -33,7 +34,7 @@ class ParsetParser(ConfigParser):
         # add [_global] fake section at beginning
         config.write('[_global]\n'+open(parsetFile).read())
         config.seek(0, os.SEEK_SET)
-        self.readfp(config)
+        self.read_file(config)
 
     def checkSpelling(self, s, availValues=[]):
         """
@@ -112,6 +113,23 @@ class ParsetParser(ConfigParser):
             return [int(x) for x in self.getarray(s, v, default)]
         except:
             logging.error('Error interpreting section: %s - values: %s (expected array of int.)' % (s, v))
+
+    def getfilename(self, s, v, default=None):
+        "Unix-style filename matching including regex"
+        regstring = self.getstr(s, v, default)
+        regstring = regstring.split(' ')
+        filenames = []
+        for split in regstring:
+            filenames += glob.glob(split)
+        if len(filenames) == 0:
+            logging.error('No matching files found for expression '.format(s))
+        return filenames
+
+
+
+
+
+
 
 
 class multiprocManager(object):
@@ -325,19 +343,42 @@ def make_template_image(image_name, reference_ra_deg, reference_dec_deg,
     hdulist.writeto(image_name, overwrite=True)
     hdulist.close()
 
+# The MIT License (MIT)
+# Copyright (c) 2016 Vladimir Ignatev
+#
+# Permission is hereby granted, free of charge, to any person obtaining
+# a copy of this software and associated documentation files (the "Software"),
+# to deal in the Software without restriction, including without limitation
+# the rights to use, copy, modify, merge, publish, distribute, sublicense,
+# and/or sell copies of the Software, and to permit persons to whom the Software
+# is furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included
+# in all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+# INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
+# PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE
+# FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT
+# OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE
+# OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-def reset_beam_keyword(ms_filename, colname='DATA'):
-    """
-    Unsets the LOFAR_APPLIED_BEAM_MODE keyword for the given column
+'''
+Use this simple script as progressbar for now, since the old progressbar
+library is python 2 and not supported anymore. In the future, it might be
+usefull to use the tqdm library for this: https://github.com/tqdm/tqdm 
+'''
+def progress(count, total, status=''):
+    '''Usage: place in for-loop like:
+        for i, val in enumerate(vals):
+            progress(i, len(vals), somestringcomment)
+            ...
+    '''
+    bar_len = 40
+    filled_len = round(bar_len * count / float(total))
 
-    Parameters
-    ----------
-    ms_filename : str
-        Filename of MS
-    colname : str, optional
-        Name of column
-    """
-    t = pt.table(ms_filename, readonly=False, ack=False)
-    if colname in t.colnames() and 'LOFAR_APPLIED_BEAM_MODE' in t.getcolkeywords(colname):
-        t.putcolkeyword(colname, 'LOFAR_APPLIED_BEAM_MODE', 'None')
-    t.close()
+    percents = round(100.0 * count / float(total), 1)
+    bar = '=' * filled_len + '-' * (bar_len - filled_len)
+
+    sys.stdout.write('[%s] %s%s ...%s\r' % (bar, percents, '%', status))
+    sys.stdout.flush()

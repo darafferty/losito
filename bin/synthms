@@ -1,11 +1,14 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-import os
-import logging, argparse, sys
+"""
+SYNTHMS - script. Use this script to generate measurement sets which containt
+the metadata information necessary for a LoSiTo - simulation.
+"""
+import os, logging, argparse, sys
 import numpy as np
 from astropy.time import Time
 import casacore.tables as tab
-from losito.progress import progress
+from losito.lib_operations import progress
 
 mod_dir = os.path.dirname(os.path.abspath(__file__))
 template_dir = mod_dir + '/../data/ms_templates/'
@@ -207,9 +210,3 @@ if __name__ == '__main__':
             output_name = '{}_t{}_SBH{}.MS'.format(name, timestamp(start), sb)
             make_copy_change_frequency(min_sbh, sb, output_name, 'HBA')
         min_sbh.close()
-
-    logging.info('finished')
-
-
-
-

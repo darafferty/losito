@@ -7,7 +7,7 @@ import logging, os
 import numpy as np
 from scipy.interpolate import interp1d
 import casacore.tables as pt
-from ..progress import progress
+from ..lib_operations import progress
 
 logging.debug('Loading NOISE module.')
 
@@ -17,6 +17,85 @@ def _run_parser(obs, parser, step):
     parser.checkSpelling( step, ['outputColumn'])
     return run(obs, column)
 
+def SEFD(ms, station1, station2, freq):
+    '''
+    Return the source equivalent flux density (SEFD) for all rows and a
+    single fequency channel.
+    The values for the SEFD were derived from van Haarlem
+    et al. (2013).
+
+    Parameters
+    ----------
+    ms : MS-object
+    station1 : (n,) ndarray, dtype = int
+        ANTENNA1 indices.
+    station2 : (n,) ndarray, dtpe = int
+        ANTENNA2 indices.
+    freq : float
+        Channel frequency in Hz.
+    Returns
+    -------
+    SEFD : (n,) ndarray
+        SEFD in Jansky.
+    '''
+    mod_dir = os.path.dirname(os.path.abspath(__file__))
+    sefd_pth = mod_dir + '/../../data/noise/SEFD_{}.csv'
+
+    def interp_sefd(freq, antennamode):
+        # Load antennatype datapoints and interpolate, then reevaluate at freq.
+        points = np.loadtxt(sefd_pth.format(antennamode), dtype=float,
+                            delimiter=',')
+        # Lin. extrapolation, so edge band noise is not very accurate.
+        fun = interp1d(points[:, 0], points[:, 1], fill_value='extrapolate',
+                        kind='linear')
+        return fun(freq)
+
+    if ms.antennatype in ['LBA_INNER', 'LBA_OUTER', 'LBA_ALL']:
+        SEFD = interp_sefd(freq, ms.antennatype)
+        return np.repeat(SEFD, len(station1))  # SEFD same for all BL
+    elif 'HBA' in ms.antennatype:
+        # For HBA, the SEFD differs between core and remote stations
+        names = np.array([_n[0:2] for _n in ms.stations])
+        CSids = ms.stationids[np.where(names =='CS')]
+        lim = np.max(CSids)  # this id separates the core/remote stations
+
+        # The SEFD for 1 BL is the sqrt of the products of the SEFD per station
+        SEFD_cs = interp_sefd(freq, 'HBA_CS')
+        SEFD_rs = interp_sefd(freq, 'HBA_RS')
+        SEFD_s1 = np.where(station1 <= lim, SEFD_cs, SEFD_rs)
+        SEFD_s2 = np.where(station2 <= lim, SEFD_cs, SEFD_rs)
+        return np.sqrt(SEFD_s1 * SEFD_s2)
+    else:
+        logging.error('Stationtype "{}" unknown.'.format(ms.stationtype))
+        return 1
+
+def add_noise_to_ms(ms, column='DATA'):
+    # TODO: ensure eta = 1 is appropriate
+    tab = ms.table(readonly=False)
+    eta = 1.  # system efficiency. Roughly 1.0
+
+    chan_width = ms.channelwidth
+    freq = ms.get_frequencies()
+    ant1 = tab.getcol('ANTENNA1')
+    ant2 = tab.getcol('ANTENNA2')
+    exposure = ms.timepersample
+    # std = eta * SEFD(ms, ant1, ant2, freq) #TODO
+    # Iterate over frequency channels to save memory.
+    for i, nu in enumerate(freq):
+        progress(i, len(freq), status='estimating noise')  # progress bar
+        # find correct standard deviation from SEFD
+        std = eta * SEFD(ms, ant1, ant2, nu)
+        std /= np.sqrt(2 * exposure * chan_width[i])
+        # draw complex valued samples of shape (row, corr_pol)
+        noise = np.random.normal(loc=0, scale=std, size=[4, *np.shape(std)]).T
+        noise = noise + 1.j * np.random.normal(loc=0, scale=std, size=[4, *np.shape(std)]).T
+        noise = noise[:, np.newaxis, :]
+
+        prediction = tab.getcolslice(column, blc=[i, -1], trc=[i, -1])
+        tab.putcolslice(column, prediction + noise, blc=[i, -1], trc=[i, -1])
+    tab.close()
+
+    return 0
 
 def run(obs, column='DATA'):
     """
@@ -31,91 +110,10 @@ def run(obs, column='DATA'):
     column : str, optional
         Name of column to which noise is added
     """
-    # TODO: ensure eta = 1 is accurate enough
-    tab = pt.table(obs.ms_filename, readonly=False)
-    eta = 1. # system efficiency. Roughly 1.0
-    
-    def SEFD(station1, station2, freq):
-        '''
-        Return the source equivalent flux density (SEFD) for all rows and a
-        single fequency channel.
-        The values for the SEFD were derived from van Haarlem 
-        et al. (2013).
-        
-        Parameters
-        ----------
-        station1 : (n,) ndarray, dtype = int
-            ANTENNA1 indices.
-        station2 : (n,) ndarray, dtpe = int
-            ANTENNA2 indices.
-        freq : float
-            Channel frequency in Hz.
-        Returns
-        -------
-        SEFD : (n,) ndarray
-            SEFD in Jansky.
-        '''
-        mod_dir = os.path.dirname(os.path.abspath(__file__))
+    results = []
+    # TODO scheduler
+    for ms in obs:
+        results.append(add_noise_to_ms(ms, column))
 
-        if obs.antenna == 'LBA':
-            lba_mode = tab.OBSERVATION.getcol('LOFAR_ANTENNA_SET')[0] 
-            if lba_mode == 'LBA_OUTER':
-                points = np.loadtxt(mod_dir+'/../../data/SEFD_LBA_OUTER.csv',
-                                    dtype=float, delimiter=',')
-            elif lba_mode == 'LBA_INNER':
-                points = np.loadtxt(mod_dir+'/../../data/SEFD_LBA_OUTER.csv',
-                                    dtype=float, delimiter=',')
-            elif lba_mode == 'LBA_ALL':
-                points = np.loadtxt(mod_dir+'/../../data/SEFD_LBA_FULL.csv',
-                                    dtype=float, delimiter=',')
-            else: 
-                logging.error('LBA mode "{}" not supported'.format(lba_mode))
-                return 1
-            # Lin. extrapolation, so edge band noise is not very accurate.
-            SEFD = interp1d(points[:, 0], points[:, 1], fill_value='extrapolate',
-                            kind='linear')(freq)
-            return np.repeat(SEFD, len(station1)) # SEFD same for all BL
-                
-        if obs.antenna == 'HBA':
-            # For HBA, the SEFD differs between core and remote stations
-            p_cs = np.loadtxt(mod_dir + '/../../data/SEFD_HBA_CS.csv',
-                                dtype=float, delimiter=',')
-            p_rs = np.loadtxt(mod_dir + '/../../data/SEFD_HBA_RS.csv',
-                                dtype=float, delimiter=',')
-            names = np.array([_n[0:2] for _n in tab.ANTENNA.getcol('NAME')])            
-            CS = tab.ANTENNA.getcol('LOFAR_STATION_ID')[np.where(names =='CS')]
-            lim = np.max(CS) # this id separates the core/remote stations
-
-            # The SEFD for 1 BL is the sqrt of the products of the 
-            # SEFD per station
-            SEFD_cs = interp1d(p_cs[:, 0], p_cs[:, 1], fill_value='extrapolate',
-                            kind='linear')(freq)
-            SEFD_rs = interp1d(p_rs[:, 0], p_rs[:, 1], fill_value='extrapolate',
-                            kind='linear')(freq)
-            SEFD_s1 = np.where(station1 <= lim, SEFD_cs, SEFD_rs)
-            SEFD_s2 = np.where(station2 <= lim, SEFD_cs, SEFD_rs)
-            return np.sqrt(SEFD_s1*SEFD_s2)
-        
-    chan_width = tab.SPECTRAL_WINDOW.getcol('CHAN_WIDTH').flatten()
-    freq = tab.SPECTRAL_WINDOW.getcol('CHAN_FREQ').flatten()
-    ant1 = tab.getcol('ANTENNA1')
-    ant2 = tab.getcol('ANTENNA2')
-    exposure = tab.getcol('EXPOSURE')
-    
-    # Iterate over frequency channels to save memory.    
-    for i, nu in enumerate(freq):
-        progress(i, len(freq), status = 'estimating noise') # progress bar
-        # find correct standard deviation from SEFD
-        std = eta * SEFD(ant1, ant2, nu)
-        std /= np.sqrt(2*exposure*chan_width[i])
-        # draw complex valued samples of shape (row, corr_pol)
-        noise = np.random.normal(loc=0, scale=std, size=[4,*np.shape(std)]).T
-        noise = noise + 1.j*np.random.normal(loc=0, scale=std, size=[4,*np.shape(std)]).T
-        noise = noise[:,np.newaxis,:]
-        # TODO: is there a more efficient way to do this in taql?
-        # Probably loading the predicted column is not necessary
-        prediction = tab.getcolslice(column, blc = [i,-1], trc = [i,-1])     
-        tab.putcolslice(column, prediction + noise,  blc = [i,-1], trc = [i,-1])
-    tab.close()    
-    return 0        
+    return sum(results)
     

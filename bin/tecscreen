@@ -10,7 +10,7 @@ import numpy as np
 import math
 import argparse
 from astropy.io import fits as pyfits
-from losito.obs import Observation
+from losito.lib_observation import Observation
 from losito.lib_operations import make_template_image
 
 

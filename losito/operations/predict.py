@@ -6,10 +6,9 @@ Predict operation for losito: runs DPPP to predict a sky model with corruptions
 import logging
 import subprocess
 import casacore.tables as pt
-from losito.lib_operations import *
+
 
 logging.debug('Loading PREDICT module.')
-
 
 def _run_parser(obs, parser, step):
     outputColumn = parser.getstr( step, 'outputColumn', 'DATA')
@@ -43,34 +42,38 @@ def run(obs, outputColumn='DATA', predictType='h5parmpredict',
     ncpu : int, optional
         Number of cpu to use, by default all available.
     """
-    # reset weights if specified (default). Use pt.taql() to avoid excessive
-    # memory usage with large tables
+    # reset weights if specified (default).
     if resetWeights:
         logging.info('Reset entries in WEIGHT_SPECTRUM...')
-        pt.taql("UPDATE {0} SET WEIGHT_SPECTRUM=1.0".format(obs.ms_filename))
+        for ms in obs:
+            pt.taql("UPDATE {0} SET WEIGHT_SPECTRUM=1.0".format(ms.ms_filename))
 
     # Make sourcedb from sky model
     obs.make_sourcedb()
 
     # Set parset parameters and write parset to file
-    obs.parset_parameters['steps'] = '[predict]'
-    obs.parset_parameters['numthreads'] = ncpu
-    obs.parset_parameters['predict.type'] = predictType
-    obs.parset_parameters['predict.sourcedb'] = obs.sourcedb_filename
-    obs.parset_parameters['predict.operation'] = 'replace'
-    obs.parset_parameters['msout.datacolumn'] = outputColumn
-    obs.make_parset()
-
-    # Ensure that the LOFAR_APPLIED_BEAM_MODE keyword is unset (otherwise DPPP may
-    # complain that the beam has already been applied)
-    reset_beam_keyword(obs.ms_filename, outputColumn)
+    for ms in obs:
+        ms.parset_parameters['steps'] = '[predict]'
+        ms.parset_parameters['numthreads'] = ncpu
+        ms.parset_parameters['predict.type'] = predictType
+        ms.parset_parameters['predict.sourcedb'] = obs.sourcedb_filename
+        ms.parset_parameters['predict.operation'] = 'replace'
+        ms.parset_parameters['msout.datacolumn'] = outputColumn
+        ms.make_parset()
+        # Ensure that the LOFAR_APPLIED_BEAM_MODE keyword is unset (otherwise DPPP may
+        # complain that the beam has already been applied)
+        ms.reset_beam_keyword(outputColumn)
 
     # Run DPPP
-    cmd = ['DPPP', obs.parset_filename]
-    result = subprocess.call(cmd)
+    # TODO run this on multiple cluster nodes!
+    results = []
+    for ms in obs:
+        cmd = ['DPPP', ms.parset_filename]
+        results.append(subprocess.call(cmd))
 
     # Ensure again that the LOFAR_APPLIED_BEAM_MODE keyword is unset
-    reset_beam_keyword(obs.ms_filename, outputColumn)
+    for ms in obs:
+        ms.reset_beam_keyword(outputColumn)
 
     # Return result
-    return result
+    return sum(results)

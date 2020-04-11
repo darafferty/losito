@@ -13,7 +13,7 @@ import astropy.units as u
 import astropy.coordinates as coord
 from astropy.time import Time
 from astropy.coordinates import EarthLocation, SkyCoord, ITRS
-from .progress import progress
+from .lib_operations import progress
 
 R_earth = 6364.62e3
 
@@ -43,7 +43,6 @@ def geocentric_to_geodetic(points):
     lon = np.arctan2(points[...,1], points[...,0])
     lat = np.arcsin(points[...,2]/R)
     return np.moveaxis(np.array([lon, lat, R]), 0, -1)
-    
 
 def get_PP_PD_per_source(args):
     ''' 
