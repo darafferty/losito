@@ -5,13 +5,12 @@ Bandpass-operation: Get bandpass amplitudes as solution-table
 in h5parm file.
 """
 import os
-import logging as log
-
 import numpy as np
 import casacore.tables as pt
 from losoto.h5parm import h5parm
+from ..lib_io import logger
 
-log.debug('Loading Bandpass module.')
+logger.debug('Loading Bandpass module.')
 
 
 def _run_parser(obs, parser, step):
@@ -66,7 +65,7 @@ def run(obs, h5parmFilename='', column='',method='h5parm', stepname='bandpass'):
             solset = ho.makeSolset(solsetName='sol000')
 
         if 'amplitude000' in solset.getSoltabNames():
-            log.info('''Solution-table amplitude000 is already present in
+            logger.info('''Solution-table amplitude000 is already present in
                      {}. It will be overwritten.'''.format(h5parmFilename + '/sol000'))
             solset.getSoltab('amplitude000').delete()
 
@@ -101,7 +100,7 @@ def run(obs, h5parmFilename='', column='',method='h5parm', stepname='bandpass'):
         return 0
 
     elif method == 'ms':
-        log.info('Applying bandpass to column ' + column+'.')
+        logger.info('Applying bandpass to column ' + column+'.')
         tab = pt.table(obs.ms_filename, readonly=False)
         vis = tab.getcol(column)
         vis = vis * bp_amplitude[:, np.newaxis]
@@ -110,5 +109,5 @@ def run(obs, h5parmFilename='', column='',method='h5parm', stepname='bandpass'):
         return 0
 
     else:
-        log.warning('You either have to specify h5parm or ms as method.')
+        logger.warning('You either have to specify h5parm or ms as method.')
         return 1

@@ -4,7 +4,7 @@ Created on Fri Jan 31 10:14:35 2020
 
 @author: Henrik Edler <henrik.edler@hs.uni-hamburg.de>
 """
-import logging, functools, os
+import functools, os
 import numpy as np
 import multiprocessing as mp
 from numpy import sqrt, fft, random, pi
@@ -13,7 +13,7 @@ import astropy.units as u
 import astropy.coordinates as coord
 from astropy.time import Time
 from astropy.coordinates import EarthLocation, SkyCoord, ITRS
-from .lib_operations import progress
+from .lib_io import progress, logger
 
 R_earth = 6364.62e3
 
@@ -345,7 +345,7 @@ def fixed_tecscreen(sp, directions, times, hIon = 200.e3, vIon = 50,
             np.save(expfolder + '/times.npy', times)
             np.save(expfolder + '/grid.npy', np.array([grid_lon, grid_lat]))
             np.save(expfolder + '/res.npy', np.array([cellsz_lon, cellsz_lat]))
-            logging.info('Exporting tecscreen data to: ' + expfolder+'/')        
+            logger.info('Exporting tecscreen data to: ' + expfolder+'/')
         return TEC
 
 
@@ -447,7 +447,7 @@ def comoving_tecscreen(sp, directions, times, hIon = 200.e3, vIon = 10,
         np.save(expfolder + '/grid_lon.npy', grid_lon )
         np.save(expfolder + '/grid_lat.npy', grid_lat)
         np.save(expfolder + '/res.npy', np.array([cs_lon, cs_lat]))
-        logging.info('Exporting tecscreen data to: ' + expfolder+'/')        
+        logger.info('Exporting tecscreen data to: ' + expfolder+'/')
     return TEC
            
 

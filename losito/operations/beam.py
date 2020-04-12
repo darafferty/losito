@@ -3,10 +3,9 @@
 """
 Beam operation for losito: corrupts with the beam
 """
-import logging
-from losito.lib_operations import *
+from losito.lib_operations import logger
 
-logging.debug('Loading BEAM module.')
+logger.debug('Loading BEAM module.')
 
 
 def _run_parser(obs, parser, step):
@@ -34,14 +33,13 @@ def run(obs,   mode='default', usechannelfreq=True, onebeamperpatch=False):
         If True, compute the beam only for the center of each patch.
     """
     if mode not in ['default', 'array_factor', 'element']:
-        logging.error('mode "{}" not understood'.format(mode))
+        logger.error('mode "{}" not understood'.format(mode))
         return 1
 
     # Update predict parset parameters for the obs
-    for ms in obs:
-        ms.parset_parameters['predict.usebeammodel'] = True
-        ms.parset_parameters['predict.beammode'] = mode
-        ms.parset_parameters['predict.usechannelfreq'] = usechannelfreq
-        ms.parset_parameters['predict.onebeamperpatch'] = onebeamperpatch
+    obs.parset_parameters['predict.usebeammodel'] = True
+    obs.parset_parameters['predict.beammode'] = mode
+    obs.parset_parameters['predict.usechannelfreq'] = usechannelfreq
+    obs.parset_parameters['predict.onebeamperpatch'] = onebeamperpatch
 
     return 0

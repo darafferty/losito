@@ -4,15 +4,13 @@ FARADAY operation for LoSiTo
 """
 import numpy as np
 import multiprocessing as mp
-import logging as log
 from astropy.time import Time
-# lofar specific imports
 import EMM.EMM as EMM
 from losoto.h5parm import h5parm
 from ..lib_tecscreen import get_PP_PD, geocentric_to_geodetic
-from ..lib_operations import progress
+from ..lib_io import progress, logger
 
-log.debug('Loading FARADAY module.')
+logger.debug('Loading FARADAY module.')
 
 R_earth = 6364.62e3
 
@@ -95,12 +93,12 @@ def run(obs, h5parmFilename, h_ion = 200.e3, stepname='rm', ncpu=0):
     
     sTEC = soltab.getValues()[0]
     if np.any(sTEC < 0): # Make sure absolute TEC is used
-        log.warning('''Negative TEC values in {}. You are porbably using 
+        logger.warning('''Negative TEC values in {}. You are porbably using 
                     differential TEC. For an accurate estimate of the rotation
                     measure, absolute TEC is required.'''.format(h5parmFilename))    
     
     
-    log.info('''Calculating ionosphere pierce points for {} directions, {} 
+    logger.info('''Calculating ionosphere pierce points for {} directions, {} 
               stations and {} timestamps...'''.format(len(directions), len(sp), 
               len(times)))
     PP, PD = get_PP_PD(sp, directions, times, h_ion, ncpu)
@@ -114,7 +112,7 @@ def run(obs, h5parmFilename, h_ion = 200.e3, stepname='rm', ncpu=0):
         B_vec[:,i] =  pool.map(Bfield, PP[:,i])
     pool.close()
     pool.join()
-    log.info('Calculate rotation measure...')   
+    logger.info('Calculate rotation measure...')
     c = 29979245800 # cm/s
     m = 9.109 * 10**(-28) # g
     e = 4.803 * 10**(-10) # cm**(3/2)*g**(1/2)/s                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
@@ -134,7 +132,7 @@ def run(obs, h5parmFilename, h_ion = 200.e3, stepname='rm', ncpu=0):
     stabnames = solset.getSoltabNames()
     rmtabs = [_tab for _tab in stabnames if 'rotationmeasure' in _tab]
     if 'rotationmeasure000' in solset.getSoltabNames():   
-        log.info('''There are already rotation measure solutions present in
+        logger.info('''There are already rotation measure solutions present in
                  {}.'''.format(h5parmFilename+'/sol000'))    
         for rmt in rmtabs:
             solset.getSoltab(rmt).delete()

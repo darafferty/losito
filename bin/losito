@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
 Script that runs LoSiTo
@@ -6,10 +6,9 @@ Script that runs LoSiTo
 import os
 import sys
 import time
-import logging
-from losito import _version, _logging
+from losito import _version
 from losito.lib_observation import Observation
-from losito.lib_operations import ParsetParser
+from losito import lib_operations, lib_io
 import argparse
 
 if __name__ == '__main__':
@@ -23,41 +22,48 @@ if __name__ == '__main__':
     args = parser.parse_args()
     
     # read parset
-    parser = ParsetParser(args.parset)
+    parser = lib_io.ParsetParser(args.parset)
     steps = parser.sections()
-    parser.checkSpelling('_global', ['msin', 'ncpu'])
+    parser.checkSpelling('_global', ['msin', 'ncpu', 'qsub', 'nnodes'])
 
-    #msin = parser.getarraystr('_global', 'msin')
     msin = parser.getfilename('_global', 'msin')
+    qsub = parser.getbool('_global', 'qsub', None)
+    nnodes = parser.getint('_global', 'nnodes', 1)
 
-    print(msin)
+    logger_obj = lib_io.Logger('losito.logger')
+    logger = lib_io.logger
+
     if args.quiet:
-        _logging.setLevel('warning')
+        logger.setLevel('warning')
     if args.verbose:
-        _logging.setLevel('debug')
+        logger.setLevel('debug')
 
     # Check input MS and sky model
-    if msin is None:
-        logging.error('No input MS file given. Please specify at least '
+    if msin is None or len(msin) == 0:
+        logger.error('No input MS file given. Please specify at least '
                       'one MS file for parameter \'msin\' in the LoSiTo '
                        'parameter set.')
         sys.exit(1)
     for ms in msin:
         if not os.path.isdir(ms):
-            logging.critical("Missing input MS file {}.".format(ms))
+            logger.critical("Missing input MS file {}.".format(ms))
             sys.exit(1)
     if args.skymodel is None:
-        logging.error('No input sky model file given.')
+        logger.error('No input sky model file given.')
         sys.exit(1)
     if not os.path.isfile(args.skymodel):
-        logging.critical("Missing input sky model file.")
+        logger.critical("Missing input sky model file.")
         sys.exit(1)
 
     # check parset
     if not os.path.isfile(args.parset):
-        logging.critical("Missing parset file, I don't know what to do :'(")
+        logger.critical("Missing parset file, I don't know what to do :'(")
         sys.exit(1)
-    obs = Observation(msin, args.skymodel)
+    if nnodes > 1 and qsub is None:
+        logger.warning("Nnode is set but qsub is False.")
+
+    s = lib_operations.Scheduler(log_dir=logger_obj.log_dir, dry=False)
+    obs = Observation(msin, args.skymodel, scheduler = s)
 
     # Possible operations, linked to relative function
     import losito.operations as operations
@@ -81,17 +87,17 @@ if __name__ == '__main__':
 
         op = parser.getstr(step, 'Operation')
         if op not in ops:
-            logging.error('Unkown operation: '+op)
+            logger.error('Unkown operation: '+op)
             continue
 
         returncode = 0
-        with operations.Timer(logging, step, op) as t:
+        with operations.Timer(logger, step, op) as t:
             # run operation
             returncode += ops[op]._run_parser(obs, parser, step)
             if returncode != 0:
-                logging.error("Step '{}' incomplete. Trying to continue anyway.".format(step))
+                logger.error("Step '{}' incomplete. Trying to continue anyway.".format(step))
             else:
-                logging.info("Step '{}' completed successfully.".format(step))
+                logger.info("Step '{}' completed successfully.".format(step))
 
-    logging.info("Time for all steps: {} s.".format(int(time.time() - globalstart)))
-    logging.info("Done.")
+    logger.info("Time for all steps: {} s.".format(int(time.time() - globalstart)))
+    logger.info("Done.")

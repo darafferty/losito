@@ -1,14 +1,14 @@
 """
-Definition of the Observation class
+Definition of the Observation and MS classes
 """
 import os
 import sys
-import logging
 import subprocess
 import casacore.tables as pt
 import numpy as np
 from astropy.time import Time
 import lsmtool
+from .lib_io import logger
 
 
 class MS(object):
@@ -21,23 +21,16 @@ class MS(object):
       ----------
       ms_filename : str
         Filename of the MS file
-      log : logger object
       starttime : float, optional
       endtime : float, optional
       """
 
-    def __init__(self, ms_filename, log, starttime=None, endtime=None):
+    def __init__(self, ms_filename, starttime=None, endtime=None):
         self.ms_filename = ms_filename
-        self.log = log
         self.starttime = starttime
         self.endtime = endtime
-        self.parset_filename = self.ms_filename + '.parset'
-        self.parset_parameters = {}
-
         # Scan the MS and store various observation parameters
         self.scan_ms()
-        # Initialize the parset
-        self.initialize_parset_parameters()
 
     def table(self, readonly=True):
         """
@@ -83,7 +76,7 @@ class MS(object):
         else:
             valid_times = np.where(tab.getcol('TIME') >= self.starttime)[0]
             if len(valid_times) == 0:
-                self.log.critical('Start time of {0} is greater than the last time in the MS! '
+                logger.critical('Start time of {0} is greater than the last time in the MS! '
                                   'Exiting!'.format(self.starttime))
                 sys.exit(1)
             self.starttime = tab.getcol('TIME')[valid_times[0]]
@@ -96,7 +89,7 @@ class MS(object):
         else:
             valid_times = np.where(tab.getcol('TIME') <= self.endtime)[0]
             if len(valid_times) == 0:
-                self.log.critical('End time of {0} is less than the first time in the MS! '
+                logger.critical('End time of {0} is less than the first time in the MS! '
                                   'Exiting!'.format(self.endtime))
                 sys.exit(1)
             self.endtime = tab.getcol('TIME')[valid_times[-1]]
@@ -130,7 +123,7 @@ class MS(object):
         self.antennatype = tab.OBSERVATION.getcol('LOFAR_ANTENNA_SET')[0]
         if self.antennatype not in ['LBA_OUTER', 'LBA_INNER', 'LBA_ALL',
                                     'HBA_DUAL_INNER']:
-            self.log.error('Antenna type not recognized (only LBA and HBA data '
+            logger.error('Antenna type not recognized (only LBA and HBA data '
                              'are supported)')
         tab.close()
 
@@ -140,29 +133,6 @@ class MS(object):
         self.mean_el_rad = np.mean(el_values)
         sec_el = 1.0 / np.sin(self.mean_el_rad)
         self.fwhm_deg = 1.1 * ((3.0e8 / self.referencefreq) / self.diam) * 180. / np.pi * sec_el
-
-    def initialize_parset_parameters(self):
-        """
-        Sets basic DPPP parset parameters. These are adjusted and added to
-        by the operations that are run.
-        """
-        self.parset_parameters['msin'] = self.ms_filename
-        self.parset_parameters['msout'] = '.'
-        self.parset_parameters['numthreads'] = 0
-        self.parset_parameters['msin.datacolumn'] = 'DATA'
-        if not self.startsat_startofms:
-            self.parset_parameters['msin.starttime'] = self.convert_mjd(self.starttime)
-        if not self.goesto_endofms:
-            self.parset_parameters['msin.ntimes'] = self.numsamples
-        self.parset_parameters['steps'] = []
-
-    def make_parset(self):
-        """
-        Writes the DPPP parset parameters to a text file
-        """
-        with open(self.parset_filename, 'w') as f:
-            for k, v in self.parset_parameters.items():
-                f.write('{0} = {1}\n'.format(k, v))
 
     def get_times(self):
         """
@@ -177,19 +147,6 @@ class MS(object):
         """
         freqs = self.startfreq + self.channelwidth * np.arange(self.numchannels)
         return freqs
-
-    def reset_beam_keyword(self, colname='DATA'):
-        """
-        Unsets the LOFAR_APPLIED_BEAM_MODE keyword for the given column
-
-        Parameters
-        ----------
-        colname : str, optional
-            Name of column
-        """
-        with self.table(readonly=False) as t:
-            if colname in t.colnames() and 'LOFAR_APPLIED_BEAM_MODE' in t.getcolkeywords(colname):
-                t.putcolkeyword(colname, 'LOFAR_APPLIED_BEAM_MODE', 'None')
 
 
 class Observation(object):
@@ -215,7 +172,8 @@ class Observation(object):
         The end time of the observation (in MJD seconds) to be used during processing.
         If None, the end time is the end of the MS file.
     """
-    def __init__(self, ms_filenames, skymodel_filename=None, starttime=None, endtime=None):
+    def __init__(self, ms_filenames, skymodel_filename=None, starttime=None,
+                 endtime=None, scheduler=None):
         if isinstance(ms_filenames, str):
             self.ms_filenames = [ms_filenames]
         else:
@@ -224,19 +182,23 @@ class Observation(object):
         self.input_skymodel_filename = skymodel_filename
         self.output_skymodel_filename = skymodel_filename+'.losito'
         self.sourcedb_filename = self.output_skymodel_filename + '.sourcedb'
-
         self.name = os.path.basename(self.ms_filenames[0][0:-9])
-        self.log = logging.getLogger('losito:{}'.format(self.name))
         self.starttime = starttime
         self.endtime = endtime
+
+        self.scheduler = scheduler # Does it make sense to have the scheduler here?
 
         # Load the sky model
         if skymodel_filename is not None:
             self.load_skymodel()
-        self.ms_list = [MS(_file, self.log, starttime, endtime) for _file in
+        self.ms_list = [MS(_file, starttime, endtime) for _file in
                         self.ms_filenames]
-        #Todo loop all
-    # TODO write test to check if all ms are actually part of the same observation
+        self.set_time() # Set and test time information from MSs
+
+        # Initialize the parset
+        self.parset_filename = 'DPPP_predict.parset'
+        self.parset_parameters = {}
+        self.initialize_parset_parameters()
 
     def __iter__(self):
         self.index = 0
@@ -265,13 +227,13 @@ class Observation(object):
         Loads the sky model
         """
         # Set logging level to suppress confusing output from lsmtool
-        old_level = logging.root.getEffectiveLevel()
-        logging.root.setLevel(logging.WARNING)
+        old_level = logger.root.getEffectiveLevel()
+        logger.root.setLevel('WARNING')
         skymodel = lsmtool.load(self.input_skymodel_filename)
         if not skymodel.hasPatches:
             skymodel.group('single')
         skymodel.setPatchPositions(method='wmean')
-        logging.root.setLevel(old_level)
+        logger.root.setLevel(old_level)
         self.skymodel = skymodel
 
     def save_skymodel(self, filename=None, format='makesourcedb'):
@@ -312,12 +274,49 @@ class Observation(object):
         patch_names = ['[{}]'.format(p) for p in self.skymodel.getPatchNames()]
         return patch_names
 
+    def initialize_parset_parameters(self):
+        """
+        Sets basic DPPP parset parameters. These are adjusted and added to
+        by the operations that are run.
+        """
+        self.parset_parameters['msout'] = '.'
+        self.parset_parameters['numthreads'] = -1
+        self.parset_parameters['msin.datacolumn'] = 'DATA'
+        self.parset_parameters['msin.starttime'] = self.convert_mjd(self.starttime)
+        self.parset_parameters['msin.ntimes'] = self.numsamples
+        self.parset_parameters['steps'] = []
+
+    def make_parset(self):
+        """
+        Writes the DPPP parset parameters to a text file
+        """
+        with open(self.parset_filename, 'w') as f:
+            for k, v in self.parset_parameters.items():
+                f.write('{0} = {1}\n'.format(k, v))
+
+    def set_time(self):
+        starttime, endtime, timepersample, numsamples = [], [], [], []
+        for ms in self:
+            starttime.append(ms.starttime)
+            endtime.append(ms.endtime)
+            timepersample.append(ms.timepersample)
+            numsamples.append(ms.numsamples)
+        if np.any([len(np.unique(_tms)) > 1 for _tms in [starttime, endtime,
+                                                timepersample, numsamples]]):
+            logger.critical("Time information of MS {} does not match!".format(
+                             ms.ms_filename))
+        else:
+            self.starttime = starttime[0]
+            self.endtime = endtime[0]
+            self.timepersample = timepersample[0]
+            self.numsamples = numsamples[0]
+
     def get_times(self):
         """
         Returns array of times (ordered, with duplicates excluded)
         """
-        # TODO: Ensure times for all MS are the same
-        return self.ms_list[0].get_times()
+        # TODO: Ensure times for all MS are the same!
+        return self.starttime + np.arange(self.numsamples) * self.timepersample
 
     def get_frequencies(self):
         """
@@ -325,33 +324,22 @@ class Observation(object):
         """
         sb_freq = np.array([ms.get_frequencies() for ms in self]).flatten()
         if len(sb_freq) != len(np.unique(sb_freq)):
-            self.log.warning('Some channels share the same frequency!')
+            logger.warning('Some channels share the same frequency!')
         return sb_freq.sort()
 
-    # def run(self, command, log, commandType='', maxThreads=None):
-    #     """
-    #     Run command 'command' of type 'commandType', and use 'log' for logger,
-    #     for each MS of AllMSs.
-    #     The command and log file path can be customised for each MS using keywords (see: 'MS.concretiseString()').
-    #     Beware: depending on the value of 'Scheduler.max_threads' (see: lib_util.py), the commands are run in parallel.
-    #     """
-    #     # add max num of threads given the total jobs to run
-    #     # e.g. in a 64 processors machine running on 16 MSs, would result in numthreads=4
-    #     if commandType == 'DPPP': command += ' numthreads='+str(self.getNThreads())
-    #
-    #     for MSObject in self.mssListObj:
-    #         commandCurrent = MSObject.concretiseString(command)
-    #         logCurrent     = MSObject.concretiseString(log)
-    #
-    #         self.scheduler.add(cmd = commandCurrent, log = logCurrent, commandType = commandType)
-    #
-    #         # Provide debug output.
-    #         #lib_util.printLineBold("commandCurrent:")
-    #         #print (commandCurrent)
-    #         #lib_util.printLineBold("logCurrent:")
-    #         #print (logCurrent)
-    #
-    #     self.scheduler.run(check = True, maxThreads = maxThreads)
+    def reset_beam_keyword(self, colname='DATA'):
+        """
+        Unsets the LOFAR_APPLIED_BEAM_MODE keyword for the given column
+
+        Parameters
+        ----------
+        colname : str, optional
+            Name of column
+        """
+        for ms in self:
+            with ms.table(readonly=False) as t:
+                if colname in t.colnames() and 'LOFAR_APPLIED_BEAM_MODE' in t.getcolkeywords(colname):
+                    t.putcolkeyword(colname, 'LOFAR_APPLIED_BEAM_MODE', 'None')
 
     @staticmethod
     def convert_mjd(mjd_sec):

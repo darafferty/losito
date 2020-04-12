@@ -3,13 +3,12 @@
 """
 Noise operation for losito: adds Gaussian noise to a data column
 """
-import logging, os
+import os
 import numpy as np
 from scipy.interpolate import interp1d
-import casacore.tables as pt
-from ..lib_operations import progress
+from ..lib_io import progress, logger
 
-logging.debug('Loading NOISE module.')
+logger.debug('Loading NOISE module.')
 
 
 def _run_parser(obs, parser, step):
@@ -66,7 +65,7 @@ def SEFD(ms, station1, station2, freq):
         SEFD_s2 = np.where(station2 <= lim, SEFD_cs, SEFD_rs)
         return np.sqrt(SEFD_s1 * SEFD_s2)
     else:
-        logging.error('Stationtype "{}" unknown.'.format(ms.stationtype))
+        logger.error('Stationtype "{}" unknown.'.format(ms.stationtype))
         return 1
 
 def add_noise_to_ms(ms, column='DATA'):
