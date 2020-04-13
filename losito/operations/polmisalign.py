@@ -64,8 +64,10 @@ def run(obs, h5parmFilename, seed = 0, polDelay = 1e-9, stepname='pol_misalign')
     antennaTable = solset.obj._f_get_child('antenna')
     antennaTable.append(list(zip(*(stations, obs.stationpositions))))
     sourceTable = solset.obj._f_get_child('source')
-    vals = [obs.ra, obs.dec]
-    sourceTable.append([('[pointing]', vals)])
+    ras, decs = obs.get_patch_coords()
+    source_names = obs.get_patch_names()
+    vals = [[ra, dec] for ra, dec in zip(ras, decs)]
+    sourceTable.append(list(zip(*(source_names, vals))))
 
     soltabs = solset.getSoltabs()
     for st in soltabs:

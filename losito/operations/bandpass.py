@@ -6,6 +6,7 @@ in h5parm file.
 """
 import os
 import numpy as np
+from scipy.interpolate import interp1d
 import casacore.tables as pt
 from losoto.h5parm import h5parm
 from ..lib_io import logger
@@ -15,47 +16,59 @@ logger.debug('Loading Bandpass module.')
 
 def _run_parser(obs, parser, step):
     h5parmFilename = parser.getstr(step, 'h5parmFilename', 'corruptions.h5')
-    column = parser.getstr(step, 'outputColumn', default = '')
-    method = parser.getstr(step, 'method', default = 'h5parm')
-
+    column = parser.getstr(step, 'outputColumn', default = 'DATA')
+    method = parser.getstr(step, 'method', default = 'ms')
     parser.checkSpelling(step, ['h5parmFilename', 'outputColumn', 'method'])
     return run(obs, h5parmFilename, column, method, step)
 
 
-def bandpass(f):
+def bandpass(freq):
     """
     Return the bandpass amplitude for an array of frequencies.
-    f : (n,) ndarray
+    freq : (n,) ndarray
     """
     # Only HBA-low bandpass is included
-    is_lba = np.any((f > 10e6) & (f < 90e6))
-    is_hba = np.any((f > 120e6) & (f < 170e6))
-    assert np.any(is_lba) != np.any(is_hba), ('You have to use either LBA ' +
-                                              'or HBA-low frequencies')
+    is_lba = np.any((freq > 10e6) & (freq < 90e6))
     mod_dir = os.path.dirname(os.path.abspath(__file__))
-
-    if is_lba:
-        bp = np.loadtxt(mod_dir + '/../../data/bandpass_lba.txt').T
-    else:
-        bp = np.loadtxt(mod_dir + '/../../data/bandpass_hba_low.txt').T
-    amplitude = np.interp(f, *bp, left=0, right=0)
+    dat_lba = np.loadtxt(mod_dir + '/../../data/bandpass_lba.txt').T
+    bp_lba = interp1d(*dat_lba, kind='linear', fill_value=0)
+    dat_hba = np.loadtxt(mod_dir + '/../../data/bandpass_hba_low.txt').T
+    bp_hba = interp1d(*dat_hba, kind='linear', fill_value=0)
+    amplitude = np.zeros_like(freq)
+    for i, f in enumerate(freq):
+        if 10e6 < f < 90e6:
+            amplitude[i] = bp_lba(f)
+        elif 110e6 < f < 180e6:
+            amplitude[i] = bp_hba(f)
+        else:
+            logger.warning('Frequency {}Hz our of supported range.'.format(f))
     return amplitude
 
 
-def run(obs, h5parmFilename='', column='',method='h5parm', stepname='bandpass'):
-    '''
-    Add bandpass amplitudelitudes to h5parm.
-    '''
+def run(obs, h5parmFilename='', column='',method='ms', stepname='bandpass'):
+    """
+    Add the bandpass to a simulation.
+    Parameters
+    ----------
+    obs : Observation object
+    h5parmFilename : str, optional. Default = 'corruptions.h5'
+        Filename of h5parmdb if method==h5parm.
+    column : str, optional. Default = DATA
+        Data column to which bandpass should be applied.
+    method : str, optional. Default = 'ms'
+        If method == 'ms', the bandpass is applied directly to the measurement
+        set. If method == 'h5parm', it is applied during the predict.
+        If noise should be added in the simulation, use 'ms' and set
+        the bandpass step AFTER the noise step.
+    stepname
+    """
     freq = obs.get_frequencies()
     ras, decs = obs.get_patch_coords()
     source_names = obs.get_patch_names()
 
     # Get the bandpass amplitude for each channel
     bp_amplitude = bandpass(freq)
-    assert (len(h5parmFilename) > 0) != (len(column) > 0), """You have to 
-                                                           specify either a 
-                                                           h5parm or a MS 
-                                                           column."""
+
     if method == 'h5parm':
         # Write bandpass amplitude to h5parm file as DPPP input
         ho = h5parm(h5parmFilename, readonly=False)
@@ -98,7 +111,6 @@ def run(obs, h5parmFilename='', column='',method='h5parm', stepname='bandpass'):
         obs.parset_parameters['predict.applycal.{}.parmdb'.format(stepname)] = h5parmFilename
 
         return 0
-
     elif method == 'ms':
         logger.info('Applying bandpass to column ' + column+'.')
         tab = pt.table(obs.ms_filename, readonly=False)
@@ -107,7 +119,6 @@ def run(obs, h5parmFilename='', column='',method='h5parm', stepname='bandpass'):
         tab.putcol(column, vis)
         tab.close()
         return 0
-
     else:
         logger.warning('You either have to specify h5parm or ms as method.')
         return 1

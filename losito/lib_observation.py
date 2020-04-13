@@ -101,7 +101,7 @@ class MS(object):
         self.numsamples = int(np.ceil((self.endtime - self.starttime) / self.timepersample))
 
         # Get frequency info
-        self.referencefreq = tab.SPECTRAL_WINDOW.getcol('REF_FREQUENCY')
+        self.referencefreq = tab.SPECTRAL_WINDOW.getcol('REF_FREQUENCY')[0]
         self.startfreq = np.min(tab.SPECTRAL_WINDOW.getcol('CHAN_FREQ'))
         self.endfreq = np.max(tab.SPECTRAL_WINDOW.getcol('CHAN_FREQ'))
         self.numchannels = tab.SPECTRAL_WINDOW.getcol('NUM_CHAN')[0]
@@ -145,7 +145,7 @@ class MS(object):
         """
         Returns array of channel frequencies (ordered, with duplicates excluded)
         """
-        freqs = self.startfreq + self.channelwidth * np.arange(self.numchannels)
+        freqs =self.startfreq+np.cumsum(self.channelwidth)-self.channelwidth[0]
         return freqs
 
 
@@ -326,7 +326,7 @@ class Observation(object):
         sb_freq = np.array([ms.get_frequencies() for ms in self]).flatten()
         if len(sb_freq) != len(np.unique(sb_freq)):
             logger.warning('Some channels share the same frequency!')
-        return sb_freq.sort()
+        return np.sort(sb_freq)
 
     def set_stations(self):
         """ Set the station names and positions """
