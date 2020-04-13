@@ -18,52 +18,52 @@ if __name__ == '__main__':
     parser.add_argument('--quiet', '-q', dest='quiet', help='Quiet', default=False, action='store_true')
     parser.add_argument('--verbose', '-V', '-v', dest='verbose', help='Verbose', default=False, action='store_true')
     parser.add_argument('parset', help='LoSiTo parset.', nargs='?', default='losito.parset', type=str)
-    parser.add_argument('skymodel', help='Input sky model filename.', default=None, type=str)
     args = parser.parse_args()
-    
-    # read parset
-    parser = lib_io.ParsetParser(args.parset)
-    steps = parser.sections()
-    parser.checkSpelling('_global', ['msin', 'ncpu', 'qsub', 'nnodes'])
 
-    msin = parser.getfilename('_global', 'msin')
-    qsub = parser.getbool('_global', 'qsub', None)
-    nnodes = parser.getint('_global', 'nnodes', 1)
-
+    # Initialize logger
     logger_obj = lib_io.Logger('losito.logger')
     logger = lib_io.logger
-
     if args.quiet:
         logger.setLevel('warning')
     if args.verbose:
         logger.setLevel('debug')
 
+    # Read global settings from the parset
+    if not os.path.isfile(args.parset):
+        logger.critical("Missing parset file, I don't know what to do :'(")
+        sys.exit(1)
+    parser = lib_io.ParsetParser(args.parset)
+    steps = parser.sections()
+    parser.checkSpelling('_global', ['msin', 'skymodel', 'ncpu', 'qsub', 'nnodes'])
+
+    msin = parser.getfilename('_global', 'msin')
+    skymodel = parser.getstr('_global', 'skymodel', default='mock.sky')
+    qsub = parser.getbool('_global', 'qsub')
+    nnodes = parser.getint('_global', 'nnodes', 1)
+    ncpu = parser.getint('_global', 'ncpu', 0)
+
     # Check input MS and sky model
     if msin is None or len(msin) == 0:
         logger.error('No input MS file given. Please specify at least '
-                      'one MS file for parameter \'msin\' in the LoSiTo '
-                       'parameter set.')
+                     'one MS file for parameter \'msin\' in the LoSiTo '
+                     'parameter set.')
         sys.exit(1)
     for ms in msin:
         if not os.path.isdir(ms):
             logger.critical("Missing input MS file {}.".format(ms))
             sys.exit(1)
-    if args.skymodel is None:
+    if skymodel is None:
         logger.error('No input sky model file given.')
         sys.exit(1)
-    if not os.path.isfile(args.skymodel):
+    if not os.path.isfile(skymodel):
         logger.critical("Missing input sky model file.")
-        sys.exit(1)
-
-    # check parset
-    if not os.path.isfile(args.parset):
-        logger.critical("Missing parset file, I don't know what to do :'(")
         sys.exit(1)
     if nnodes > 1 and qsub is None:
         logger.warning("Nnode is set but qsub is False.")
 
-    s = lib_operations.Scheduler(log_dir=logger_obj.log_dir, dry=False)
-    obs = Observation(msin, args.skymodel, scheduler = s)
+    s = lib_operations.Scheduler(log_dir=logger_obj.log_dir, max_processors=ncpu,
+                                 maxThreads=nnodes, dry=False)
+    obs = Observation(msin, skymodel, scheduler = s)
 
     # Possible operations, linked to relative function
     import losito.operations as operations

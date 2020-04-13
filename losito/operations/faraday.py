@@ -15,7 +15,7 @@ logger.debug('Loading FARADAY module.')
 R_earth = 6364.62e3
 
 def _run_parser(obs, parser, step):
-    h5parmFilename = parser.getstr(step, 'h5parmFilename')
+    h5parmFilename = parser.getstr(step, 'h5parmFilename', 'corruptions.h5')
     hIono = parser.getfloat(step, 'hIono', 200.e3)
     ncpu = parser.getint('_global', 'ncpu', 0)
     parser.checkSpelling( step, ['h5parmFilename', 'hIono', 'ncpu'])

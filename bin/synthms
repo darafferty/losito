@@ -4,11 +4,11 @@
 SYNTHMS - script. Use this script to generate measurement sets which containt
 the metadata information necessary for a LoSiTo - simulation.
 """
-import os, logging, argparse, sys
+import os, argparse, sys
 import numpy as np
 from astropy.time import Time
 import casacore.tables as tab
-from losito.lib_operations import progress
+from losito.lib_io import progress, logger
 
 mod_dir = os.path.dirname(os.path.abspath(__file__))
 template_dir = mod_dir + '/../data/ms_templates/'
@@ -53,7 +53,7 @@ def get_sb_spectral_window(sb, stationtype):
     ref_freq : float, reference frequency of this subband.
     '''
     if sb < 150 or sb > 393:
-        logging.error('SB{} is not a viable frequency band. Frequency bands'
+        logger.error('SB{} is not a viable frequency band. Frequency bands'
                       'are from 150 to 393.')
     d_freq = 48828.125
     if stationtype == 'LBA':
@@ -61,7 +61,7 @@ def get_sb_spectral_window(sb, stationtype):
     elif stationtype == 'HBA':
         lowest_freq = 120237731.93359375
     else:
-        logging.error('Stationtype '+ stationtype +' not understood. Select' 
+        logger.error('Stationtype '+ stationtype +' not understood. Select' 
                       'either LBA or HBA')
     f = lowest_freq  + d_freq * (np.arange(4) + (sb - 150) * 4)
     return f, np.mean(f)
@@ -110,7 +110,7 @@ def make_minsb(name, start, tobs, ra, dec, stationtype, minsb=150):
         template = tab.table(template_dir+'HBA_LOFAR2.MS', readonly=True,
                              memorytable=True, ack=False)
     else:
-        logging.error('Stationtype '+stationtype+' unknown. Select LBA or HBA.')
+        logger.error('Stationtype '+stationtype+' unknown. Select LBA or HBA.')
 
     # Get times & pointing ready
     times = np.arange(start, start + 3600 * tobs, 4.00556032) # 4s exposure
@@ -124,7 +124,7 @@ def make_minsb(name, start, tobs, ra, dec, stationtype, minsb=150):
     # MAIN TABLE
     out_ms = template.copy(msname, deep = True, valuecopy=True)
     tab.taql('UPDATE $out_ms SET TIME=$start, TIME_CENTROID=$start')
-    logging.info('Expand in time')
+    logger.info('Expand in time')
 
     for i, t in enumerate(times[1::]):
         progress(i, len(times)-1, status = 'Make first SB')
@@ -162,7 +162,7 @@ def make_minsb(name, start, tobs, ra, dec, stationtype, minsb=150):
 if __name__ == '__main__':
     # Options
     parser = argparse.ArgumentParser(description='synthms - synthesize input ms files')
-    parser.add_argument('--name', help='MS file prefix', default='abell1033', type=str)
+    parser.add_argument('--name', help='MS file prefix', default='sim', type=str)
     parser.add_argument('--start', help='Start of observation in MJD seconds', default=5037073202.00278, type=float)
     parser.add_argument('--tobs', help='Observation time in hours.', default=8.0, type=float)
     parser.add_argument('--ra', help='Target right ascension in rad', default=2.75570763, type=float)
@@ -182,16 +182,16 @@ if __name__ == '__main__':
     minsb, maxsb = args.minsb, args.maxsb
 
     if args.lofarversion != 'LOFAR2':
-        logging.error('Cuurrently, only LOFAR2 is supported in synthms')
+        logger.error('Cuurrently, only LOFAR2 is supported in synthms')
         sys.exit(1)
 
     # Make LBA MSs
     if args.station == 'LBA' or args.station == 'both':
-        logging.info('Start synthesizing measurement sets for LBA')
+        logger.info('Start synthesizing measurement sets for LBA')
         # Make lowest freq. subband from template
         min_sbl = make_minsb(name, start, tobs, ra, dec, 'LBA', minsb=minsb)
         # Get other subbands from first sb
-        logging.info('Expand in frequency')
+        logger.info('Expand in frequency')
         for sb in range(minsb+1, maxsb + 1):
             progress(sb-minsb, maxsb-minsb, status='Make SB {}'.format(sb))
             output_name = '{}_t{}_SBL{}.MS'.format(name, timestamp(start), sb)
@@ -200,11 +200,11 @@ if __name__ == '__main__':
 
     # Make HBA MSs
     if args.station == 'HBA' or args.station == 'both':
-        logging.info('Start synthesizing measurement sets for HBA')
+        logger.info('Start synthesizing measurement sets for HBA')
         # Make lowest freq. subband from template
         min_sbh = make_minsb(name, start, tobs, ra, dec, 'HBA', minsb=minsb)
         # Get other subbands from first sb
-        logging.info('Expand in frequency')
+        logger.info('Expand in frequency')
         for sb in range(minsb+1, maxsb + 1):
             progress(sb-minsb, maxsb-minsb, status='Make SB {}'.format(sb))
             output_name = '{}_t{}_SBH{}.MS'.format(name, timestamp(start), sb)

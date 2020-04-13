@@ -2,7 +2,7 @@
 """
 Library for Logger, ParsetParser and progressbar
 """
-import os, glob, sys, logging, time
+import os, logging, glob, sys, time
 from configparser import ConfigParser
 from io import StringIO
 
@@ -35,13 +35,13 @@ class ParsetParser(ConfigParser):
         availValues = [x.lower() for x in availValues]
         for e in entries:
             if e not in availValues:
-                logging.warning('Mispelled option: %s - Ignoring!' % e)
+                logger.warning('Mispelled option: %s - Ignoring!' % e)
 
     def getstr(self, s, v, default=None):
         if self.has_option(s, v):
             return str(self.get(s, v).replace('\'', '').replace('"', ''))  # remove apex
         elif default is None:
-            logging.error('Section: %s - Values: %s: required (expected string).' % (s, v))
+            logger.error('Section: %s - Values: %s: required (expected string).' % (s, v))
         else:
             return default
 
@@ -49,7 +49,7 @@ class ParsetParser(ConfigParser):
         if self.has_option(s, v):
             return ConfigParser.getboolean(self, s, v)
         elif default is None:
-            logging.error('Section: %s - Values: %s: required (expected bool).' % (s, v))
+            logger.error('Section: %s - Values: %s: required (expected bool).' % (s, v))
         else:
             return default
 
@@ -57,7 +57,7 @@ class ParsetParser(ConfigParser):
         if self.has_option(s, v):
             return ConfigParser.getfloat(self, s, v)
         elif default is None:
-            logging.error('Section: %s - Values: %s: required (expected float).' % (s, v))
+            logger.error('Section: %s - Values: %s: required (expected float).' % (s, v))
         else:
             return default
 
@@ -65,7 +65,7 @@ class ParsetParser(ConfigParser):
         if self.has_option(s, v):
             return ConfigParser.getint(self, s, v)
         elif default is None:
-            logging.error('Section: %s - Values: %s: required (expected int).' % (s, v))
+            logger.error('Section: %s - Values: %s: required (expected int).' % (s, v))
         else:
             return default
 
@@ -74,9 +74,9 @@ class ParsetParser(ConfigParser):
             try:
                 return self.getstr(s, v).replace(' ', '').replace('[', '').replace(']', '').split(',')  # split also turns str into 1-element lists
             except:
-                logging.error('Error interpreting section: %s - values: %s (should be a list as [xxx,yyy,zzz...])' % (s, v))
+                logger.error('Error interpreting section: %s - values: %s (should be a list as [xxx,yyy,zzz...])' % (s, v))
         elif default is None:
-            logging.error('Section: %s - Values: %s: required.' % (s, v))
+            logger.error('Section: %s - Values: %s: required.' % (s, v))
         else:
             return default
 
@@ -84,25 +84,25 @@ class ParsetParser(ConfigParser):
         try:
             return [str(x) for x in self.getarray(s, v, default)]
         except:
-            logging.error('Error interpreting section: %s - values: %s (expected array of str.)' % (s, v))
+            logger.error('Error interpreting section: %s - values: %s (expected array of str.)' % (s, v))
 
     def getarraybool(self, s, v, default=None):
         try:
             return [bool(x) for x in self.getarray(s, v, default)]
         except:
-            logging.error('Error interpreting section: %s - values: %s (expected array of bool.)' % (s, v))
+            logger.error('Error interpreting section: %s - values: %s (expected array of bool.)' % (s, v))
 
     def getarrayfloat(self, s, v, default=None):
         try:
             return [float(x) for x in self.getarray(s, v, default)]
         except:
-            logging.error('Error interpreting section: %s - values: %s (expected array of float.)' % (s, v))
+            logger.error('Error interpreting section: %s - values: %s (expected array of float.)' % (s, v))
 
     def getarrayint(self, s, v, default=None):
         try:
             return [int(x) for x in self.getarray(s, v, default)]
         except:
-            logging.error('Error interpreting section: %s - values: %s (expected array of int.)' % (s, v))
+            logger.error('Error interpreting section: %s - values: %s (expected array of int.)' % (s, v))
 
     def getfilename(self, s, v, default=None):
         "Unix-style filename matching including regex"
@@ -112,10 +112,10 @@ class ParsetParser(ConfigParser):
         for split in regstring:
             files_matching_split = glob.glob(split)
             if len(files_matching_split) == 0:
-                logging.warning('No matching files found for {}.'.format(split))
+                logger.warning('No matching files found for {}.'.format(split))
             filenames += files_matching_split
         if len(filenames) == 0:
-            logging.error('No matching files found')
+            logger.error('No matching files found')
         return filenames
 
 
@@ -134,18 +134,20 @@ class Logger():
 
     def backup(self, logfile, log_dir):
 
-        # bkp old log dir
+        # Don't bkp old log dir
         if os.path.isdir(log_dir):
-            current_time = time.localtime()
-            log_dir_old = time.strftime(log_dir + '_bkp_%Y-%m-%d_%H:%M', current_time)
-            os.system('mv %s %s' % (log_dir, log_dir_old))
+            os.system('rm -r {}'.format(log_dir))
+            # current_time = time.localtime()
+            # log_dir_old = time.strftime(log_dir + '_bkp_%Y-%m-%d_%H:%M', current_time)
+            # os.system('mv %s %s' % (log_dir, log_dir_old))
         os.makedirs(log_dir)
 
-        # bkp old log file
+        # Don't bkp old log file
         if os.path.exists(logfile):
-            current_time = time.localtime()
-            logfile_old = time.strftime(logfile + '_bkp_%Y-%m-%d_%H:%M', current_time)
-            os.system('mv %s %s' % (logfile, logfile_old))
+            # current_time = time.localtime()
+            # logfile_old = time.strftime(logfile + '_bkp_%Y-%m-%d_%H:%M', current_time)
+            # os.system('mv %s %s' % (logfile, logfile_old))
+            os.system('rm {}'.format(logfile))
 
     def set_logger(self, logfile, log_dir):
 

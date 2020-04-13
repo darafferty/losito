@@ -186,15 +186,16 @@ class Observation(object):
         self.starttime = starttime
         self.endtime = endtime
 
-        self.scheduler = scheduler # Does it make sense to have the scheduler here?
+        self.scheduler = scheduler
 
         # Load the sky model
         if skymodel_filename is not None:
             self.load_skymodel()
+        logger.info('Checking MS files')
         self.ms_list = [MS(_file, starttime, endtime) for _file in
                         self.ms_filenames]
         self.set_time() # Set and test time information from MSs
-
+        self.set_stations() # Set station information from MSs
         # Initialize the parset
         self.parset_filename = 'DPPP_predict.parset'
         self.parset_parameters = {}
@@ -211,6 +212,9 @@ class Observation(object):
             raise StopIteration
         self.index += 1
         return nextms
+
+    def __len__(self):
+        return len(self.ms_list)
 
     def make_sourcedb(self):
         """
@@ -295,6 +299,8 @@ class Observation(object):
                 f.write('{0} = {1}\n'.format(k, v))
 
     def set_time(self):
+        """ Set the time information. Also check wheter all the MS have
+        matching time information."""
         starttime, endtime, timepersample, numsamples = [], [], [], []
         for ms in self:
             starttime.append(ms.starttime)
@@ -312,20 +318,26 @@ class Observation(object):
             self.numsamples = numsamples[0]
 
     def get_times(self):
-        """
-        Returns array of times (ordered, with duplicates excluded)
-        """
-        # TODO: Ensure times for all MS are the same!
+        """ Return array of times (ordered, with duplicates excluded). """
         return self.starttime + np.arange(self.numsamples) * self.timepersample
 
     def get_frequencies(self):
-        """
-        Returns array of channel frequencies (ordered, with duplicates excluded)
-        """
+        """ Return array of frequencies (ordered, duplicates excluded). """
         sb_freq = np.array([ms.get_frequencies() for ms in self]).flatten()
         if len(sb_freq) != len(np.unique(sb_freq)):
             logger.warning('Some channels share the same frequency!')
         return sb_freq.sort()
+
+    def set_stations(self):
+        """ Set the station names and positions """
+        stations, stationpositions = [], []
+        for ms in self:
+            for _sn, _sp in zip(ms.stations, ms.stationpositions):
+                if _sn not in stations:
+                    stations.append(_sn)
+                    stationpositions.append(_sp)
+        self.stations = stations
+        self.stationpositions = stationpositions
 
     def reset_beam_keyword(self, colname='DATA'):
         """
@@ -340,6 +352,8 @@ class Observation(object):
             with ms.table(readonly=False) as t:
                 if colname in t.colnames() and 'LOFAR_APPLIED_BEAM_MODE' in t.getcolkeywords(colname):
                     t.putcolkeyword(colname, 'LOFAR_APPLIED_BEAM_MODE', 'None')
+
+    #def make_dirty_image(self):
 
     @staticmethod
     def convert_mjd(mjd_sec):

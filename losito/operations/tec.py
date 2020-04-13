@@ -24,7 +24,7 @@ warnings.simplefilter('ignore', category=AstropyWarning)
 
 def _run_parser(obs, parser, step):
     method = parser.getstr(step, 'method', default = 'turbulence')
-    h5parmFilename = parser.getstr(step, 'h5parmFilename', )
+    h5parmFilename = parser.getstr(step, 'h5parmFilename', 'corruptions.h5')
     maxdtec = parser.getfloat(step, 'maxdtec', default = .5)
     maxvtec = parser.getfloat(step, 'maxvtec', default = 50.)
     hIon = parser.getfloat(step, 'hIon', default = 200e3)

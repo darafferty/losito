@@ -139,7 +139,6 @@ class Scheduler():
                     cmd = 'salloc --job-name LoSiTo --time=24:00:00 --nodes=1 --tasks-per-node='+cmd[0]+ \
                           ' /usr/bin/srun --ntasks=1 --nodes=1 --preserve-env \''+cmd[1]+'\''
                 gc.collect()
-                print(cmd)
                 subprocess.call(cmd, shell = True)
 
         # limit threads only when qsub doesn't do it

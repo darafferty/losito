@@ -3,7 +3,6 @@
 """
 Predict operation for losito: runs DPPP to predict a sky model with corruptions
 """
-import casacore.tables as pt
 from ..lib_io import logger
 
 logger.debug('Loading PREDICT module.')
@@ -15,7 +14,6 @@ def _run_parser(obs, parser, step):
     ncpu = parser.getint( '_global', 'ncpu', 0)
     parser.checkSpelling( step, ['outputColumn', 'resetWeights',
                                  'predictType'])
-
     return run(obs, outputColumn, predictType, resetWeights, ncpu)
 
 
@@ -40,12 +38,14 @@ def run(obs, outputColumn='DATA', predictType='h5parmpredict',
     ncpu : int, optional
         Number of cpu to use, by default all available.
     """
+    s = obs.scheduler
     # reset weights if specified (default).
     if resetWeights:
         logger.info('Reset entries in WEIGHT_SPECTRUM...')
         for ms in obs:
-            pt.taql("UPDATE {0} SET WEIGHT_SPECTRUM=1.0".format(ms.ms_filename))
-
+            cmd = 'taql UPDATE {0} SET WEIGHT_SPECTRUM=1.0'.format(ms.ms_filename)
+            s.add(cmd, log='taql_reset_weights', processors='max')
+    s.run()
     # Make sourcedb from sky model
     obs.make_sourcedb()
 
@@ -62,10 +62,10 @@ def run(obs, outputColumn='DATA', predictType='h5parmpredict',
     obs.reset_beam_keyword(outputColumn)
 
     # Run DPPP
-    s = obs.scheduler
     for ms in obs:
         cmd = 'DPPP {} msin={}'.format(obs.parset_filename, ms.ms_filename)
         s.add(cmd, commandType='DPPP', log='predict_'+ms.ms_filename, processors='max')
+    logger.info('Predicting visibilities...')
     s.run(check=True)
 
     # Ensure again that the LOFAR_APPLIED_BEAM_MODE keyword is unset

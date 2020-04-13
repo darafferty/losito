@@ -9,7 +9,7 @@ and polarization-dependent delay."""
 log.debug('Loading POLMISALIGN module.')
 
 def _run_parser(obs, parser, step):
-    h5parmFilename = parser.getstr(step, 'h5parmFilename', )
+    h5parmFilename = parser.getstr(step, 'h5parmFilename', 'corruptions.h5' )
     seed = parser.getint(step, 'seed', default = 0)
     polDelay = parser.getfloat(step, 'polDelay', default = 1.0e-9)
 

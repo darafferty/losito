@@ -14,7 +14,7 @@ logger.debug('Loading Bandpass module.')
 
 
 def _run_parser(obs, parser, step):
-    h5parmFilename = parser.getstr(step, 'h5parmFilename', default = '')
+    h5parmFilename = parser.getstr(step, 'h5parmFilename', 'corruptions.h5')
     column = parser.getstr(step, 'outputColumn', default = '')
     method = parser.getstr(step, 'method', default = 'h5parm')
 

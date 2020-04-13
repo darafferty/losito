@@ -81,7 +81,6 @@ def add_noise_to_ms(ms, column='DATA'):
     # std = eta * SEFD(ms, ant1, ant2, freq) #TODO
     # Iterate over frequency channels to save memory.
     for i, nu in enumerate(freq):
-        progress(i, len(freq), status='estimating noise')  # progress bar
         # find correct standard deviation from SEFD
         std = eta * SEFD(ms, ant1, ant2, nu)
         std /= np.sqrt(2 * exposure * chan_width[i])
@@ -111,7 +110,8 @@ def run(obs, column='DATA'):
     """
     results = []
     # TODO scheduler
-    for ms in obs:
+    for i, ms in enumerate(obs):
+        progress(i, len(obs), status='estimating noise')  # progress bar
         results.append(add_noise_to_ms(ms, column))
 
     return sum(results)
