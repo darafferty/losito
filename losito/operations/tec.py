@@ -1,10 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-TEC operation for losito: generates dTEC corruptions
+TEC operation for losito: generates TEC corruptions
 """
-import warnings, os
-import logging as log
+import warnings
 import multiprocessing as mp
 import numpy as np
 from astropy import units as u
@@ -16,9 +15,10 @@ from astropy.coordinates import EarthLocation, AltAz
 from astropy.utils.exceptions import AstropyWarning
 from losoto.h5parm import h5parm
 import RMextract.PosTools as post
+from ..lib_io import logger
 from ..lib_tecscreen import comoving_tecscreen, daytime_tec_modulation
 
-log.debug('Loading TEC module.')
+logger.debug('Loading TEC module.')
 # Mute AP warnings for now...
 warnings.simplefilter('ignore', category=AstropyWarning)
 
@@ -27,7 +27,7 @@ def _run_parser(obs, parser, step):
     h5parmFilename = parser.getstr(step, 'h5parmFilename', 'corruptions.h5')
     maxdtec = parser.getfloat(step, 'maxdtec', default = .5)
     maxvtec = parser.getfloat(step, 'maxvtec', default = 50.)
-    hIon = parser.getfloat(step, 'hIon', default = 200e3)
+    hIon = parser.getfloat(step, 'hIon', default = 250e3)
     vIon= parser.getfloat(step, 'hIon', default = 50)
     seed = parser.getint(step, 'seed', default = 0)
     fitsFilename = parser.getstr(step, 'fitsFilename', default = '')
@@ -68,12 +68,11 @@ def _gettec(altaz_args):
 def _tid(x, t, amp=0.2, wavelength=200e3, omega=500.e3/3600.):
     return amp*np.sin((x+omega*t)*2*np.pi/wavelength)
 
-
-def run(obs, method, h5parmFilename, maxdtec = 0.5, maxvtec = 50, hIon = 200e3,
+def run(obs, method, h5parmFilename, maxdtec = 0.5, maxvtec = 50, hIon = 250e3,
         vIon = 50, seed = 0, fitsFilename = None, stepname='tec',
         absoluteTEC = True, angRes = 60, expfolder = '', ncpu=0):
     """
-    Creates h5parm with TEC values from TEC FITS cube.
+    Simulate TEC values and store them to a h5parm.
 
     Parameters
     ----------
@@ -88,7 +87,7 @@ def run(obs, method, h5parmFilename, maxdtec = 0.5, maxvtec = 50, hIon = 200e3,
         Maximum screen dTEC per timestep in TECU.
     maxvtec: float, optional. Default = 50.
         Highest vTEC in daily modulation in TECU.
-    hIon : float, optional. Default = 200 km
+    hIon : float, optional. Default = 250 km
         Height of thin layer ionoshpere.
     vIono : float, optional. Default = 50 m/s
         Velocity of tecscreen. This controls the tec variation frequency.
@@ -109,6 +108,7 @@ def run(obs, method, h5parmFilename, maxdtec = 0.5, maxvtec = 50, hIon = 200e3,
     ncpu : int, optional
         Number of cores to use, by default all available.
     """
+    #TODO : Test TID and polynomial method for multi-ms usage
     method = method.lower()
     if ncpu == 0:
         ncpu = mp.cpu_count()
@@ -140,7 +140,7 @@ def run(obs, method, h5parmFilename, maxdtec = 0.5, maxvtec = 50, hIon = 200e3,
 
         # Check that number of stations in input FITS cube matches MS
         if nstations != len(ants):
-            log.error('Number of stations in input FITS cube does not '
+            logger.error('Number of stations in input FITS cube does not '
                           'match that in the input MS')
             return 1
 
@@ -193,7 +193,7 @@ def run(obs, method, h5parmFilename, maxdtec = 0.5, maxvtec = 50, hIon = 200e3,
                        *tecvals)
 
     else:
-        log.error('method "{}" not understood'.format(method))
+        logger.error('method "{}" not understood'.format(method))
         return 1
 
     # Write tec values to h5parm file as DPPP input
@@ -205,7 +205,7 @@ def run(obs, method, h5parmFilename, maxdtec = 0.5, maxvtec = 50, hIon = 200e3,
         solset = ho.makeSolset(solsetName = 'sol000')
 
     if 'tec000' in solset.getSoltabNames():
-        log.info('''Solution-table tec000 is already present in
+        logger.info('''Solution-table tec000 is already present in
                  {}. It will be overwritten.'''.format(h5parmFilename + '/sol000'))
         solset.getSoltab('tec000').delete()
 
@@ -226,13 +226,6 @@ def run(obs, method, h5parmFilename, maxdtec = 0.5, maxvtec = 50, hIon = 200e3,
     ho.close()
 
     # Update predict parset parameters for the obs
-    obs.parset_parameters['predict.applycal.parmdb'] = h5parmFilename
-    if 'predict.applycal.steps' in obs.parset_parameters:
-        obs.parset_parameters['predict.applycal.steps'].append(stepname)
-    else:
-        obs.parset_parameters['predict.applycal.steps'] = [stepname]
-    obs.parset_parameters['predict.applycal.correction'] = 'tec000'
-    obs.parset_parameters['predict.applycal.{}.correction'.format(stepname)] = 'tec000'
-    obs.parset_parameters['predict.applycal.{}.parmdb'.format(stepname)] = h5parmFilename
+    obs.add_to_parset(stepname, 'tec000', h5parmFilename)
 
     return 0

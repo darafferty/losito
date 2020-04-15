@@ -75,15 +75,7 @@ def run(obs, h5parmFilename, seed = 0, polDelay = 1e-9, stepname='pol_misalign')
     ho.close()
 
     # Update predict parset parameters for the obs
-    obs.parset_parameters['predict.applycal.parmdb'] = h5parmFilename
-    if 'predict.applycal.steps' in obs.parset_parameters:
-        obs.parset_parameters['predict.applycal.steps'].append(stepname)
-    else:
-        obs.parset_parameters['predict.applycal.steps'] = [stepname]    
-        
-    obs.parset_parameters['predict.applycal.correction'] = 'clock001'         
-    obs.parset_parameters['predict.applycal.{}.correction'.format(stepname)] = 'clock001'
-    obs.parset_parameters['predict.applycal.{}.parmdb'.format(stepname)] = h5parmFilename
+    obs.add_to_parset(stepname, 'clock001', h5parmFilename)
 
     return 0
 

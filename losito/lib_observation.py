@@ -291,12 +291,21 @@ class Observation(object):
         self.parset_parameters['steps'] = []
 
     def make_parset(self):
-        """
-        Writes the DPPP parset parameters to a text file
-        """
+        """ Write the DPPP parset parameters to a text file """
         with open(self.parset_filename, 'w') as f:
             for k, v in self.parset_parameters.items():
                 f.write('{0} = {1}\n'.format(k, v))
+
+    def add_to_parset(self, stepname, soltabname, h5parmFilename = 'corruptions.h5'):
+        """ Add the corruptions from a soltab to the prediction. """
+        self.parset_parameters['predict.applycal.parmdb'] = h5parmFilename
+        if 'predict.applycal.steps' in self.parset_parameters:
+            self.parset_parameters['predict.applycal.steps'].append(stepname)
+        else:
+            self.parset_parameters['predict.applycal.steps'] = [stepname]
+        self.parset_parameters['predict.applycal.correction'] = soltabname
+        self.parset_parameters['predict.applycal.{}.correction'.format(stepname)] = soltabname
+        self.parset_parameters['predict.applycal.{}.parmdb'.format(stepname)] = h5parmFilename
 
     def set_time(self):
         """ Set the time information. Also check wheter all the MS have
@@ -336,8 +345,9 @@ class Observation(object):
                 if _sn not in stations:
                     stations.append(_sn)
                     stationpositions.append(_sp)
-        self.stations = stations
-        self.stationpositions = stationpositions
+        self.stations = np.array(stations)
+        self.stationpositions = np.array(stationpositions)
+
 
     def reset_beam_keyword(self, colname='DATA'):
         """

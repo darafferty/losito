@@ -111,7 +111,7 @@ def run(obs, column='DATA'):
     results = []
     # TODO scheduler
     for i, ms in enumerate(obs):
-        progress(i, len(obs), status='estimating noise')  # progress bar
+        progress(i, len(obs), status='Estimating noise')  # progress bar
         results.append(add_noise_to_ms(ms, column))
 
     return sum(results)

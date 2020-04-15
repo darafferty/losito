@@ -16,7 +16,7 @@ R_earth = 6364.62e3
 
 def _run_parser(obs, parser, step):
     h5parmFilename = parser.getstr(step, 'h5parmFilename', 'corruptions.h5')
-    hIono = parser.getfloat(step, 'hIono', 200.e3)
+    hIono = parser.getfloat(step, 'hIono', 350.e3)
     ncpu = parser.getint('_global', 'ncpu', 0)
     parser.checkSpelling( step, ['h5parmFilename', 'hIono', 'ncpu'])
     return run(obs, h5parmFilename, hIono, step, ncpu)
@@ -70,10 +70,8 @@ def Bfield(gc_points, time = 5.0e9):
         return emm.getXYZ()
     
 
-def run(obs, h5parmFilename, h_ion = 200.e3, stepname='rm', ncpu=0): 
-    '''
-    Add rotation measure Soltab to a TEC h5parm.
-    '''
+def run(obs, h5parmFilename, h_ion = 350.e3, stepname='rm', ncpu=0):
+    ''' Add rotation measure Soltab to a TEC h5parm. '''
     if ncpu == 0:
         ncpu = mp.cpu_count()
     h5 = h5parm(h5parmFilename, readonly=False)
@@ -145,16 +143,10 @@ def run(obs, h5parmFilename, h_ion = 200.e3, stepname='rm', ncpu=0):
     # Add CREATE entry to history
     st.addHistory('CREATE (by FARADAY operation of LoSiTo from '
                   + 'obs {0})'.format(h5parmFilename))
-    h5.close()    
+    h5.close()
+
     # Update predict parset parameters for the obs
-    obs.parset_parameters['predict.applycal.parmdb'] = h5parmFilename
-    if 'predict.applycal.steps' in obs.parset_parameters:
-        obs.parset_parameters['predict.applycal.steps'].append(stepname)
-    else:
-        obs.parset_parameters['predict.applycal.steps'] = [stepname]
-    obs.parset_parameters['predict.applycal.correction'] = 'rotationmeasure000'
-    obs.parset_parameters['predict.applycal.{}.correction'.format(stepname)] = 'rotationmeasure000'
-    obs.parset_parameters['predict.applycal.{}.parmdb'.format(stepname)] = h5parmFilename
+    obs.add_to_parset(stepname, 'rotationmeasure000', h5parmFilename)
 
     return 0
 

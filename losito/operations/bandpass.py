@@ -7,9 +7,8 @@ in h5parm file.
 import os
 import numpy as np
 from scipy.interpolate import interp1d
-import casacore.tables as pt
 from losoto.h5parm import h5parm
-from ..lib_io import logger
+from ..lib_io import logger, progress
 
 logger.debug('Loading Bandpass module.')
 
@@ -66,10 +65,9 @@ def run(obs, h5parmFilename='', column='',method='ms', stepname='bandpass'):
     ras, decs = obs.get_patch_coords()
     source_names = obs.get_patch_names()
 
-    # Get the bandpass amplitude for each channel
-    bp_amplitude = bandpass(freq)
-
     if method == 'h5parm':
+        # Get the bandpass amplitude for all channel
+        bp_amplitude = bandpass(freq)
         # Write bandpass amplitude to h5parm file as DPPP input
         ho = h5parm(h5parmFilename, readonly=False)
         if 'sol000' in ho.getSolsetNames():
@@ -101,23 +99,17 @@ def run(obs, h5parmFilename='', column='',method='ms', stepname='bandpass'):
         ho.close()
 
         # Update predict parset parameters for the obs
-        obs.parset_parameters['predict.applycal.parmdb'] = h5parmFilename
-        if 'predict.applycal.steps' in obs.parset_parameters:
-            obs.parset_parameters['predict.applycal.steps'].append(stepname)
-        else:
-            obs.parset_parameters['predict.applycal.steps'] = [stepname]
-        obs.parset_parameters['predict.applycal.correction'] = 'amplitude000'
-        obs.parset_parameters['predict.applycal.{}.correction'.format(stepname)] = 'amplitude000'
-        obs.parset_parameters['predict.applycal.{}.parmdb'.format(stepname)] = h5parmFilename
-
+        obs.add_to_parset(stepname, 'amplitude000', h5parmFilename)
         return 0
     elif method == 'ms':
         logger.info('Applying bandpass to column ' + column+'.')
-        tab = pt.table(obs.ms_filename, readonly=False)
-        vis = tab.getcol(column)
-        vis = vis * bp_amplitude[:, np.newaxis]
-        tab.putcol(column, vis)
-        tab.close()
+        for i, ms in enumerate(obs):
+            progress(i, len(obs), status='Applying the bandpass.')
+            bp_amplitude = bandpass(ms.get_frequencies())
+            with ms.table(readonly=False) as tab:
+                vis = tab.getcol(column)
+                vis = vis * bp_amplitude[:, np.newaxis]
+                tab.putcol(column, vis)
         return 0
     else:
         logger.warning('You either have to specify h5parm or ms as method.')
