@@ -16,10 +16,10 @@ R_earth = 6364.62e3
 
 def _run_parser(obs, parser, step):
     h5parmFilename = parser.getstr(step, 'h5parmFilename', 'corruptions.h5')
-    hIono = parser.getfloat(step, 'hIono', 350.e3)
+    hIono = parser.getfloat(step, 'hIon', 250.e3)
     ncpu = parser.getint('_global', 'ncpu', 0)
-    parser.checkSpelling( step, ['h5parmFilename', 'hIono', 'ncpu'])
-    return run(obs, h5parmFilename, hIono, step, ncpu)
+    parser.checkSpelling( step, ['h5parmFilename', 'hIon', 'ncpu'])
+    return run(obs, h5parmFilename, hIon, step, ncpu)
 
 def yearfrac_from_mjds(t):
     ''' Get year + decimal fraction from MJD seconds. 
@@ -70,7 +70,7 @@ def Bfield(gc_points, time = 5.0e9):
         return emm.getXYZ()
     
 
-def run(obs, h5parmFilename, h_ion = 350.e3, stepname='rm', ncpu=0):
+def run(obs, h5parmFilename, h_ion = 250.e3, stepname='rm', ncpu=0):
     ''' Add rotation measure Soltab to a TEC h5parm. '''
     if ncpu == 0:
         ncpu = mp.cpu_count()

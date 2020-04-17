@@ -10,6 +10,7 @@ from astropy.time import Time
 import casacore.tables as tab
 from losito.lib_io import progress, logger
 
+# TODO make templates for LOFAR1.0
 mod_dir = os.path.dirname(os.path.abspath(__file__))
 template_dir = mod_dir + '/../data/ms_templates/'
 

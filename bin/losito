@@ -3,13 +3,14 @@
 """
 Script that runs LoSiTo
 """
+import argparse
 import os
 import sys
 import time
+
 from losito import _version
-from losito.lib_observation import Observation
 from losito import lib_operations, lib_io
-import argparse
+from losito.lib_observation import Observation
 
 if __name__ == '__main__':
     # Options

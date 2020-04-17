@@ -225,6 +225,9 @@ class Observation(object):
                'out={}'.format(self.sourcedb_filename),
                'format=<', 'outtype=blob', 'append=False']
         subprocess.call(cmd)
+        # logger.debug('Copy sourcedb to all MS.')
+        # for ms in self:
+        #     subprocess.call('cp {} {}'.format(self.sourcedb_filename, ms.ms_filename))
 
     def load_skymodel(self):
         """
