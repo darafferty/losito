@@ -3,10 +3,11 @@
 """
 Noise operation for losito: adds Gaussian noise to a data column
 """
-import os
+import os, argparse
 import numpy as np
 from scipy.interpolate import interp1d
-from ..lib_io import progress, logger
+from losito.lib_io import progress, logger
+from losito.lib_observation import MS
 
 logger.debug('Loading NOISE module.')
 
@@ -88,7 +89,6 @@ def add_noise_to_ms(ms, column='DATA'):
         noise = np.random.normal(loc=0, scale=std, size=[4, *np.shape(std)]).T
         noise = noise + 1.j * np.random.normal(loc=0, scale=std, size=[4, *np.shape(std)]).T
         noise = noise[:, np.newaxis, :]
-
         prediction = tab.getcolslice(column, blc=[i, -1], trc=[i, -1])
         tab.putcolslice(column, prediction + noise, blc=[i, -1], trc=[i, -1])
     tab.close()
@@ -108,11 +108,31 @@ def run(obs, column='DATA'):
     column : str, optional
         Name of column to which noise is added
     """
-    results = []
-    # TODO scheduler
-    for i, ms in enumerate(obs):
-        progress(i, len(obs), status='Estimating noise')  # progress bar
-        results.append(add_noise_to_ms(ms, column))
+    s = obs.scheduler
+    if s.qsub: # add noise in parallel on multiple nodes
+        for i, ms in enumerate(obs):
+            progress(i, len(obs), status='Estimating noise')  # progress bar
+            thisfile = os.path.abspath(__file__)
+            cmd = 'python {} --msin={} --start={} --end={} --column={}'.format(thisfile,
+                                 ms.ms_filename, ms.starttime, ms.endtime, column)
+            s.add(cmd, commandType='python', log='losito_add_noise', processors=1)
+        s.run(check=True)
+        return 0
+    else: # add noise linear on one cpu
+        results = []
+        for i, ms in enumerate(obs):
+            progress(i, len(obs), status='Estimating noise')  # progress bar
+            results.append(add_noise_to_ms(ms, column))
+        return sum(results)
 
-    return sum(results)
-    
+if __name__ == '__main__':
+    # This file can also be executed directly for a single MS.
+    parser = argparse.ArgumentParser(description='Executable of the LoSiTo-noise operation')
+    parser.add_argument('--msin', help='MS file prefix', type=str)
+    parser.add_argument('--starttime', help='MJDs starttime', type=float)
+    parser.add_argument('--endtime', help='MJDs endtime', type=float)
+    parser.add_argument('--column', help='Column', default='DATA', type=str)
+    # Parse parset
+    args = parser.parse_args()
+    ms = MS(args.msin, args.starttime, args.endtime)
+    add_noise_to_ms(ms, args.column)

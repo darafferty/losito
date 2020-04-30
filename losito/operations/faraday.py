@@ -16,7 +16,7 @@ R_earth = 6364.62e3
 
 def _run_parser(obs, parser, step):
     h5parmFilename = parser.getstr(step, 'h5parmFilename', 'corruptions.h5')
-    hIono = parser.getfloat(step, 'hIon', 250.e3)
+    hIon = parser.getfloat(step, 'hIon', 250.e3)
     ncpu = parser.getint('_global', 'ncpu', 0)
     parser.checkSpelling( step, ['h5parmFilename', 'hIon', 'ncpu'])
     return run(obs, h5parmFilename, hIon, step, ncpu)

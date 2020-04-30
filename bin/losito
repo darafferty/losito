@@ -39,7 +39,7 @@ if __name__ == '__main__':
 
     msin = parser.getfilename('_global', 'msin')
     skymodel = parser.getstr('_global', 'skymodel', default='mock.sky')
-    qsub = parser.getbool('_global', 'qsub')
+    qsub = parser.getbool('_global', 'qsub', False)
     nnodes = parser.getint('_global', 'nnodes', 1)
     ncpu = parser.getint('_global', 'ncpu', 0)
 

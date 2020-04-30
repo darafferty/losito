@@ -3,6 +3,7 @@
 """
 Predict operation for losito: runs DPPP to predict a sky model with corruptions
 """
+import os
 from ..lib_io import logger
 
 logger.debug('Loading PREDICT module.')
@@ -44,7 +45,7 @@ def run(obs, outputColumn='DATA', predictType='h5parmpredict',
         logger.info('Reset entries in WEIGHT_SPECTRUM...')
         for ms in obs:
             cmd = 'taql UPDATE {0} SET WEIGHT_SPECTRUM=1.0'.format(ms.ms_filename)
-            s.add(cmd, log='taql_reset_weights', processors='max')
+            s.add(cmd, log='taql_reset_weights', processors=1)
     s.run()
     # Make sourcedb from sky model
     obs.make_sourcedb()
@@ -64,7 +65,9 @@ def run(obs, outputColumn='DATA', predictType='h5parmpredict',
     # Run DPPP
     for ms in obs:
         cmd = 'DPPP {} msin={}'.format(obs.parset_filename, ms.ms_filename)
-        s.add(cmd, commandType='DPPP', log='predict_'+ms.ms_filename, processors='max')
+        # TODO if ms filename contains dirname split
+        msname = os.path.split(ms.ms_filename)[1]
+        s.add(cmd, commandType='DPPP', log='predict_'+msname, processors='max')
     logger.info('Predict visibilities...')
     s.run(check=True)
 

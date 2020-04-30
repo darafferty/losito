@@ -134,20 +134,22 @@ class Logger():
 
     def backup(self, logfile, log_dir):
 
-        # Don't bkp old log dir
+        # bkp old log dir
         if os.path.isdir(log_dir):
-            os.system('rm -r {}'.format(log_dir))
-            # current_time = time.localtime()
-            # log_dir_old = time.strftime(log_dir + '_bkp_%Y-%m-%d_%H:%M', current_time)
-            # os.system('mv %s %s' % (log_dir, log_dir_old))
+            # os.system('rm -r {}'.format(log_dir))
+            if not os.path.isdir(log_dir + '_bkp'):
+                os.mkdir(log_dir + '_bkp')
+            current_time = time.localtime()
+            log_dir_old = time.strftime(log_dir + '_bkp_%Y-%m-%d_%H:%M', current_time)
+            os.system('mv %s %s' % (log_dir, log_dir + '_bkp/' + log_dir_old))
         os.makedirs(log_dir)
 
-        # Don't bkp old log file
+        # bkp old log file
         if os.path.exists(logfile):
-            # current_time = time.localtime()
-            # logfile_old = time.strftime(logfile + '_bkp_%Y-%m-%d_%H:%M', current_time)
-            # os.system('mv %s %s' % (logfile, logfile_old))
-            os.system('rm {}'.format(logfile))
+            current_time = time.localtime()
+            logfile_old = time.strftime(logfile + '_bkp_%Y-%m-%d_%H:%M', current_time)
+            os.system('mv %s %s' % (logfile, log_dir+'_bkp/'+log_dir_old+'/'+logfile_old))
+            # os.system('rm {}'.format(logfile))
 
     def set_logger(self, logfile, log_dir):
 
@@ -225,11 +227,11 @@ class _ColorStreamHandler(logging.StreamHandler):
 # OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE
 # OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-'''
-Use this simple script as progressbar for now, since the old progressbar
+""" Use this simple script as progressbar for now, since the old progressbar
 library is python 2 and not supported anymore. In the future, it might be
-usefull to use the tqdm library for this: https://github.com/tqdm/tqdm 
-'''
+usefull to use the tqdm library for this: https://github.com/tqdm/tqdm """
+
+
 def progress(count, total, status=''):
     '''Usage: place in for-loop like:
         for i, val in enumerate(vals):

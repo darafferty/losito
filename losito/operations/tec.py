@@ -31,7 +31,7 @@ def _run_parser(obs, parser, step):
     maxdtec = parser.getfloat(step, 'maxdtec', default=.5)
     maxvtec = parser.getfloat(step, 'maxvtec', default=50.)
     hIon = parser.getfloat(step, 'hIon', default=250e3)
-    vIon = parser.getfloat(step, 'vIon', default=50)
+    vIon = parser.getfloat(step, 'vIon', default=20)
     seed = parser.getint(step, 'seed', default=0)
     fitsFilename = parser.getstr(step, 'fitsFilename', default='')
     absoluteTEC = parser.getbool(step, 'absoluteTEC', default=True)
@@ -76,7 +76,7 @@ def _tid(x, t, amp=0.2, wavelength=200e3, omega=500.e3 / 3600.):
 
 
 def run(obs, method, h5parmFilename, maxdtec=0.5, maxvtec=50, hIon=250e3,
-        vIon=50, seed=0, fitsFilename=None, stepname='tec',
+        vIon=20, seed=0, fitsFilename=None, stepname='tec',
         absoluteTEC=True, angRes=60, expfolder='', ncpu=0):
     """
     Simulate TEC values and store them to a h5parm.
@@ -96,7 +96,7 @@ def run(obs, method, h5parmFilename, maxdtec=0.5, maxvtec=50, hIon=250e3,
         Highest vTEC in daily modulation in TECU.
     hIon : float, optional. Default = 250 km
         Height of thin layer ionoshpere.
-    vIono : float, optional. Default = 50 m/s
+    vIono : float, optional. Default = 20 m/s
         Velocity of tecscreen. This controls the tec variation frequency.
     seed: int, optional.
         Random screen seed. Use for reproducibility.

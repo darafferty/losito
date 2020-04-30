@@ -30,9 +30,10 @@ def bandpass(freq):
     is_lba = np.any((freq > 10e6) & (freq < 90e6))
     mod_dir = os.path.dirname(os.path.abspath(__file__))
     dat_lba = np.loadtxt(mod_dir + '/../../data/bandpass_lba.txt').T
-    bp_lba = interp1d(*dat_lba, kind='linear', fill_value=0)
+    bp_lba = interp1d(*dat_lba, kind='linear', fill_value=0, bounds_error=False)
     dat_hba = np.loadtxt(mod_dir + '/../../data/bandpass_hba_low.txt').T
-    bp_hba = interp1d(*dat_hba, kind='linear', fill_value=0)
+    bp_hba = interp1d(*dat_hba, kind='linear', fill_value='extrapolate',
+                      bounds_error=False)
     amplitude = np.zeros_like(freq)
     for i, f in enumerate(freq):
         if 10e6 < f < 90e6:

@@ -2,7 +2,6 @@
 Definition of the Observation and MS classes
 """
 import os
-import sys
 import subprocess
 import casacore.tables as pt
 import numpy as np
@@ -11,7 +10,7 @@ import lsmtool
 from .lib_io import logger
 
 
-class MS(object):
+class MS:
     """
       Class to store the information of a single measurement set. Use this
       class to interact with MS tables or get metadata like the observation-
@@ -21,14 +20,10 @@ class MS(object):
       ----------
       ms_filename : str
         Filename of the MS file
-      starttime : float, optional
-      endtime : float, optional
       """
 
     def __init__(self, ms_filename, starttime=None, endtime=None):
         self.ms_filename = ms_filename
-        self.starttime = starttime
-        self.endtime = endtime
         # Scan the MS and store various observation parameters
         self.scan_ms()
 
@@ -71,40 +66,21 @@ class MS(object):
         """
         tab = self.table()
 
-        if self.starttime is None:
-            self.starttime = np.min(tab.getcol('TIME'))
-        else:
-            valid_times = np.where(tab.getcol('TIME') >= self.starttime)[0]
-            if len(valid_times) == 0:
-                logger.critical('Start time of {0} is greater than the last time in the MS! '
-                                  'Exiting!'.format(self.starttime))
-                sys.exit(1)
-            self.starttime = tab.getcol('TIME')[valid_times[0]]
-        if self.starttime > np.min(tab.getcol('TIME')):
-            self.startsat_startofms = False
-        else:
-            self.startsat_startofms = True
-        if self.endtime is None:
-            self.endtime = np.max(tab.getcol('TIME'))
-        else:
-            valid_times = np.where(tab.getcol('TIME') <= self.endtime)[0]
-            if len(valid_times) == 0:
-                logger.critical('End time of {0} is less than the first time in the MS! '
-                                  'Exiting!'.format(self.endtime))
-                sys.exit(1)
-            self.endtime = tab.getcol('TIME')[valid_times[-1]]
-        if self.endtime < np.max(tab.getcol('TIME')):
-            self.goesto_endofms = False
-        else:
-            self.goesto_endofms = True
+        # Get time info
+        self.times = np.unique(tab.getcol('TIME'))
+        assert (np.diff(self.times) >= 0).all(), self.ms_filename+" contains unordered timestamps."
+        self.starttime = np.min(self.times)
+        self.endtime = np.max(self.times)
         self.timepersample = tab.getcell('EXPOSURE', 0)
-        self.numsamples = int(np.ceil((self.endtime - self.starttime) / self.timepersample))
+        self.numsamples = len(self.times)
 
         # Get frequency info
+        self.freq = tab.SPECTRAL_WINDOW.getcol('CHAN_FREQ')[0]
+        assert (np.diff(self.freq) >= 0).all(), self.ms_filename+" contains unordered frequencies."
         self.referencefreq = tab.SPECTRAL_WINDOW.getcol('REF_FREQUENCY')[0]
-        self.startfreq = np.min(tab.SPECTRAL_WINDOW.getcol('CHAN_FREQ'))
-        self.endfreq = np.max(tab.SPECTRAL_WINDOW.getcol('CHAN_FREQ'))
-        self.numchannels = tab.SPECTRAL_WINDOW.getcol('NUM_CHAN')[0]
+        self.startfreq = np.min(self.freq)
+        self.endfreq = np.max(self.freq)
+        self.numchannels = len(self.freq)
         self.channelwidth = tab.SPECTRAL_WINDOW.getcol('CHAN_WIDTH')[0]
 
         # Get pointing info
@@ -135,21 +111,15 @@ class MS(object):
         self.fwhm_deg = 1.1 * ((3.0e8 / self.referencefreq) / self.diam) * 180. / np.pi * sec_el
 
     def get_times(self):
-        """
-        Returns array of times (ordered, with duplicates excluded)
-        """
-        times = np.array([self.starttime+i*self.timepersample for i in range(self.numsamples)])
-        return times
+        """ Return array of times (ordered, with duplicates excluded) """
+        return self.times
 
     def get_frequencies(self):
-        """
-        Returns array of channel frequencies (ordered, with duplicates excluded)
-        """
-        freqs =self.startfreq+np.cumsum(self.channelwidth)-self.channelwidth[0]
-        return freqs
+        """ Return array of channel frequencies (ordered, with duplicates excluded) """
+        return self.freq
 
 
-class Observation(object):
+class Observation:
     """
     The Observation object holds info on the observation and its processing parameters.
     E.g.:
@@ -165,15 +135,8 @@ class Observation(object):
         Filenames of the MS files.
     skymodel_filename : str
         Filename of the sky model file.
-    starttime : float, optional
-        The start time of the observation (in MJD seconds) to be used during processing.
-        If None, the start time is the start of the MS file.
-    endtime : float, optional
-        The end time of the observation (in MJD seconds) to be used during processing.
-        If None, the end time is the end of the MS file.
     """
-    def __init__(self, ms_filenames, skymodel_filename=None, starttime=None,
-                 endtime=None, scheduler=None):
+    def __init__(self, ms_filenames, skymodel_filename=None, scheduler=None):
         if isinstance(ms_filenames, str):
             self.ms_filenames = [ms_filenames]
         else:
@@ -183,8 +146,6 @@ class Observation(object):
         self.output_skymodel_filename = skymodel_filename+'.losito'
         self.sourcedb_filename = self.output_skymodel_filename + '.sourcedb'
         self.name = os.path.basename(self.ms_filenames[0][0:-9])
-        self.starttime = starttime
-        self.endtime = endtime
 
         self.scheduler = scheduler
 
@@ -192,7 +153,7 @@ class Observation(object):
         if skymodel_filename is not None:
             self.load_skymodel()
         logger.info('Checking MS files')
-        self.ms_list = [MS(_file, starttime, endtime) for _file in
+        self.ms_list = [MS(_file) for _file in
                         self.ms_filenames]
         self.set_time() # Set and test time information from MSs
         self.set_stations() # Set station information from MSs
@@ -289,8 +250,6 @@ class Observation(object):
         self.parset_parameters['msout'] = '.'
         self.parset_parameters['numthreads'] = -1
         self.parset_parameters['msin.datacolumn'] = 'DATA'
-        self.parset_parameters['msin.starttime'] = self.convert_mjd(self.starttime)
-        self.parset_parameters['msin.ntimes'] = self.numsamples
         self.parset_parameters['steps'] = []
 
     def make_parset(self):
