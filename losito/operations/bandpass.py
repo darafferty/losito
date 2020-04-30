@@ -11,7 +11,7 @@ from losoto.h5parm import h5parm
 from ..lib_io import logger, progress
 
 logger.debug('Loading Bandpass module.')
-
+###
 
 def _run_parser(obs, parser, step):
     h5parmFilename = parser.getstr(step, 'h5parmFilename', 'corruptions.h5')
@@ -29,9 +29,10 @@ def bandpass(freq):
     # Only HBA-low bandpass is included
     is_lba = np.any((freq > 10e6) & (freq < 90e6))
     mod_dir = os.path.dirname(os.path.abspath(__file__))
-    dat_lba = np.loadtxt(mod_dir + '/../../data/bandpass_lba.txt').T
+    bp_dir = mod_dir + '/../../data/bandpass/'
+    dat_lba = np.loadtxt(bp_dir + 'bandpass_lba.txt').T
     bp_lba = interp1d(*dat_lba, kind='linear', fill_value=0, bounds_error=False)
-    dat_hba = np.loadtxt(mod_dir + '/../../data/bandpass_hba_low.txt').T
+    dat_hba = np.loadtxt(bp_dir + 'bandpass_hba_low.txt').T
     bp_hba = interp1d(*dat_hba, kind='linear', fill_value='extrapolate',
                       bounds_error=False)
     amplitude = np.zeros_like(freq)
