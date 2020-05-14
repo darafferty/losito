@@ -62,8 +62,9 @@ if __name__ == '__main__':
     if nnodes > 1 and qsub is None:
         logger.warning("Nnode is set but qsub is False.")
 
-    s = lib_operations.Scheduler(log_dir=logger_obj.log_dir, max_processors=ncpu,
-                                 maxThreads=nnodes, dry=False)
+    s = lib_operations.Scheduler(log_dir=logger_obj.log_dir, qsub=qsub,
+                                 max_processors=ncpu, maxThreads=nnodes,
+                                 dry=False)
     obs = Observation(msin, skymodel, scheduler = s)
 
     # Possible operations, linked to relative function

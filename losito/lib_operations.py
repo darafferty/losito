@@ -25,9 +25,10 @@ class Scheduler():
             else:
                 self.qsub = False
         else:
-            if ((self.qsub == False and self.cluster == "Hamburg") or \
-                    (self.qsub == True and (self.cluster == "Leiden" or self.cluster == "CEP3" or self.cluster == "Hamburg_fat"))):
-                logger.critical('Qsub set to %s and cluster is %s.' % (str(qsub), self.cluster))
+            if self.qsub == False and self.cluster == "Hamburg":
+                logger.warning('qsub is set to false and cluster is Hamburg.')
+            elif (self.qsub == True and (self.cluster in ["Leiden", "CEP3", "Hamburg_fat"])):
+                logger.critical('qsub set to %s and cluster is %s.' % (str(qsub), self.cluster))
                 sys.exit(1)
 
         if (maxThreads == None):
@@ -38,7 +39,7 @@ class Scheduler():
         else:
             self.maxThreads = maxThreads
 
-        if (max_processors == None):
+        if (max_processors == None or max_processors == 0):
             if   (self.cluster == "Hamburg"):
                 self.max_processors = 6
             else:

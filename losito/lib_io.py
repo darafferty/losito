@@ -148,6 +148,7 @@ class Logger():
         if os.path.exists(logfile):
             current_time = time.localtime()
             logfile_old = time.strftime(logfile + '_bkp_%Y-%m-%d_%H:%M', current_time)
+            log_dir_old = time.strftime(log_dir + '_bkp_%Y-%m-%d_%H:%M', current_time)
             os.system('mv %s %s' % (logfile, log_dir+'_bkp/'+log_dir_old+'/'+logfile_old))
             # os.system('rm {}'.format(logfile))
 

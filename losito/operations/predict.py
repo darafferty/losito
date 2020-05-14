@@ -67,7 +67,7 @@ def run(obs, outputColumn='DATA', predictType='h5parmpredict',
         cmd = 'DPPP {} msin={}'.format(obs.parset_filename, ms.ms_filename)
         # TODO if ms filename contains dirname split
         msname = os.path.split(ms.ms_filename)[1]
-        s.add(cmd, commandType='DPPP', log='predict_'+msname, processors='max')
+        s.add(cmd, commandType='DPPP', log='predict_'+msname)
     logger.info('Predict visibilities...')
     s.run(check=True)
 

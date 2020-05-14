@@ -124,8 +124,10 @@ def make_minsb(name, start, tobs, ra, dec, stationtype, lofarversion,
         logger.error('Stationtype '+stationtype+' unknown. Select LBA or HBA.')
 
     # Get times & pointing ready
-    times = np.arange(start, start + 3600 * tobs, 4.00556032) # 4s exposure
-    end = start + 3600 * tobs
+    ntimes = int((3600 * tobs) // 4.00556032 + 1) # 4s exposure
+    end =  start + (ntimes - 1) * 4.00556032 # endtime
+    times = np.linspace(start, end,  ntimes)
+
     time_centroid = (start + end) / 2
     p = np.array([[ra, dec]])
     f, ref_freq = get_sb_spectral_window(minsb, stationtype)
@@ -180,7 +182,7 @@ if __name__ == '__main__':
     parser.add_argument('--ra', help='Target right ascension in rad', default=2.75570763, type=float)
     parser.add_argument('--dec', help='Target declination in rad', default=0.61219363, type=float)
     parser.add_argument('--station', help='>LBA<, >HBA< or >both<', default='both', type = str)
-    parser.add_argument('--lofarversion', help='LOFAR1 or LOFAR2', default='LOFAR2', type=str)
+    parser.add_argument('--lofarversion', help='>1< for the current instrument, >2< for LOFAR2.0', default=2, type=int)
     parser.add_argument('--minsb', help='Lowest sub band, >= 150', default=150, type=int)
     parser.add_argument('--maxsb', help='Highest sub band', default=393, type=int)
 
@@ -194,6 +196,9 @@ if __name__ == '__main__':
     lofarversion = args.lofarversion
     minsb, maxsb = args.minsb, args.maxsb
 
+    if lofarversion not in [1,2]:
+        logger.error('Invaldid value for option lofarversion. Select 1 or 2.')
+        sys.exit(1)
 
     # Make LBA MSs
     if args.station == 'LBA' or args.station == 'both':
@@ -204,7 +209,7 @@ if __name__ == '__main__':
         # Get other subbands from first sb
         logger.info('Expand in frequency')
         for sb in range(minsb+1, maxsb + 1):
-            progress(sb-minsb, maxsb-minsb, status='Make SB {}'.format(sb))
+            progress(sb-minsb, maxsb-minsb, status='Make LBA SB {}'.format(sb))
             output_name = '{}_t{}_SBL{}.MS'.format(name, timestamp(start), sb)
             make_copy_change_frequency(min_sbl, sb, output_name, 'LBA')
         min_sbl.close()
@@ -213,11 +218,12 @@ if __name__ == '__main__':
     if args.station == 'HBA' or args.station == 'both':
         logger.info('Start synthesizing measurement sets for HBA')
         # Make lowest freq. subband from template
-        min_sbh = make_minsb(name, start, tobs, ra, dec, 'HBA', minsb=minsb)
+        min_sbh = make_minsb(name, start, tobs, ra, dec, 'HBA', lofarversion,
+                             minsb=minsb)
         # Get other subbands from first sb
         logger.info('Expand in frequency')
         for sb in range(minsb+1, maxsb + 1):
-            progress(sb-minsb, maxsb-minsb, status='Make SB {}'.format(sb))
+            progress(sb-minsb, maxsb-minsb, status='Make HBA SB {}'.format(sb))
             output_name = '{}_t{}_SBH{}.MS'.format(name, timestamp(start), sb)
             make_copy_change_frequency(min_sbh, sb, output_name, 'HBA')
         min_sbh.close()

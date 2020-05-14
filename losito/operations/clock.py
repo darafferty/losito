@@ -44,7 +44,7 @@ def get_station_delay(times, clockAmp, clockOffset, clockOmega):
     clockAmp = np.random.normal(0.0, clockAmp)
     clockOffset = np.random.normal(0, clockOffset)
     clockOmega = np.random.normal(loc = clockOmega, scale = 0.15 * clockOmega)
-    t0 = 28800*np.random.random()
+    t0 = 57600*np.random.random()
     delay = clockAmp*np.sin(clockOmega*np.pi*(time_delta - t0)/7200) + clockOffset
     return delay
 
@@ -119,15 +119,8 @@ def run(obs, h5parmFilename, seed= 0, applyTo='RS', clockAmp=0.7e-8,
         st.addHistory('CREATE (by CLOCK operation of LoSiTo from obs {0})'.format(h5parmFilename))
     ho.close()
 
-    # Update predict parset parameters for the obs
-    obs.parset_parameters['predict.applycal.parmdb'] = h5parmFilename
-    if 'predict.applycal.steps' in obs.parset_parameters:
-        obs.parset_parameters['predict.applycal.steps'].append(stepname)
-    else:
-        obs.parset_parameters['predict.applycal.steps'] = [stepname]
-    obs.parset_parameters['predict.applycal.correction'] = 'clock000'         
-    obs.parset_parameters['predict.applycal.{}.correction'.format(stepname)] = 'clock000'
-    obs.parset_parameters['predict.applycal.{}.parmdb'.format(stepname)] = h5parmFilename
+    # Update DPPP predict parset
+    obs.add_to_parset(stepname, 'clock000', h5parmFilename)
 
     return 0
 
