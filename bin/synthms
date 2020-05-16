@@ -4,13 +4,22 @@
 SYNTHMS - script. Use this script to generate measurement sets which containt
 the metadata information necessary for a LoSiTo - simulation.
 """
-import os, argparse, sys
-import numpy as np
-from astropy.time import Time
+import argparse
+import os
+import sys
+
 import casacore.tables as tab
+import numpy as np
+from astropy.coordinates import ITRS, SkyCoord
+from astropy.time import Time
+# Workaround for unavailable USNO server, both these mirrors work as May 2020
+from astropy.utils import iers
+
 from losito.lib_io import progress, logger
 
-# TODO make templates for LOFAR1.0
+# iers.Conf.iers_auto_url.set('https://datacenter.iers.org/data/9/finals2000A.all')
+iers.Conf.iers_auto_url.set('ftp://cddis.gsfc.nasa.gov/pub/products/iers/finals2000A.all')
+
 mod_dir = os.path.dirname(os.path.abspath(__file__))
 template_dir = mod_dir + '/../data/ms_templates/'
 
@@ -64,7 +73,7 @@ def get_sb_spectral_window(sb, stationtype):
     else:
         logger.error('Stationtype '+ stationtype +' not understood. Select' 
                       'either LBA or HBA')
-    f = lowest_freq  + d_freq * (np.arange(4) + (sb - 150) * 4)
+    f = lowest_freq + d_freq * (np.arange(4) + (sb - 150) * 4)
     return f, np.mean(f)
 
 
@@ -79,7 +88,7 @@ def make_copy_change_frequency(inputms, outputsb, outputname, stationtype):
     outputname : string
         Name of the output MS.
     """
-    outtab = inputms.copy(outputname, deep = True)
+    outtab = inputms.copy(outputname, deep=True)
     f, ref_freq = get_sb_spectral_window(outputsb, stationtype)
     tab.taql('''UPDATE $outtab::SPECTRAL_WINDOW SET CHAN_FREQ=$f, REF_FREQUENCY=$ref_freq''')
     outtab.close()
@@ -135,18 +144,50 @@ def make_minsb(name, start, tobs, ra, dec, stationtype, lofarversion,
                                        minsb)
     sbname = 'SB-'+str(minsb)
     n_stations = len(template.ANTENNA)
+    n_bl = len(template)
+    # UVW values
+    sp = template.LOFAR_ANTENNA_FIELD.getcol('POSITION')
+    ant1, ant2 = template.getcol('ANTENNA1'), template.getcol('ANTENNA2')
+    def _get_uvw(_time):
+        """ Get the ICRS UVW values for all baselines at a certain time. """
+        itrs = ITRS(obstime=Time(_time / (3600 * 24), format='mjd'))
+        sp_itrs = SkyCoord(x=sp[:, 0], y=sp[:, 1], z=sp[:, 2], frame=itrs,
+                           unit='meter')
+        sp_icrs = sp_itrs.transform_to("icrs")
+        sp_ant1 = np.take(sp_icrs.cartesian.xyz, ant1, axis=1).T
+        sp_ant2 = np.take(sp_icrs.cartesian.xyz, ant2, axis=1).T
+        _uvw = sp_ant2 - sp_ant1 # defined as 2 - 1
+        # Transform such that W parallel to s, U in Ra-dir, V in dec-dir
+        s = SkyCoord(ra=p[0,0], dec=p[0,1], unit='rad').cartesian.xyz
+        def rotmatrix_from_vec(a, b):
+            """ Return rot. matrix which rotates vector a to vector b."""
+            v = np.cross(a, b)
+            skew = np.array([[0, -v[2], v[1]],
+                             [v[2], 0, -v[0]],
+                             [-v[1], v[0], 0]])
+            R = np.identity(3) + skew + skew @ skew /(1 + np.dot(a, b))
+            return R
+        R1 = rotmatrix_from_vec(s, [0,0,1])
+        R2 = rotmatrix_from_vec([-np.sin(p[0,0]), np.cos(p[0,0]), 0], [1,0,0])
+        # first transform such that source direction align with W a.k.a. Z axis
+        # Then rotate such that unit vector in "RA" direction matches U/X
+        _uvw = np.einsum('ijk, ik -> ij', (R2 @ R1)[np.newaxis],_uvw)
+        return _uvw
+
+    uvw = np.zeros((ntimes * n_bl, 3))
+    uvw[0:n_bl] = _get_uvw(start)
     # MAIN TABLE
     out_ms = template.copy(msname, deep = True, valuecopy=True)
     tab.taql('UPDATE $out_ms SET TIME=$start, TIME_CENTROID=$start')
     logger.info('Expand in time')
-
     for i, t in enumerate(times[1::]):
         progress(i, len(times)-1, status = 'Make first SB')
         tab.taql('INSERT INTO $out_ms SELECT FROM $template')
-        offset = (i+1) * len(template)
+        offset = (i+1) * n_bl
+        uvw[offset:offset+n_bl] = _get_uvw(t)
         tab.taql('UPDATE $out_ms SET TIME=$t, TIME_CENTROID=$t OFFSET $offset')
     template.close()
-
+    out_ms.putcol('UVW', uvw)
     # SUBTABLES
     # ::SPECTRAL_WINDOW
     tab.taql('UPDATE $out_ms::SPECTRAL_WINDOW SET CHAN_FREQ=$f, REF_FREQUENCY=$ref_freq, NAME=$name')
@@ -206,9 +247,12 @@ if __name__ == '__main__':
         # Make lowest freq. subband from template
         min_sbl = make_minsb(name, start, tobs, ra, dec, 'LBA', lofarversion,
                              minsb=minsb)
+        _name = min_sbl.name() # close and reopen: workaround for some versions of tables...
+        min_sbl.close()
+        min_sbl = tab.table(_name, ack=False)
         # Get other subbands from first sb
         logger.info('Expand in frequency')
-        for sb in range(minsb+1, maxsb + 1):
+        for sb in range(minsb+1, maxsb+1):
             progress(sb-minsb, maxsb-minsb, status='Make LBA SB {}'.format(sb))
             output_name = '{}_t{}_SBL{}.MS'.format(name, timestamp(start), sb)
             make_copy_change_frequency(min_sbl, sb, output_name, 'LBA')
@@ -220,6 +264,9 @@ if __name__ == '__main__':
         # Make lowest freq. subband from template
         min_sbh = make_minsb(name, start, tobs, ra, dec, 'HBA', lofarversion,
                              minsb=minsb)
+        _name = min_sbh.name() # close and reopen: workaround for some versions of tables...
+        min_sbh.close()
+        min_sbh = tab.table(_name, ack=False)
         # Get other subbands from first sb
         logger.info('Expand in frequency')
         for sb in range(minsb+1, maxsb + 1):
