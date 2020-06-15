@@ -35,14 +35,13 @@ if __name__ == '__main__':
         sys.exit(1)
     parser = lib_io.ParsetParser(args.parset)
     steps = parser.sections()
-    parser.checkSpelling('_global', ['msin', 'skymodel', 'ncpu', 'qsub', 'nnodes'])
+    parser.checkSpelling('_global', ['msin', 'skymodel', 'ncpu', 'qsub', 'maxThreads'])
 
     msin = parser.getfilename('_global', 'msin')
     skymodel = parser.getstr('_global', 'skymodel', default='mock.sky')
     qsub = parser.getbool('_global', 'qsub', False)
-    nnodes = parser.getint('_global', 'nnodes', 1)
-    ncpu = parser.getint('_global', 'ncpu', 0)
-
+    maxThreads = parser.getint('_global', 'maxThreads', -1)
+    ncpu = parser.getint('_global', 'ncpu', -1)
     # Check input MS and sky model
     if msin is None or len(msin) == 0:
         logger.error('No input MS file given. Please specify at least '
@@ -59,11 +58,11 @@ if __name__ == '__main__':
     if not os.path.isfile(skymodel):
         logger.critical("Missing input sky model file.")
         sys.exit(1)
-    if nnodes > 1 and qsub is None:
-        logger.warning("Nnode is set but qsub is False.")
-
+    # initialize scheduler
+    if maxThreads == -1: maxThreads = None # Default let scheduler decide the threads TODO get rid of this workaround
+    if ncpu == -1: ncpu = None # Default let scheduler decide the cpu count
     s = lib_operations.Scheduler(log_dir=logger_obj.log_dir, qsub=qsub,
-                                 max_processors=ncpu, maxThreads=nnodes,
+                                 max_processors=ncpu, maxThreads=maxThreads,
                                  dry=False)
     obs = Observation(msin, skymodel, scheduler = s)
 

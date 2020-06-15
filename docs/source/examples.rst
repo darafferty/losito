@@ -4,40 +4,51 @@ Example parset
 --------------
 
 The :ref:`parset` is a simple text file that defines the steps in a run.
-Below is an example parset that predicts data with TEC and beam corruptions and then adds noise:
+Below is an example parset that can be used with the 5 minute measurement set in the losito/examples folder.
+This parset will apply the first and second roder ionospheric effect, station delay effects, the bandpass and the noise step to the simulated visibilities.
 
 ::
 
-    # Example parset
-    ncpu = 0
+    #LoSiTo parset
+    ##### global #######
+    msin = example.MS
+    skymodel = example.sky
+
+    ######## IONOSPHERE #######
+    [tec]
+    operation=TEC
+    method = turbulence
+
+    [faraday]
+    operation=FARADAY
+
+    ####### CLOCK #######
+    [clock]
+    operation=CLOCK
+
+    [polmisalign]
+    operation=POLMISALIGN
 
     # Add beam effects (array_factor+element)
     [beam]
     operation = BEAM
     mode = default
 
-    # Add TEC values from FITS images
-    [tec1]
-    operation = TEC
-    method = fits
-    fitsFilename = example.fits
-    h5parmFilename = tec1.h5
-
-    # Add TEC values from TID wave
-    [tec2]
-    operation = TEC
-    method = tid
-    tidAmp = 0.3
-    h5parmFilename = tec2.h5
-
     # Do the predict
     [predict]
     operation = PREDICT
-    outputColumn = CORRECTED_DATA
+    outputColumn = DATA
+    resetWeights = True
+    predictType = h5parmpredict
 
     # Add noise to the predicted visibilities
     [noise]
     operation = NOISE
-    column = CORRECTED_DATA
+    outputColumn = DATA
+
+    # Apply the bandpass
+    [bandpass]
+    operation = BANDPASS
+    method = ms
 
 

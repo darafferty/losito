@@ -12,13 +12,13 @@ logger.debug('Loading CLOCK module.')
 def _run_parser(obs, parser, step):
     h5parmFilename = parser.getstr(step, 'h5parmFilename', 'corruptions.h5')
     seed = parser.getint(step, 'seed', default = 0)
-    applyTo = parser.getstr(step, 'applyTo', default='RS')
-    clockAmp = parser.getfloat(step, 'clockAmp', default = 0.7e-8)
-    clockOffset = parser.getfloat(step, 'clockOffset', default = 2e-8)
+    mode = parser.getstr(step, 'mode', default='lofar1')
+    clockAmp = parser.getfloat(step, 'clockAmp', default = -1.) # neg. val : use default for lofar1/2
+    clockOffset = parser.getfloat(step, 'clockOffset', default = -1.)
     clockOmega = parser.getfloat(step, 'clockOmega', default = 1.)
-    parser.checkSpelling( step, ['h5parmFilename', 'seed', 'applyTo','clockAmp',
+    parser.checkSpelling( step, ['h5parmFilename', 'seed', 'mode','clockAmp',
                                  'clockOffset', 'clockOmega'])
-    return run(obs, h5parmFilename, seed, applyTo, clockAmp, clockOffset,
+    return run(obs, h5parmFilename, seed, mode, clockAmp, clockOffset,
                clockOmega, step)
 
 def get_station_delay(times, clockAmp, clockOffset, clockOmega):
@@ -42,15 +42,15 @@ def get_station_delay(times, clockAmp, clockOffset, clockOmega):
     '''
     time_delta = times - np.min(times)       
     clockAmp = np.random.normal(0.0, clockAmp)
-    clockOffset = np.random.normal(0, clockOffset)
+    clockOffset = np.random.normal(0.0, clockOffset)
     clockOmega = np.random.normal(loc = clockOmega, scale = 0.15 * clockOmega)
     t0 = 57600*np.random.random()
     delay = clockAmp*np.sin(clockOmega*np.pi*(time_delta - t0)/7200) + clockOffset
     return delay
 
 
-def run(obs, h5parmFilename, seed= 0, applyTo='RS', clockAmp=0.7e-8,
-        clockOffset=2e-8, clockOmega=1.0, stepname='clock'):
+def run(obs, h5parmFilename, seed= 0, mode='lofar1', clockAmp=None,
+        clockOffset=None, clockOmega=1.0, stepname='clock'):
     """
     Add clock delay Soltab to h5parm.
     
@@ -58,6 +58,11 @@ def run(obs, h5parmFilename, seed= 0, applyTo='RS', clockAmp=0.7e-8,
     ----------
     seed : unsigned int, optional. default = 0
         Set the random seed. Seed = 0 (default) will set no seed.
+    mode : string, optional. default = lofar1
+        Possible options are >lofar1< and >lofar2<. For lofar1, the clock delay will only be simulated for the remote
+        stations. For lofar 2, the clock delay will be applied to all stations, but with a different amplitude depending
+        on the distance of the station. If mode=lofar2, the values for clockAmp and clockOffset will be applied to the
+         remote stations, while half of the given amplitude and offset is applied to the central stations.
     """
     # If provided, set random seed:
     if seed != 0:
@@ -70,7 +75,13 @@ def run(obs, h5parmFilename, seed= 0, applyTo='RS', clockAmp=0.7e-8,
 
     delays = np.zeros((len(times), len(stations)))
 
-    if applyTo == 'RS':
+    if mode == 'lofar1':
+        if clockAmp == -1.0:
+            logger.debug('clockAmp not specified. Using default value for lofar1.')
+            clockAmp = 0.7e-9
+        if clockOffset == -1.0:
+            clockOffset = 2e-8
+            logger.debug('clockOffset not specified. Using default value for lofar1.')
         is_rs_list = [False if 'CS' in st else True for st in stations]
         # Get the delay for all of the CS to substract from the RS.
         cs_delay = get_station_delay(times, clockAmp, clockOffset, clockOmega)
@@ -80,13 +91,28 @@ def run(obs, h5parmFilename, seed= 0, applyTo='RS', clockAmp=0.7e-8,
                 delays[:,i] = (get_station_delay(times, clockAmp, clockOffset,
                                                     clockOmega) - cs_delay )
             else:
-                    continue
-    elif applyTo == 'all':
-        for i in range(len(stations)):
-            delays[:,i] = get_station_delay(times, clockAmp, clockOffset,
+                continue
+
+    elif mode == 'lofar2':
+        # make sure that LBA = HBA at the same station get the same delay!
+        if clockAmp == -1.0:
+            logger.debug('clockAmp not specified. Using default value for lofar2.')
+            clockAmp = 0.2e-9
+        if clockOffset == -1.0:
+            clockOffset = 0.2e-9
+            logger.debug('clockOffset not specified. Using default value for lofar2.')
+        # find hba + lba substations which are at the same staton, e.g. CS001HBA0 and CS001LBA
+        superstations = np.sort(np.unique([st[:5] for st in stations]))
+
+        for i, superstationname in enumerate(superstations):
+            scalef = 0.5 if 'CS' in superstationname else 1.0 # use half of delay for core stations
+            temp_delay = get_station_delay(times, scalef*clockAmp, scalef*clockOffset,
                                                     clockOmega)
+            for j, substationname in enumerate(stations):
+                if substationname[:5] == superstationname:
+                    delays[:,j] = temp_delay
     else:
-        logger.error('Only \'RS\' and \'all\' are valid options for applyTo.')
+        logger.error('Only \'lofar1\' and \'lofar2\' are valid options for option \'mode\'.')
         return 1
     # Write clock values to h5parm file as DPPP input
     ho = h5parm(h5parmFilename, readonly=False)

@@ -238,8 +238,11 @@ if __name__ == '__main__':
     minsb, maxsb = args.minsb, args.maxsb
 
     if lofarversion not in [1,2]:
-        logger.error('Invaldid value for option lofarversion. Select 1 or 2.')
+        logger.error('Invalid value for option lofarversion. Select 1 or 2.')
         sys.exit(1)
+
+    if args.station not in ['LBA', 'HBA', 'both']:
+        logger.error('Stationtype ' + args.station + ' unknown. Select LBA or HBA.')
 
     # Make LBA MSs
     if args.station == 'LBA' or args.station == 'both':

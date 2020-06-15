@@ -199,8 +199,8 @@ class Observation:
         logger.root.setLevel('WARNING')
         skymodel = lsmtool.load(self.input_skymodel_filename)
         if not skymodel.hasPatches:
-            skymodel.group('single')
-        skymodel.setPatchPositions(method='wmean')
+            skymodel.group('every')
+        # skymodel.setPatchPositions(method='wmean')
         logger.root.setLevel(old_level)
         self.skymodel = skymodel
 
