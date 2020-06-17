@@ -79,6 +79,7 @@ if __name__ == '__main__':
            "PREDICT": operations.predict,
            "NOISE": operations.noise
           }
+
     # TODO: Raise warning if unphysical order of steps.
 
     globalstart = time.time()

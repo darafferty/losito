@@ -82,13 +82,10 @@ def run(obs, h5parmFilename='', column='',method='ms', stepname='bandpass'):
                      {}. It will be overwritten.'''.format(h5parmFilename + '/sol000'))
             solset.getSoltab('amplitude000').delete()
 
-        # h5parmpredict needs direction axis with directions from sky model.
-        bp_amplitude = np.repeat(bp_amplitude[:, np.newaxis], len(source_names),
-                                 -1)
         bp_amplitude = np.sqrt(bp_amplitude) # Jones-Matrix from Bandpass amp
         weights = np.ones_like(bp_amplitude)
-        solset.makeSoltab('amplitude', 'amplitude000', axesNames=['freq', 'dir'],
-                           axesVals=[freq, source_names], vals=bp_amplitude,
+        solset.makeSoltab('amplitude', 'amplitude000', axesNames=['freq'],
+                           axesVals=[freq], vals=bp_amplitude,
                            weights=weights)
 
         sourceTable = solset.obj._f_get_child('source')
@@ -101,7 +98,7 @@ def run(obs, h5parmFilename='', column='',method='ms', stepname='bandpass'):
         ho.close()
 
         # Update predict parset parameters for the obs
-        obs.add_to_parset(stepname, 'amplitude000', h5parmFilename)
+        obs.add_to_parset(stepname, 'amplitude000', h5parmFilename, DDE=False)
         return 0
     elif method == 'ms':
         logger.info('Applying bandpass to column ' + column+'.')

@@ -128,11 +128,10 @@ def run(obs, h5parmFilename, seed= 0, mode='lofar1', clockAmp=None,
         solset.getSoltab('clock000').delete()
         
     # h5parmpredict needs direction axis with directions from sky model.
-    delays = np.repeat(delays[...,np.newaxis], len(source_names), axis = -1)
-    weights = np.ones_like(delays)    
-    st = solset.makeSoltab('clock', 'clock000', axesNames = ['time','ant','dir'],
-                          axesVals = [times, stations, source_names], vals = delays,
-                           weights = weights)   
+    weights = np.ones_like(delays)
+    st = solset.makeSoltab('clock', 'clock000', axesNames = ['time','ant'],
+                           axesVals = [times, stations], vals = delays,
+                           weights = weights)
     
     antennaTable = solset.obj._f_get_child('antenna')
     antennaTable.append(list(zip(*(stations, obs.stationpositions))))
@@ -146,7 +145,7 @@ def run(obs, h5parmFilename, seed= 0, mode='lofar1', clockAmp=None,
     ho.close()
 
     # Update DPPP predict parset
-    obs.add_to_parset(stepname, 'clock000', h5parmFilename)
+    obs.add_to_parset(stepname, 'clock000', h5parmFilename, DDE=False)
 
     return 0
 

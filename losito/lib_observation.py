@@ -199,8 +199,9 @@ class Observation:
         logger.root.setLevel('WARNING')
         skymodel = lsmtool.load(self.input_skymodel_filename)
         if not skymodel.hasPatches:
+            logger.info('No patches present in skymodel. Assigning every source an individual patch.')
             skymodel.group('every')
-        # skymodel.setPatchPositions(method='wmean')
+            skymodel.setPatchPositions(method='mid')
         logger.root.setLevel(old_level)
         self.skymodel = skymodel
 
@@ -258,16 +259,28 @@ class Observation:
             for k, v in self.parset_parameters.items():
                 f.write('{0} = {1}\n'.format(k, v))
 
-    def add_to_parset(self, stepname, soltabname, h5parmFilename = 'corruptions.h5'):
-        """ Add the corruptions from a soltab to the prediction. """
-        self.parset_parameters['predict.applycal.parmdb'] = h5parmFilename
-        if 'predict.applycal.steps' in self.parset_parameters:
-            self.parset_parameters['predict.applycal.steps'].append(stepname)
+    def add_to_parset(self, stepname, soltabname, h5parmFilename = 'corruptions.h5', DDE=True):
+        """
+        Add the corruptions of a h5parm to a applycal step in the DP3 parset.
+
+        Parameters
+        ----------
+        stepname: string, name of the step
+        soltabname: string, name of the solutiontable, e.g. "tec000"
+        h5parmFilename: string, default=corruptions.h5. Name of the h5parm file.
+        DDE: bool, default = True. Whether this corruption should be applied
+             during the h5parmpredict for all directions or in a applycal step.
+        """
+        applyprefix = 'predict.applycal' if DDE else 'applycal'
+        if applyprefix+'.steps' in self.parset_parameters:
+                self.parset_parameters[applyprefix+'.steps'].append(stepname)
         else:
-            self.parset_parameters['predict.applycal.steps'] = [stepname]
-        self.parset_parameters['predict.applycal.correction'] = soltabname
-        self.parset_parameters['predict.applycal.{}.correction'.format(stepname)] = soltabname
-        self.parset_parameters['predict.applycal.{}.parmdb'.format(stepname)] = h5parmFilename
+            self.parset_parameters[applyprefix+'.steps'] = [stepname]
+            self.parset_parameters[applyprefix+'.parmdb'] = h5parmFilename
+            self.parset_parameters[applyprefix+'.correction'] = soltabname
+        self.parset_parameters[applyprefix+'.{}.correction'.format(stepname)] = soltabname
+        self.parset_parameters[applyprefix+'.{}.parmdb'.format(stepname)] = h5parmFilename
+
 
     def set_time(self):
         """ Set the time information. Also check wheter all the MS have

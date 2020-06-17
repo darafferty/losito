@@ -45,11 +45,13 @@ def run(obs, outputColumn='DATA', predictType='h5parmpredict',
         logger.info('Reset entries in WEIGHT_SPECTRUM...')
         for ms in obs:
             cmd = 'taql UPDATE {0} SET WEIGHT_SPECTRUM=1.0'.format(ms.ms_filename)
+            # TODO: more accurate weights
             s.add(cmd, log='taql_reset_weights', processors=1)
     s.run()
     # Make sourcedb from sky model
     obs.make_sourcedb()
 
+    # TODO: Reset beam keyword using DPPP step setbeam
     # Set parset parameters and write parset to file
     obs.parset_parameters['steps'] = '[predict]'
     obs.parset_parameters['numthreads'] = ncpu

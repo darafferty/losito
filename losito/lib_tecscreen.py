@@ -239,6 +239,7 @@ def screen_grid_comoving(edges, angRes, hIon):
     # update resolution to get rid of rounding error
     cellsz_lat = (max_lat - min_lat) / np.max(npixel_lat)
     cellsz_lon = (max_lon - min_lon) / np.max(npixel_lon)
+    logger.info('Tecscreen resolution {} x {} pixel'.format(len(grid_lat[0]), len(grid_lon[0])))
     return grid_lon, grid_lat, cellsz_lon, cellsz_lat
 
 # def fixed_tecscreen(sp, directions, times, hIon = 200.e3, vIon = 50,

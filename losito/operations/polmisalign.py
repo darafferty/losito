@@ -43,7 +43,6 @@ def run(obs, h5parmFilename, seed=0, polDelay=1e-9, stepname='pol_misalign'):
     delays = np.zeros((2, len(stations)))
     delays[1] = np.random.normal(0, polDelay, len(stations))
     delays[1] -= delays[1, 0]
-    delays = np.repeat(delays[..., np.newaxis], len(source_names), axis=-1)
     weights = np.ones_like(delays)
 
     # Write polarization misalignment values to h5parm file as DPPP input.
@@ -59,8 +58,8 @@ def run(obs, h5parmFilename, seed=0, polDelay=1e-9, stepname='pol_misalign'):
                  {}. It will be overwritten.'''.format(h5parmFilename + '/clock001'))
         solset.getSoltab('clock001').delete()
 
-    st = solset.makeSoltab('clock', 'clock001', axesNames=['pol', 'ant', 'dir'],
-                           axesVals=[pol, stations, source_names],
+    st = solset.makeSoltab('clock', 'clock001', axesNames=['pol', 'ant'],
+                           axesVals=[pol, stations],
                            vals=delays, weights=weights)
 
     antennaTable = solset.obj._f_get_child('antenna')
@@ -77,6 +76,6 @@ def run(obs, h5parmFilename, seed=0, polDelay=1e-9, stepname='pol_misalign'):
     ho.close()
 
     # Update predict parset parameters for the obs
-    obs.add_to_parset(stepname, 'clock001', h5parmFilename)
+    obs.add_to_parset(stepname, 'clock001', h5parmFilename, DDE=False)
 
     return 0
