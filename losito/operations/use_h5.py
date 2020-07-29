@@ -25,12 +25,18 @@ def run(obs, h5parmFilename, corruption, step='use_h5'):
     corruption = corruption.lower()
     if corruption == 'clock':
         # Add soltab to DPPP parset
+        if not 'applycal' in obs.parset_parameters['steps']:
+            obs.parset_parameters['steps'].append('applycal')
         obs.add_to_parset(step, 'clock000', h5parmFilename, DDE=False)
         return 0
     elif corruption == 'polmisalign':
+        if not 'applycal' in obs.parset_parameters['steps']:
+            obs.parset_parameters['steps'].append('applycal')
         obs.add_to_parset(step, 'clock001', h5parmFilename, DDE=False)
         return 0
     elif corruption == 'bandpass':
+        if not 'applycal' in obs.parset_parameters['steps']:
+            obs.parset_parameters['steps'].append('applycal')
         obs.add_to_parset(step, 'amplitude000', h5parmFilename, DDE=False)
         return 0
     elif (corruption == 'rm') or (corruption == 'rotationmeasure'):

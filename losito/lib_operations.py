@@ -84,7 +84,6 @@ class Scheduler():
         commandType: can be a list of known command types as "BBS", "DPPP", ...
         processors:  number of processors to use, can be "max" to automatically use max number of processors per node
         """
-
         if (log != ''):
             log = self.log_dir + '/' + log
 
@@ -109,10 +108,10 @@ class Scheduler():
             # if number of processors not specified, try to find automatically
             if (processors == None):
                 processors = 1 # default use single CPU
-                if ("DPPP" == cmd[ : 4]):
-                    processors = 1
-                if ("wsclean" == cmd[ : 7]):
-                    processors = self.max_processors
+                # if ("DPPP" == cmd[ : 4]):
+                #     processors = 1
+                # if ("wsclean" == cmd[ : 7]):
+                #     processors = self.max_processors
             if (processors > self.max_processors):
                 processors = self.max_processors
 

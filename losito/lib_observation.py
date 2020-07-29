@@ -271,13 +271,20 @@ class Observation:
         DDE: bool, default = True. Whether this corruption should be applied
              during the h5parmpredict for all directions or in a applycal step.
         """
+
         applyprefix = 'predict.applycal' if DDE else 'applycal'
+        if DDE:
+            self.parset_parameters[applyprefix + '.parmdb'] = h5parmFilename
+            self.parset_parameters[applyprefix + '.correction'] = soltabname
+        else:
+            if not 'applycal' in self.parset_parameters['steps']:
+                self.parset_parameters['steps'].append('applycal')
+            self.parset_parameters[applyprefix + '.invert'] = 'false'
+            self.parset_parameters['applycal.type'] = 'applycal'
         if applyprefix+'.steps' in self.parset_parameters:
                 self.parset_parameters[applyprefix+'.steps'].append(stepname)
         else:
             self.parset_parameters[applyprefix+'.steps'] = [stepname]
-            self.parset_parameters[applyprefix+'.parmdb'] = h5parmFilename
-            self.parset_parameters[applyprefix+'.correction'] = soltabname
         self.parset_parameters[applyprefix+'.{}.correction'.format(stepname)] = soltabname
         self.parset_parameters[applyprefix+'.{}.parmdb'.format(stepname)] = h5parmFilename
 

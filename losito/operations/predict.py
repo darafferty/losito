@@ -52,8 +52,10 @@ def run(obs, outputColumn='DATA', predictType='h5parmpredict',
     obs.make_sourcedb()
 
     # TODO: Reset beam keyword using DPPP step setbeam
+    # TODO: move most of this to observation class
     # Set parset parameters and write parset to file
-    obs.parset_parameters['steps'] = '[predict]'
+    if not 'predict' in obs.parset_parameters['steps']:
+        obs.parset_parameters['steps'].insert(0,'predict')
     obs.parset_parameters['numthreads'] = ncpu
     obs.parset_parameters['predict.type'] = predictType
     obs.parset_parameters['predict.sourcedb'] = obs.sourcedb_filename
@@ -69,7 +71,7 @@ def run(obs, outputColumn='DATA', predictType='h5parmpredict',
         cmd = 'DPPP {} msin={}'.format(obs.parset_filename, ms.ms_filename)
         # TODO if ms filename contains dirname split
         msname = os.path.split(ms.ms_filename)[1]
-        s.add(cmd, commandType='DPPP', log='predict_'+msname)
+        s.add(cmd, commandType='DPPP', log='predict_'+msname, processors='max')
     logger.info('Predict visibilities...')
     s.run(check=True)
 

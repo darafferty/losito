@@ -14,8 +14,9 @@ logger.debug('Loading NOISE module.')
 
 def _run_parser(obs, parser, step):
     column = parser.getstr(step, 'outputColumn', 'DATA')
-    parser.checkSpelling( step, ['outputColumn'])
-    return run(obs, column)
+    factor = parser.getfloat(step, 'factor', 1.0)
+    parser.checkSpelling( step, ['outputColumn','factor'])
+    return run(obs, column, factor)
 
 def SEFD(ms, station1, station2, freq):
     '''
@@ -69,10 +70,10 @@ def SEFD(ms, station1, station2, freq):
         logger.error('Stationtype "{}" unknown.'.format(ms.stationtype))
         return 1
 
-def add_noise_to_ms(ms, column='DATA'):
+def add_noise_to_ms(ms, column='DATA', factor=1.0):
     # TODO: ensure eta = 1 is appropriate
     tab = ms.table(readonly=False)
-    eta = 1.  # system efficiency. Roughly 1.0
+    eta = 0.95  # system efficiency. Roughly 1.0
 
     chan_width = ms.channelwidth
     freq = ms.get_frequencies()
@@ -83,7 +84,7 @@ def add_noise_to_ms(ms, column='DATA'):
     # Iterate over frequency channels to save memory.
     for i, nu in enumerate(freq):
         # find correct standard deviation from SEFD
-        std = eta * SEFD(ms, ant1, ant2, nu)
+        std = factor * eta * SEFD(ms, ant1, ant2, nu)
         std /= np.sqrt(2 * exposure * chan_width[i])
         # draw complex valued samples of shape (row, corr_pol)
         noise = np.random.normal(loc=0, scale=std, size=[4, *np.shape(std)]).T
@@ -95,7 +96,7 @@ def add_noise_to_ms(ms, column='DATA'):
 
     return 0
 
-def run(obs, column='DATA'):
+def run(obs, column='DATA', factor=1.0):
     """
     Adds Gaussian noise to a data column. Scale of the noise, frequency-
     and station-dependency are calculated according to 'Synthesis Imaging 
@@ -105,16 +106,18 @@ def run(obs, column='DATA'):
     ----------
     obs : Observation object
         Input obs object.
-    column : str, optional
+    column : str, optional. Default = DATA
         Name of column to which noise is added
+    factor : float, optional. Default = 1.0
+        Scaling factor to change the noise level.
     """
     s = obs.scheduler
     if s.qsub: # add noise in parallel on multiple nodes
         for i, ms in enumerate(obs):
             progress(i, len(obs), status='Estimating noise')  # progress bar
             thisfile = os.path.abspath(__file__)
-            cmd = 'python {} --msin={} --start={} --end={} --column={}'.format(thisfile,
-                                 ms.ms_filename, ms.starttime, ms.endtime, column)
+            cmd = 'python {} --msin={} --start={} --end={} --column={} --factor={}'.format(thisfile,
+                                 ms.ms_filename, ms.starttime, ms.endtime, column, factor)
             s.add(cmd, commandType='python', log='losito_add_noise', processors=1)
         s.run(check=True)
         return 0
@@ -122,7 +125,7 @@ def run(obs, column='DATA'):
         results = []
         for i, ms in enumerate(obs):
             progress(i, len(obs), status='Estimating noise')  # progress bar
-            results.append(add_noise_to_ms(ms, column))
+            results.append(add_noise_to_ms(ms, column, factor))
         return sum(results)
 
 if __name__ == '__main__':
@@ -132,7 +135,8 @@ if __name__ == '__main__':
     parser.add_argument('--starttime', help='MJDs starttime', type=float)
     parser.add_argument('--endtime', help='MJDs endtime', type=float)
     parser.add_argument('--column', help='Column', default='DATA', type=str)
+    parser.add_argument('--factor', help='Factor', default=1.0, type=float)
     # Parse parset
     args = parser.parse_args()
     ms = MS(args.msin, args.starttime, args.endtime)
-    add_noise_to_ms(ms, args.column)
+    add_noise_to_ms(ms, args.column, args.factor)

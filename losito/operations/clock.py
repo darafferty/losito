@@ -77,11 +77,11 @@ def run(obs, h5parmFilename, seed= 0, mode='lofar1', clockAmp=None,
 
     if mode == 'lofar1':
         if clockAmp == -1.0:
-            logger.debug('clockAmp not specified. Using default value for lofar1.')
+            logger.info('clockAmp not specified. Using default value for lofar1.')
             clockAmp = 0.7e-9
         if clockOffset == -1.0:
             clockOffset = 2e-8
-            logger.debug('clockOffset not specified. Using default value for lofar1.')
+            logger.info('clockOffset not specified. Using default value for lofar1.')
         is_rs_list = [False if 'CS' in st else True for st in stations]
         # Get the delay for all of the CS to substract from the RS.
         cs_delay = get_station_delay(times, clockAmp, clockOffset, clockOmega)
@@ -96,16 +96,16 @@ def run(obs, h5parmFilename, seed= 0, mode='lofar1', clockAmp=None,
     elif mode == 'lofar2':
         # make sure that LBA = HBA at the same station get the same delay!
         if clockAmp == -1.0:
-            logger.debug('clockAmp not specified. Using default value for lofar2.')
-            clockAmp = 0.2e-9
+            logger.info('clockAmp not specified. Using default value for lofar2.')
+            clockAmp = 0.0825e-9 # for RS
         if clockOffset == -1.0:
-            clockOffset = 0.2e-9
-            logger.debug('clockOffset not specified. Using default value for lofar2.')
+            clockOffset = 0.117e-9 # for RS
+            logger.info('clockOffset not specified. Using default value for lofar2.')
         # find hba + lba substations which are at the same staton, e.g. CS001HBA0 and CS001LBA
         superstations = np.sort(np.unique([st[:5] for st in stations]))
 
         for i, superstationname in enumerate(superstations):
-            scalef = 0.5 if 'CS' in superstationname else 1.0 # use half of delay for core stations
+            scalef = (0.2/0.35) if 'CS' in superstationname else 1.0 # use smaller delay for core stations
             temp_delay = get_station_delay(times, scalef*clockAmp, scalef*clockOffset,
                                                     clockOmega)
             for j, substationname in enumerate(stations):
