@@ -362,6 +362,8 @@ def comoving_tecscreen(sp, directions, times, hIon = 250.e3, vIon = 10,
     15h. Airmass-effect caused by elevation of source is considered.
     To save computation time, the longitude-latitude grid of the screen is
     comoving, and the screen is just big enough to cover all piercepoints.
+    TODO: ONLY r0 should be used to control dTEC strength!
+          Implement r0~10km and empiric values or beta=1.85
     
     Parameters
     ----------

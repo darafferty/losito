@@ -355,7 +355,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='skymodel - generate simple sky models')
     parser.add_argument('msfile', help='Input MS filename.', default= 'test.MS', type=str)
     parser.add_argument('--output', help='Ouput sky model filename.', default= 'mock.sky', type=str)
-    parser.add_argument('--kind', help='Kind of sky model: cross, spiral, tree, or random.', default= 'cross', type=str)
+    parser.add_argument('--kind', help='Kind of sky model: cross, spiral, tree, random or cat.', default= 'cross', type=str)
     parser.add_argument('--radius', help='Radius in degrees within which sources are added.', default=2.0, type=float)
     parser.add_argument('--nptsrc', help='Number of point sources to generate.', default=10, type=int)
     parser.add_argument('--ngauss', help='Number of Gaussians to generate (kind=random only).', default=10, type=int)

@@ -3,6 +3,10 @@
 """
 SYNTHMS - script. Use this script to generate measurement sets which containt
 the metadata information necessary for a LoSiTo - simulation.
+
+run the script:
+
+./synthms --name a1033 --tobs 8 --ra 2.75570763 --dec 0.61219363 --lofarversion 1
 """
 import argparse
 import os
