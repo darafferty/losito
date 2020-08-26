@@ -45,6 +45,40 @@ The sky model script, called ``skymodel``, can be used to generate a variety of 
                            only).
 
 
+
+.. _synthms_script:
+
+Synthms script
+================
+
+The ``synthms`` script can be used to create artificial LOFAR measurement sets from scratch.
+Choose if you want to simulate an LBA or HBA observation.
+
+
+::
+
+    usage: synthms [-h] [--name NAME] [--start START] [--tobs TOBS]
+                    [--ra RA] [--dec DEC] [--station STATION]
+                    [--lofarversion LOFARVERSION] [--minsb MINSB] [--maxsb MAXSB]
+
+    synthms - synthesize input ms files
+
+
+    optional arguments:
+      -h, --help           show this help message and exit
+      --name NAME          MS file prefix
+      --start START        Start of the obervation in MJD seconds.
+      --tobs TOBS          Observation time in hours.
+      --ra RA              Target right ascension in rad
+      --dec DEC            Target declination in rad
+      --station            >LBA<, >HBA< or >both<
+      --lofarversion LOFARVERSION   >1< for the current instrument, >2< for LOFAR2.0
+      --minsb MINSB        Specify the lowest sub band of the observation. The lowest possible subband is defined as SB150
+      --maxsb MAXSB        Highest sub band
+
+
+
+
 .. _tecscreen_script:
 
 TEC screen script

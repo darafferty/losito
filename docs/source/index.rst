@@ -6,7 +6,7 @@ of corruptions, including:
 
 - Time- and direction-dependent ionospheric effects (TEC and rotation measure)
 - Beam effects
-- Station-based delay effects (clock and polarization misalignment)
+- Station-based effects (bandpass, clock and polarization misalignment)
 - Realistic noise
 
 

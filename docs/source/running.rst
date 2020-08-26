@@ -7,13 +7,11 @@ LoSiTo is run with the ``losito`` script as follows:
 
 ::
 
-    usage: losito [-h] [--version] [--quiet] [--verbose] msfile skymodel [parset]
+    usage: losito [-h] [--version] [--quiet] [--verbose]  parset
 
     losito - The LOFAR Simulation Tool
 
     positional arguments:
-      msfile             Input MS filename.
-      skymodel           Input sky model filename.
       parset             LoSiTo parset.
 
     optional arguments:
@@ -25,6 +23,4 @@ LoSiTo is run with the ``losito`` script as follows:
 
 The inputs are:
 
-- ``msfile`` - the MS file into which the simulated data are written.
-- ``skymodel`` - the sky model that defines the sources to be simulated
-- ``parset`` - the :ref:`parset` file that specifies the operations to perform and their parameters. The default is ``'losito.parset'``.
+- ``parset`` - the :ref:`parset` file that specifies the skymodel and measurement set file to be use as well as the operations to perform and their parameters. The default is ``'losito.parset'``.

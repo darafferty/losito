@@ -19,13 +19,14 @@ For example, suppose that you want to simulate a LOFAR observation consisting of
 single measurement set. The input measurement sets may be called *sim_SB150.MS* up to *sim_SB393.MS*.
 The following :ref:`parset` generates the one *h5parm* - file containing the corruptions which can be stored in a
 frequency - independent way. It is sufficient to run LoSiTo on only one of the input measurement sets, e.g.:
-``losito sim_SB150.MS example.sky multims_run1.parset``
+``losito  multims_run1.parset``
 
 
 ::
 
     #LoSiTo parset multims_run1.parset
-
+    msin = sim_SB150.MS
+    skymodel = example.sky
     ############## CREATE H5PARM FILE ####################
     # Add TEC values from von Karman tecscreen
     [tec]
@@ -51,14 +52,15 @@ frequency - independent way. It is sufficient to run LoSiTo on only one of the i
 
 
 Subsequently, LoSiTo can be run on every single input measurement set, including the effects stored in
-``corruptions.h5`` to the simulation using the :ref:`parset` below. Multiple similar LoSiTo - runs can be started using e.g. a
-suited shell - script.
+``corruptions.h5`` to the simulation using the :ref:`parset` below. Glob-style expressions are supported for the input ms
+name.
 
 
 ::
 
     #LoSiTo parset multims_run2.parset
-
+    msin = sim_SB*.MS
+    skymodel = example.sky
     ############ APPLY CORRUPTIONS ########################
     # Add the corruptions stored in the h5parm file:
     [tec]

@@ -4,24 +4,22 @@ FARADAY operation for LoSiTo
 """
 import numpy as np
 import multiprocessing as mp
-import logging as log
 from astropy.time import Time
-# lofar specific imports
 import EMM.EMM as EMM
 from losoto.h5parm import h5parm
 from ..lib_tecscreen import get_PP_PD, geocentric_to_geodetic
-from ..progress import progress
+from ..lib_io import progress, logger
 
-log.debug('Loading FARADAY module.')
+logger.debug('Loading FARADAY module.')
 
 R_earth = 6364.62e3
 
 def _run_parser(obs, parser, step):
-    h5parmFilename = parser.getstr(step, 'h5parmFilename')
-    hIono = parser.getfloat(step, 'hIono', 200.e3)
+    h5parmFilename = parser.getstr(step, 'h5parmFilename', 'corruptions.h5')
+    hIon = parser.getfloat(step, 'hIon', 250.e3)
     ncpu = parser.getint('_global', 'ncpu', 0)
-    parser.checkSpelling( step, ['h5parmFilename', 'hIono', 'ncpu'])
-    return run(obs, h5parmFilename, hIono, step, ncpu)
+    parser.checkSpelling( step, ['h5parmFilename', 'hIon', 'ncpu'])
+    return run(obs, h5parmFilename, hIon, step, ncpu)
 
 def yearfrac_from_mjds(t):
     ''' Get year + decimal fraction from MJD seconds. 
@@ -72,10 +70,8 @@ def Bfield(gc_points, time = 5.0e9):
         return emm.getXYZ()
     
 
-def run(obs, h5parmFilename, h_ion = 200.e3, stepname='rm', ncpu=0): 
-    '''
-    Add rotation measure Soltab to a TEC h5parm.
-    '''
+def run(obs, h5parmFilename, h_ion = 250.e3, stepname='rm', ncpu=0):
+    ''' Add rotation measure Soltab to a TEC h5parm. '''
     if ncpu == 0:
         ncpu = mp.cpu_count()
     h5 = h5parm(h5parmFilename, readonly=False)
@@ -95,12 +91,12 @@ def run(obs, h5parmFilename, h_ion = 200.e3, stepname='rm', ncpu=0):
     
     sTEC = soltab.getValues()[0]
     if np.any(sTEC < 0): # Make sure absolute TEC is used
-        log.warning('''Negative TEC values in {}. You are porbably using 
+        logger.warning('''Negative TEC values in {}. You are porbably using 
                     differential TEC. For an accurate estimate of the rotation
                     measure, absolute TEC is required.'''.format(h5parmFilename))    
     
     
-    log.info('''Calculating ionosphere pierce points for {} directions, {} 
+    logger.info('''Calculating ionosphere pierce points for {} directions, {} 
               stations and {} timestamps...'''.format(len(directions), len(sp), 
               len(times)))
     PP, PD = get_PP_PD(sp, directions, times, h_ion, ncpu)
@@ -114,7 +110,7 @@ def run(obs, h5parmFilename, h_ion = 200.e3, stepname='rm', ncpu=0):
         B_vec[:,i] =  pool.map(Bfield, PP[:,i])
     pool.close()
     pool.join()
-    log.info('Calculate rotation measure...')   
+    logger.info('Calculate rotation measure...')
     c = 29979245800 # cm/s
     m = 9.109 * 10**(-28) # g
     e = 4.803 * 10**(-10) # cm**(3/2)*g**(1/2)/s                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
@@ -134,7 +130,7 @@ def run(obs, h5parmFilename, h_ion = 200.e3, stepname='rm', ncpu=0):
     stabnames = solset.getSoltabNames()
     rmtabs = [_tab for _tab in stabnames if 'rotationmeasure' in _tab]
     if 'rotationmeasure000' in solset.getSoltabNames():   
-        log.info('''There are already rotation measure solutions present in
+        logger.info('''There are already rotation measure solutions present in
                  {}.'''.format(h5parmFilename+'/sol000'))    
         for rmt in rmtabs:
             solset.getSoltab(rmt).delete()
@@ -147,16 +143,10 @@ def run(obs, h5parmFilename, h_ion = 200.e3, stepname='rm', ncpu=0):
     # Add CREATE entry to history
     st.addHistory('CREATE (by FARADAY operation of LoSiTo from '
                   + 'obs {0})'.format(h5parmFilename))
-    h5.close()    
+    h5.close()
+
     # Update predict parset parameters for the obs
-    obs.parset_parameters['predict.applycal.parmdb'] = h5parmFilename
-    if 'predict.applycal.steps' in obs.parset_parameters:
-        obs.parset_parameters['predict.applycal.steps'].append(stepname)
-    else:
-        obs.parset_parameters['predict.applycal.steps'] = [stepname]
-    obs.parset_parameters['predict.applycal.correction'] = 'rotationmeasure000'
-    obs.parset_parameters['predict.applycal.{}.correction'.format(stepname)] = 'rotationmeasure000'
-    obs.parset_parameters['predict.applycal.{}.parmdb'.format(stepname)] = h5parmFilename
+    obs.add_to_parset(stepname, 'rotationmeasure000', h5parmFilename)
 
     return 0
 

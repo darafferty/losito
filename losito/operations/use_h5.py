@@ -3,8 +3,8 @@
 """
 Add an existing solution-table to the DPPP prediction step.
 """
-import logging as log
-log.debug('Loading USE_H5 module.')
+from ..lib_io import logger
+logger.debug('Loading USE_H5 module.')
 
 R_earth = 6364.62e3
 
@@ -15,19 +15,6 @@ def _run_parser(obs, parser, step):
     return run(obs, h5parmFilename, corruption, step)
 
 
-def include_soltab(obs, h5parmFilename, soltab, step):    
-     # Update predict parset parameters for the obs
-    obs.parset_parameters['predict.applycal.parmdb'] = h5parmFilename
-    if 'predict.applycal.steps' in obs.parset_parameters:
-        obs.parset_parameters['predict.applycal.steps'].append(step)
-    else:
-        obs.parset_parameters['predict.applycal.steps'] = [step]
-    obs.parset_parameters['predict.applycal.correction'] = soltab 
-    obs.parset_parameters['predict.applycal.{}.correction'.format(step)] = soltab
-    obs.parset_parameters['predict.applycal.{}.parmdb'.format(step)] = h5parmFilename
-    log.info('Including solution-table {} in {} in simulation.'.format(soltab, 
-      h5parmFilename))
-    
 def run(obs, h5parmFilename, corruption, step='use_h5'): 
     '''
     Add either a clock000 (clock delay), clock001 (polarization
@@ -37,42 +24,29 @@ def run(obs, h5parmFilename, corruption, step='use_h5'):
     '''
     corruption = corruption.lower()
     if corruption == 'clock':
-        step = 'clock'
-        soltab = 'clock000'
         # Add soltab to DPPP parset
-        include_soltab(obs, h5parmFilename, soltab, step)
+        if not 'applycal' in obs.parset_parameters['steps']:
+            obs.parset_parameters['steps'].append('applycal')
+        obs.add_to_parset(step, 'clock000', h5parmFilename, DDE=False)
         return 0
-    
     elif corruption == 'polmisalign':
-        step = 'polmisalign'
-        soltab = 'clock001' 
-        # Add soltab to DPPP parset
-        include_soltab(obs, h5parmFilename, soltab, step)
-        return 0   
-
+        if not 'applycal' in obs.parset_parameters['steps']:
+            obs.parset_parameters['steps'].append('applycal')
+        obs.add_to_parset(step, 'clock001', h5parmFilename, DDE=False)
+        return 0
     elif corruption == 'bandpass':
-        step = 'bandpass'
-        soltab = 'amplitude000'
-        # Add soltab to DPPP parset
-        include_soltab(obs, h5parmFilename, soltab, step)
+        if not 'applycal' in obs.parset_parameters['steps']:
+            obs.parset_parameters['steps'].append('applycal')
+        obs.add_to_parset(step, 'amplitude000', h5parmFilename, DDE=False)
         return 0
     elif (corruption == 'rm') or (corruption == 'rotationmeasure'):
-        step = 'rm'
-        soltab = 'rotationmeasure000'
-        # Add soltab to DPPP parset
-        include_soltab(obs, h5parmFilename, soltab, step)
+        obs.add_to_parset(step, 'rotationmeasure000', h5parmFilename)
         return 0
-    
-    elif corruption == 'tec': 
-        step = 'tec'
-        soltab = 'tec000'
-        # Add soltab to DPPP parset
-        include_soltab(obs, h5parmFilename, soltab, step)
+    elif corruption == 'tec':
+        obs.add_to_parset(step, 'tec000', h5parmFilename)
         return 0
-        
-    else: 
-        log.warning('''Corruption {} is not supported. Please choose <clock>,
-                    <polmisalign>, <tec> or <rm>.'''.format(corruption))
+    else:
+        logger.warning('''Corruption {} is not supported. Please choose <clock>,
+                    <polmisalign>, <bandpass>, <tec> or <rm>.'''.format(corruption))
         return 1
         
-
