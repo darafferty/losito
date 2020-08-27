@@ -38,7 +38,7 @@ if __name__ == '__main__':
     parser.checkSpelling('_global', ['msin', 'skymodel', 'ncpu', 'qsub', 'maxThreads'])
 
     msin = parser.getfilename('_global', 'msin')
-    skymodel = parser.getstr('_global', 'skymodel', default='mock.sky')
+    skymodel = parser.getstr('_global', 'skymodel')
     qsub = parser.getbool('_global', 'qsub', False)
     maxThreads = parser.getint('_global', 'maxThreads', -1)
     ncpu = parser.getint('_global', 'ncpu', -1)

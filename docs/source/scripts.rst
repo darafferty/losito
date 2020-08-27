@@ -30,7 +30,7 @@ The sky model script, called ``skymodel``, can be used to generate a variety of 
     optional arguments:
       -h, --help           show this help message and exit
       --output OUTPUT      Ouput sky model filename.
-      --kind KIND          Kind of sky model: cross, spiral, tree, or random.
+      --kind KIND          Kind of sky model: cross, spiral, tree, cat or random.
       --radius RADIUS      Radius in degrees within which sources are added.
       --nptsrc NPTSRC      Number of point sources to generate.
       --ngauss NGAUSS      Number of Gaussians to generate (kind=random only).
@@ -52,7 +52,11 @@ Synthms script
 ================
 
 The ``synthms`` script can be used to create artificial LOFAR measurement sets from scratch.
-Choose if you want to simulate an LBA or HBA observation.
+Freely choose the spectral windows, source direction and observation time. You also can select whether to simulate an LBA or HBA observation.
+
+The sub-bands both for LBA and HBA start at SB150, the highest sub-band is SB393.
+
+The script also features the generation of LOFAR2.0 simultaneous LBA + HBA measurements. In this case, the full 96 LBA of all stations will be used.
 
 
 ::
@@ -84,6 +88,7 @@ Choose if you want to simulate an LBA or HBA observation.
 TEC screen script
 =================
 
+*This script is currently not maintained, you might want to use another TEC-method, see :ref:`tec`*
 The TEC screen script, called ``tecscreen``, can be used to generate a TEC screen FITS cube for use with LoSiTo (and WSClean). The output FITS cube conforms to format accepted by WSClean (see https://sourceforge.net/p/wsclean/wiki/ImageDomainGridder/#tec-correction).
 
 .. note::
