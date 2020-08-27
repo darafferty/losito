@@ -7,24 +7,24 @@ The parset is a simple text file that defines the steps in a run. Below is an ex
 
 ::
 
-#LoSiTo parset
-##### global #######
-msin = example_t201806301100_SBL250.MS
-skymodel = example.sky
+    #LoSiTo parset
+    ##### global #######
+    msin = example_t201806301100_SBL250.MS
+    skymodel = example.sky
 
-[tec] # add ionospheric dispersive delay
-operation=TEC
-method = turbulence
+    [tec] # add ionospheric dispersive delay
+    operation=TEC
+    method = turbulence
 
-[clock] # clock drift
-operation=CLOCK
+    [clock] # clock drift
+    operation=CLOCK
 
-# Do the predict
-[predict]
-operation = PREDICT
-outputColumn = DATA
-resetWeights = True
-predictType = h5parmpredict
+    # Do the predict
+    [predict]
+    operation = PREDICT
+    outputColumn = DATA
+    resetWeights = True
+    predictType = h5parmpredict
 
 The parset file starts with a number of global parameters, most importantly the measurement set file name``msin``
 
