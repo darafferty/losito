@@ -14,10 +14,10 @@ Available methods
 .. glossary::
 
     FITS
-        This method reads the TEC values from the FITS cube specified by :term:`fitsFilename`. The FITS cube must conform to the format accepted by WSClean (see https://sourceforge.net/p/wsclean/wiki/ImageDomainGridder/#tec-correction). The LoSiTo :ref:`tecscreen_script` can be used to generate such a FITS cube for a simple TEC screen.
+        **Currently not maintained** This method reads the TEC values from the FITS cube specified by :term:`fitsFilename`. The FITS cube must conform to the format accepted by WSClean (see https://sourceforge.net/p/wsclean/wiki/ImageDomainGridder/#tec-correction). The LoSiTo :ref:`tecscreen_script` can be used to generate such a FITS cube for a simple TEC screen.
 
     TID
-        This method generates TEC values from a traveling ionospheric disturbance (TID) wave. The wave has an altitude of 200 km, a peak-to-peak length of 200 km and travels at a speed of 500 km/hr. The amplitude of the wave can be specified with :term:`maxdtec`, the maximum differential TEC parameter.
+        **Currently not maintained** This method generates TEC values from a traveling ionospheric disturbance (TID) wave. The wave has an altitude of 200 km, a peak-to-peak length of 200 km and travels at a speed of 500 km/hr. The amplitude of the wave can be specified with :term:`maxdtec`, the maximum differential TEC parameter.
 
     Turbulence
         This method generates TEC values using a model of a turbulent ionosphere. The model adopts a Von Karman -
