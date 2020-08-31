@@ -12,7 +12,7 @@ It includes:
 
 Furthermore, LoSiTo features the simulation of LOFAR2.0 simultaneous LBA-HBA observations.
 
-The full documentation can be found at the [LoSiTo webpage](https://www.astron.nl/citt/losito) (not updated yet).
+The full documentation can be found at the [LoSiTo webpage](https://www.astron.nl/citt/losito).
 
 ### Software requirements:
 * [casacore and python-casacore](https://casacore.github.io)
