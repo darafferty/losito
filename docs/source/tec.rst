@@ -13,18 +13,19 @@ Available methods
 
 .. glossary::
 
-    FITS
-        **Currently not maintained** This method reads the TEC values from the FITS cube specified by :term:`fitsFilename`. The FITS cube must conform to the format accepted by WSClean (see https://sourceforge.net/p/wsclean/wiki/ImageDomainGridder/#tec-correction). The LoSiTo :ref:`tecscreen_script` can be used to generate such a FITS cube for a simple TEC screen.
-
-    TID
-        **Currently not maintained** This method generates TEC values from a traveling ionospheric disturbance (TID) wave. The wave has an altitude of 200 km, a peak-to-peak length of 200 km and travels at a speed of 500 km/hr. The amplitude of the wave can be specified with :term:`maxdtec`, the maximum differential TEC parameter.
-
     Turbulence
         This method generates TEC values using a model of a turbulent ionosphere. The model adopts a Von Karman -
         spectrum for the turbulence and is based on the implementation of Buscher (2016) [#f1]_. The ionosphere is
         modeled as a single thin layer at a height given by :term:`hIon` using the frozen turbulence approximation: the
         screen structure itself is constant in time, but moves with a velocity given by :term:`vIono`.
-        The maximum differential TEC can be specified with :term:`maxdtec`.
+        The maximum differential TEC can be specified with :term:`maxdtec` and the exponent of the power spectrum  can
+        be set using :term:`alphaIon`.
+
+    FITS
+        **Currently not maintained!** This method reads the TEC values from the FITS cube specified by :term:`fitsFilename`. The FITS cube must conform to the format accepted by WSClean (see https://sourceforge.net/p/wsclean/wiki/ImageDomainGridder/#tec-correction). The LoSiTo :ref:`tecscreen_script` can be used to generate such a FITS cube for a simple TEC screen.
+
+    TID
+        **Currently not maintained!** This method generates TEC values from a traveling ionospheric disturbance (TID) wave. The wave has an altitude of 200 km, a peak-to-peak length of 200 km and travels at a speed of 500 km/hr. The amplitude of the wave can be specified with :term:`maxdtec`, the maximum differential TEC parameter.
 
 
 
@@ -40,11 +41,13 @@ The following parameters are available for this operation:
     method
         This parameter is a string (no default) that sets the method to use to generate the TEC corruptions (see :ref:`tec_methods` for details):
 
+        * ``'turbulence'`` - generate TEC values from a turbulent ionosphere.
+
         * ``'fits'`` - read TEC values from the FITS cube specified by :term:`fitsFilename` .
 
         * ``'tid'`` - generate TEC values from a traveling ionospheric disturbance (TID) wave.
 
-        * ``'turbulence'`` - generate TEC values from a turbulent ionosphere.
+
 
     h5parmFilename
         This parameter is a string (no default) that sets the filename of the input/output h5parm file.
@@ -54,6 +57,9 @@ The following parameters are available for this operation:
 
     maxvtec:
         This parameter is a float (default is ``50``) that sets the highest absolute TEC values in the daily modulation in TECU (:term:`absoluteTEC` = ``True`` only).
+
+    alphaIon:
+        This parameter is a float (default is ``11/3``) that sets the ionosphere power spectrum exponent. A slightly greater value of ~3.89 was found in LOFAR observations [#f2]_ [#f3]_(:term:`method` = ``'turbulence'`` only).
 
     hIon
         This parameter is a float (default is ``200``) that sets the height of thin layer ionoshpere in km (:term:`method` = ``'turbulence'`` only).
@@ -77,3 +83,6 @@ The following parameters are available for this operation:
 
 
 .. [#f1] Buscher D. 2016, Optics Express, Vol. 24, Issue 20, pp. 23566
+.. [#f2] de Gasperin F. et al., 2018, Astronomy & Astrophysics, arxiv: 1804.07947
+.. [#f3] Mevius M. et al, 2016, Radio Science, Vol. 51, pp. 927
+

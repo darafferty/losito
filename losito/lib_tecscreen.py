@@ -207,7 +207,7 @@ def screen_grid_comoving(edges, angRes, hIon):
     ----------
     edges : (4,n) ndarray
         Pierce point edges in minlon, maxlon, minlat, maxlat per timestep [rad]
-    angRes : float. Angular resoluation of grid in arcsec    
+    angRes : float. Angular resolution of grid in arcsec
     Returns
     -------
     grid_lon : (n,m) ndarray
@@ -354,7 +354,7 @@ def screen_grid_comoving(edges, angRes, hIon):
 
 
 def comoving_tecscreen(sp, directions, times, hIon = 250.e3, vIon = 10,
-                       absoluteTEC = True, maxvtec = 50,  maxdtec = 0.5, 
+                       absoluteTEC = True, alpha = 11/3, maxvtec = 50,  maxdtec = 0.5,
                        angRes = 60, ncpu = None, seed = 0, expfolder = None):
     ''' Return TEC values for [times, station, source]. 
     The differential TEC is modeled using a tecscreen with von-Karman
@@ -378,7 +378,9 @@ def comoving_tecscreen(sp, directions, times, hIon = 250.e3, vIon = 10,
     vIon : float, optional. Default = 10 m/s
         Velocity of tecscreen in frozen turbulence model.
     absoluteTEC : bool, optional. Default = True
-        Whether to use absolute (vTEC) or differential (dTEC) TEC   
+        Whether to use absolute (vTEC) or differential (dTEC) TEC
+    alpha : float, optional. Default = 11/3
+        Ionosphere power spectrum exponent. Is 11/3 for Kolmogorov, de Gasperin and Mevius found ~ 3.89 with LOFAR.
     maxvtec : float, optinal. Default = 50
         Daytime vTEC peak value for tec modulation in TECU.
     maxdtec : float, optional. Default = 0.5
@@ -424,7 +426,7 @@ def comoving_tecscreen(sp, directions, times, hIon = 250.e3, vIon = 10,
     L0 = np.arctan(1000e3/hIon)/np.deg2rad(angRes/3600) # Assuming L0 = 1000km
     dx = vIon /(hIon*np.tan(np.deg2rad(angRes/3600))) # pixel per second
     dx *= (times[-1] - times[0])/len(times) # pixel per step
-    sc_gen = MegaScreen(r0, L0, windowShape = [len(grid_lon[0]), 
+    sc_gen = MegaScreen(r0, L0, alpha, windowShape = [len(grid_lon[0]),
                                                len(grid_lat[0])], 
                         dx = dx, theta = 0, seed = seed, numIter = len(times))
     TEC = np.zeros((len(times), len(sp), len(directions)))    
@@ -697,6 +699,7 @@ def NestedScreen(
 def MegaScreen(
     r0=7.0,
     L0=7000.0,
+    alpha=11/3,
     windowShape=(100, 100),
     dx=3.5,
     windowOrigins=((0.0, 0.0),),
@@ -718,6 +721,8 @@ def MegaScreen(
          Fried parameter :math:`r_0` in tweeter pixel units.
     L0 : float
          Outer scale of turbulence in tweeter pixel units.
+    alpha : float
+         Power spectrum exponent, alpha = 11/3 for Kolmogorov-like.
     windowShape : Tuple[int,int]
                   Shape of rectangular output window grid (same for all windows).
     dx : float
@@ -768,7 +773,7 @@ def MegaScreen(
     image plotting functions, this coordinate appears as the "y" coordinate in the 
     image (albeit by default the "y" coordinate is plotted increasing downwards).
     """
-    spectrum = functools.partial(VonKarmanSpectrum, r0=r0, L0=L0)
+    spectrum = functools.partial(VonKarmanSpectrum, r0=r0, L0=L0, alpha=alpha)
     return NestedScreen(
         spectrum,
         windowShape,

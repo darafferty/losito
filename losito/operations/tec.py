@@ -30,6 +30,7 @@ def _run_parser(obs, parser, step):
     h5parmFilename = parser.getstr(step, 'h5parmFilename', 'corruptions.h5')
     maxdtec = parser.getfloat(step, 'maxdtec', default=.5)
     maxvtec = parser.getfloat(step, 'maxvtec', default=50.)
+    alphaIon = parser.getfloat(step, 'alphaIon', default=11/3)
     hIon = parser.getfloat(step, 'hIon', default=250e3)
     vIon = parser.getfloat(step, 'vIon', default=20)
     seed = parser.getint(step, 'seed', default=0)
@@ -40,10 +41,10 @@ def _run_parser(obs, parser, step):
     ncpu = parser.getint('_global', 'ncpu', 0)
 
     parser.checkSpelling(step, ['method', 'h5parmFilename', 'maxdtec',
-                                'maxvtec', 'hIon', 'vIon', 'seed',
+                                'maxvtec', 'alphaIon', 'hIon', 'vIon', 'seed',
                                 'fitsFilename', 'absoluteTEC', 'angRes',
                                 'expfolder', 'ncpu'])
-    return run(obs, method, h5parmFilename, maxdtec, maxvtec, hIon, vIon, seed,
+    return run(obs, method, h5parmFilename, maxdtec, maxvtec, alphaIon, hIon, vIon, seed,
                fitsFilename, step, absoluteTEC, angRes, expfolder, ncpu)
 
 
@@ -75,7 +76,7 @@ def _tid(x, t, amp=0.2, wavelength=200e3, omega=500.e3 / 3600.):
     return amp * np.sin((x + omega * t) * 2 * np.pi / wavelength)
 
 
-def run(obs, method, h5parmFilename, maxdtec=0.5, maxvtec=50, hIon=250e3,
+def run(obs, method, h5parmFilename, maxdtec=0.5, maxvtec=50, alphaIon = 11/3, hIon=250e3,
         vIon=20, seed=0, fitsFilename=None, stepname='tec',
         absoluteTEC=True, angRes=60, expfolder='', ncpu=0):
     """
@@ -94,6 +95,9 @@ def run(obs, method, h5parmFilename, maxdtec=0.5, maxvtec=50, hIon=250e3,
         Maximum screen dTEC per timestep in TECU.
     maxvtec: float, optional. Default = 50.
         Highest vTEC in daily modulation in TECU.
+    alphaIon: float, optional. Default = 11/3.
+        Ionosphere power spectrum exponent. Is 11/3 for Kolmogorov,
+        de Gasperin and Mevius found 3.89 for LOFAR.
     hIon : float, optional. Default = 250 km
         Height of thin layer ionoshpere.
     vIono : float, optional. Default = 20 m/s
@@ -131,7 +135,7 @@ def run(obs, method, h5parmFilename, maxdtec=0.5, maxvtec=50, hIon=250e3,
 
     if method == 'turbulence':
         directions = np.array([ras, decs]).T
-        tecvals = comoving_tecscreen(sp, directions, times, angRes=angRes,
+        tecvals = comoving_tecscreen(sp, directions, times, alpha=alphaIon, angRes=angRes,
                                      hIon=hIon, vIon=vIon, maxvtec=maxvtec,
                                      maxdtec=maxdtec, ncpu=ncpu,
                                      expfolder=expfolder, seed=seed,
