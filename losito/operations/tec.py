@@ -29,7 +29,7 @@ def _run_parser(obs, parser, step):
     method = parser.getstr(step, 'method', default='turbulence')
     h5parmFilename = parser.getstr(step, 'h5parmFilename', 'corruptions.h5')
     maxdtec = parser.getfloat(step, 'maxdtec', default=.5)
-    maxvtec = parser.getfloat(step, 'maxvtec', default=50.)
+    maxvtec = parser.getfloat(step, 'maxvtec', default=10.)
     alphaIon = parser.getfloat(step, 'alphaIon', default=11/3)
     hIon = parser.getfloat(step, 'hIon', default=250e3)
     vIon = parser.getfloat(step, 'vIon', default=20)
@@ -140,9 +140,15 @@ def run(obs, method, h5parmFilename, maxdtec=0.5, maxvtec=50, alphaIon = 11/3, h
                                      maxdtec=maxdtec, ncpu=ncpu,
                                      expfolder=expfolder, seed=seed,
                                      absoluteTEC=absoluteTEC)
+        if absoluteTEC:
+            tecvals = daytime_tec_modulation(times)[:, np.newaxis, np.newaxis] * (
+                    tecvals + maxvtec)
+        else:
+            tecvals = (daytime_tec_modulation(times)[:, np.newaxis, np.newaxis]
+                       * tecvals)
 
     elif method == 'fits':
-        # Load solutions from FITS cube
+    # Load solutions from FITS cube
         hdu = pyfits.open(fitsFilename, memmap=False)
         data = hdu[0].data
         header = hdu[0].header
