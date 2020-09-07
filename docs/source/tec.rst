@@ -55,11 +55,11 @@ The following parameters are available for this operation:
     maxdtec
         This parameter is a float (default is ``0.5``) that sets the maximum screen dTEC per timestep in TECU (:term:`method` = ``'turbulence'`` or ``'tid'`` only).
 
-    maxvtec:
+    maxvtec
         This parameter is a float (default is ``50``) that sets the highest absolute TEC values in the daily modulation in TECU (:term:`absoluteTEC` = ``True`` only).
 
-    alphaIon:
-        This parameter is a float (default is ``11/3``) that sets the ionosphere power spectrum exponent. A slightly greater value of ~3.89 was found in LOFAR observations [#f2]_ [#f3]_(:term:`method` = ``'turbulence'`` only).
+    alphaIon
+        This parameter is a float (default is ``11/3``) that sets the ionosphere power spectrum exponent. A slightly greater value of ~3.89 was found in LOFAR observations [#f2]_ [#f3]_ (:term:`method` = ``'turbulence'`` only).
 
     hIon
         This parameter is a float (default is ``200``) that sets the height of thin layer ionoshpere in km (:term:`method` = ``'turbulence'`` only).

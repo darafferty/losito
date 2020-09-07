@@ -11,44 +11,46 @@ You can execute the example simulation via command-line: ``losito example.parset
 
 ::
 
-#LoSiTo parset
-##### global #######
-msin = example_t201806301100_SBL250.MS
-skymodel = example.sky
+    # LoSiTo parset
+    # Define global parameters
+    msin = example_t201806301100_SBL250.MS
+    skymodel = example.sky
 
-######## IONOSPHERE #######
-[tec]
-operation=TEC
-method = turbulence
+    # Add ionospheric effects
+    [tec]
+    operation = TEC
+    method = turbulence
 
-[faraday]
-operation=FARADAY
+    # Add Faraday rotation effects (using TEC values from the [tec] step)
+    [faraday]
+    operation = FARADAY
 
-####### CLOCK #######
-[clock]
-operation=CLOCK
+    # Add clock delays between stations
+    [clock]
+    operation = CLOCK
 
-[polmisalign]
-operation=POLMISALIGN
+    # Add delays between polarizations
+    [polmisalign]
+    operation = POLMISALIGN
 
-# Add beam effects (array_factor+element)
-[beam]
-operation = BEAM
-mode = default
+    # Add beam effects (array_factor+element)
+    [beam]
+    operation = BEAM
+    mode = default
 
-# Do the predict
-[predict]
-operation = PREDICT
-outputColumn = DATA
-resetWeights = True
-predictType = h5parmpredict
+    # Do the prediction
+    [predict]
+    operation = PREDICT
+    outputColumn = DATA
+    resetWeights = True
+    predictType = h5parmpredict
 
-# Add noise to the predicted visibilities
-[noise]
-operation = NOISE
-outputColumn = DATA
+    # Add noise to the predicted visibilities
+    [noise]
+    operation = NOISE
+    outputColumn = DATA
 
-# Apply the bandpass
-[bandpass]
-operation = BANDPASS
-method = ms
+    # Add bandpass effects
+    [bandpass]
+    operation = BANDPASS
+    method = ms

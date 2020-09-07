@@ -30,7 +30,7 @@ The following parameters are available for this operation:
         The default is ``mode='lofar1'``.
 
     clockAmp
-        This parameter is a float (default is ``7e-10``(lofar1) respectively ``8.25e-11``(lofar2)) that sets the standard deviation for the clock drift
+        This parameter is a float (default is ``7e-10`` (lofar1) respectively ``8.25e-11`` (lofar2)) that sets the standard deviation for the clock drift
         amplitude in s.
 
     clockOffset

@@ -7,7 +7,7 @@ The NOISE operation adds noise to the model visibilities. The noise values are d
 
 .. note::
 
-    If this operation is used in conjunction with the :ref:`predict`, then it should always be done after PREDICT so that the data to which noise are added are not overwritten.
+    If this operation is used in conjunction with the :ref:`predict`, then it should always be done after PREDICT so that the data to which noise are added are not overwritten by the prediction.
 
 .. note::
 
@@ -24,6 +24,7 @@ The following parameters are available for this operation:
 
     outputColumn
         This parameter is a string (default is ``'DATA'``) that sets the column name to which noise is added
+
     factor
         This parameter is a scalar that can be used to tweak the noise scale. The default is 1.0.
 
