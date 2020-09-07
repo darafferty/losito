@@ -20,7 +20,7 @@ def _run_parser(obs, parser, step):
 
 def SEFD(ms, station1, station2, freq):
     '''
-    Return the source equivalent flux density (SEFD) for all rows and a
+    Return the system equivalent flux density (SEFD) for all rows and a
     single fequency channel.
     The values for the SEFD were derived from van Haarlem
     et al. (2013).
@@ -99,8 +99,8 @@ def add_noise_to_ms(ms, column='DATA', factor=1.0):
 def run(obs, column='DATA', factor=1.0):
     """
     Adds Gaussian noise to a data column. Scale of the noise, frequency-
-    and station-dependency are calculated according to 'Synthesis Imaging 
-    in Radio Astronomy II' (1999) by Taylor et al., page 175.    
+    and station-dependency are calculated according to 'Synthesis Imaging
+    in Radio Astronomy II' (1999) by Taylor et al., page 175.
 
     Parameters
     ----------

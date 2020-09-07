@@ -3,7 +3,7 @@
 NOISE operation
 ---------------
 
-The NOISE operation adds noise to the model visibilities. The noise values are drawn for each baseline from a Gaussian distribution, the width of which is given by the appropriate source equivalent flux density (SEFD) in each frequency channel. The values for the SEFD were derived from van Haarlem et al. (2013) [#f1]_. For the LOFAR2.0 LBA stations, the SEFD is estimated using 0.71 times the mean of the SEFD of the modes ``LBA_INNER`` and ``LBA_OUTER``.
+The NOISE operation adds noise to the model visibilities. The noise values are drawn for each baseline from a Gaussian distribution, the width of which is given by the appropriate system equivalent flux density (SEFD) in each frequency channel. The values for the SEFD were derived from van Haarlem et al. (2013) [#f1]_. For the LOFAR2.0 LBA stations, the SEFD is estimated using 0.71 times the mean of the SEFD of the modes ``LBA_INNER`` and ``LBA_OUTER``.
 
 .. note::
 
