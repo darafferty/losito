@@ -35,17 +35,16 @@ def _run_parser(obs, parser, step):
     vIon = parser.getfloat(step, 'vIon', default=20)
     seed = parser.getint(step, 'seed', default=0)
     fitsFilename = parser.getstr(step, 'fitsFilename', default='')
-    absoluteTEC = parser.getbool(step, 'absoluteTEC', default=True)
     angRes = parser.getfloat(step, 'angRes', default=60.)
     expfolder = parser.getstr(step, 'expfolder', default='')
     ncpu = parser.getint('_global', 'ncpu', 0)
 
     parser.checkSpelling(step, ['method', 'h5parmFilename', 'maxdtec',
                                 'maxvtec', 'alphaIon', 'hIon', 'vIon', 'seed',
-                                'fitsFilename', 'absoluteTEC', 'angRes',
+                                'fitsFilename', 'angRes',
                                 'expfolder', 'ncpu'])
     return run(obs, method, h5parmFilename, maxdtec, maxvtec, alphaIon, hIon, vIon, seed,
-               fitsFilename, step, absoluteTEC, angRes, expfolder, ncpu)
+               fitsFilename, step, angRes, expfolder, ncpu)
 
 
 def _getaltaz(radec):
@@ -78,7 +77,7 @@ def _tid(x, t, amp=0.2, wavelength=200e3, omega=500.e3 / 3600.):
 
 def run(obs, method, h5parmFilename, maxdtec=0.5, maxvtec=50, alphaIon = 11/3, hIon=250e3,
         vIon=20, seed=0, fitsFilename=None, stepname='tec',
-        absoluteTEC=True, angRes=60, expfolder='', ncpu=0):
+        angRes=60, expfolder='', ncpu=0):
     """
     Simulate TEC values and store them to a h5parm.
 
@@ -108,8 +107,6 @@ def run(obs, method, h5parmFilename, maxdtec=0.5, maxvtec=50, alphaIon = 11/3, h
         Filename of input FITS cube with dTEC solutions.
     stepname _ str, optional
         Name of step to use in DPPP parset
-    absoluteTEC : bool, optional. Default = True
-        Whether to use absoluteTEC (vTEC) or differential (dTEC) TEC.
     angRes : float, optional. Default = 60.
         Angular resolution of the screen [arcsec]. Only for turbulent model.
     expfolder : str, optional. Default = None
@@ -138,15 +135,7 @@ def run(obs, method, h5parmFilename, maxdtec=0.5, maxvtec=50, alphaIon = 11/3, h
         tecvals = comoving_tecscreen(sp, directions, times, alpha=alphaIon, angRes=angRes,
                                      hIon=hIon, vIon=vIon, maxvtec=maxvtec,
                                      maxdtec=maxdtec, ncpu=ncpu,
-                                     expfolder=expfolder, seed=seed,
-                                     absoluteTEC=absoluteTEC)
-        if absoluteTEC:
-            tecvals = daytime_tec_modulation(times)[:, np.newaxis, np.newaxis] * (
-                    tecvals + maxvtec)
-        else:
-            tecvals = (daytime_tec_modulation(times)[:, np.newaxis, np.newaxis]
-                       * tecvals)
-
+                                     expfolder=expfolder, seed=seed)
     elif method == 'fits':
     # Load solutions from FITS cube
         hdu = pyfits.open(fitsFilename, memmap=False)
@@ -173,12 +162,8 @@ def run(obs, method, h5parmFilename, maxdtec=0.5, maxvtec=50, alphaIon = 11/3, h
             for t in range(ntimes):
                 for s in range(nstations):
                     tecvals[t, s, d] = data[t, 0, s, y, x]
-        if absoluteTEC:
-            tecvals = daytime_tec_modulation(times)[:, np.newaxis, np.newaxis] * (
+        tecvals = daytime_tec_modulation(times)[:, np.newaxis, np.newaxis] * (
                     tecvals + maxvtec)
-        else:
-            tecvals = (daytime_tec_modulation(times)[:, np.newaxis, np.newaxis]
-                       * tecvals)
 
     elif method == 'tid':
         # Properties of TID wave
@@ -202,12 +187,8 @@ def run(obs, method, h5parmFilename, maxdtec=0.5, maxvtec=50, alphaIon = 11/3, h
         # Fill the axis arrays
         tecvals = alltec[:, :, 0, :].transpose([2, 1, 0])  # [:,:,:,0]
         # convert to vTEC
-        if absoluteTEC:
-            tecvals = daytime_tec_modulation(times)[:, np.newaxis, np.newaxis] * (
-                    tecvals + maxvtec)
-        else:
-            tecvals = (daytime_tec_modulation(times)[:, np.newaxis, np.newaxis]
-                       * tecvals)
+        tecvals = daytime_tec_modulation(times)[:, np.newaxis, np.newaxis] * (
+                tecvals + maxvtec)
 
     else:
         logger.error('method "{}" not understood'.format(method))

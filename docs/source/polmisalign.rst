@@ -20,7 +20,7 @@ The following parameters are available for this operation:
 .. glossary::
 
     h5parmFilename
-        This parameter is a string (no default) that sets the filename of input/output h5parm file.
+        This parameter is a string (default is ``corruptions.h5``) that sets the filename of input/output h5parm file.
 
     seed
         This parameter is an integer (default is ``0``) that sets the seed for random number generation. Use for

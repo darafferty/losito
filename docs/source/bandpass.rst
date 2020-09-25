@@ -27,7 +27,7 @@ The following parameters are available for this operation:
     method
         This parameter is a string (no default) that sets the method to use to apply the bandpass corruptions:
 
-        * ``'h5parm'`` - store the corruptions in the h5parm given by :term:`h5parmFilename`.
+        * ``'h5parm'`` - this parameter is a string (default is ``corruptions.h5``) store the corruptions in the h5parm given by :term:`h5parmFilename`.
 
         * ``'ms'`` - apply the corruptions directly to the MS file.
 

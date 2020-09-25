@@ -18,8 +18,11 @@ Available methods
         spectrum for the turbulence and is based on the implementation of Buscher (2016) [#f1]_. The ionosphere is
         modeled as a single thin layer at a height given by :term:`hIon` using the frozen turbulence approximation: the
         screen structure itself is constant in time, but moves with a velocity given by :term:`vIono`.
-        The maximum differential TEC can be specified with :term:`maxdtec` and the exponent of the power spectrum  can
+        The maximum differential TEC for a single timestep can be specified with :term:`maxdtec` and the exponent of the power spectrum  can
         be set using :term:`alphaIon`.
+        The homogeneous part of the ionosphere can be controlled setting :term:`maxvtec`. This constant contribution
+        will also cause some dTEC due to airmass effects, furthermore it is important for realistic Faraday rotation
+        simulations. The homogeneuos TEC follows a daily modulation, peaking at 3 p.m. and attaining its minimum of 10% at 3 a.m..
 
     FITS
         **Currently not maintained!** This method reads the TEC values from the FITS cube specified by :term:`fitsFilename`. The FITS cube must conform to the format accepted by WSClean (see https://sourceforge.net/p/wsclean/wiki/ImageDomainGridder/#tec-correction). The LoSiTo :ref:`tecscreen_script` can be used to generate such a FITS cube for a simple TEC screen.
@@ -50,36 +53,31 @@ The following parameters are available for this operation:
 
 
     h5parmFilename
-        This parameter is a string (no default) that sets the filename of the input/output h5parm file.
+        This parameter is a string (default is ``corruptions.h5``) that sets the filename of the input/output h5parm file.
 
     maxdtec
-        This parameter is a float (default is ``0.5``) that sets the maximum screen dTEC per timestep in TECU (:term:`method` = ``'turbulence'`` or ``'tid'`` only).
+        This parameter is a float (default is ``0.5``) that controls the maximum dTEC in one TEC-screen (in TECU). (:term:`method` = ``'turbulence'`` or ``'tid'`` only).
 
-    maxvtec
-        This parameter is a float (default is ``50``) that sets the highest absolute TEC values in the daily modulation in TECU (:term:`absoluteTEC` = ``True`` only).
+    maxvtec:
+        This parameter is a float (default is ``10``) that sets the highest absolute TEC value in the daily modulation in TECU (:term:`absoluteTEC` = ``True`` only).
 
-    alphaIon
-        This parameter is a float (default is ``11/3``) that sets the ionosphere power spectrum exponent. A slightly greater value of ~3.89 was found in LOFAR observations [#f2]_ [#f3]_ (:term:`method` = ``'turbulence'`` only).
+    alphaIon:
+        This parameter is a float (default is ``11/3``) that sets the ionosphere power spectrum exponent. A slightly greater value of ~3.89 was found in LOFAR observations [#f2]_ [#f3]_(:term:`method` = ``'turbulence'`` only).
+
+    angRes
+        This parameter is a float (default is ``60``) that sets the angular resolution of the screen in arcsec. (:term:`method` = ``'turbulence'`` only).
 
     hIon
-        This parameter is a float (default is ``200``) that sets the height of thin layer ionoshpere in km (:term:`method` = ``'turbulence'`` only).
+        This parameter is a float (default is ``250``) that sets the height of thin layer ionoshpere in km (:term:`method` = ``'turbulence'`` only).
 
     vIono
-        This parameter is a float (default is ``50``) that sets the velocity of the TEC screen in m/s (:term:`method` = ``'turbulence'`` only), which controls the TEC variation frequency.
+        This parameter is a float (default is ``20``) that sets the velocity of the TEC screen in m/s (:term:`method` = ``'turbulence'`` only), which controls the TEC variation frequency.
 
     seed
         This parameter is an integer (default is ``0``) that sets the random screen seed. Use for reproducibility (:term:`method` = ``'turbulence'`` only).
 
     fitsFilename
         This parameter is a string (default is ``None``) that sets the filename of input FITS cube with dTEC solutions (:term:`method` = ``'fits'`` only).
-
-    absoluteTEC
-        This parameter is a boolean (default is ``True``) that sets whether to use absolute (vTEC) or differential
-        (dTEC) TEC. If more than one TEC - step should be used, ``absoluteTEC`` should be ``False`` for all but one
-        step. Otherwise, the constant TEC component will be added multiple times.
-
-    angRes
-        This parameter is a float (default is ``60``) that sets the angular resolution of the screen in arcsec. (:term:`method` = ``'turbulence'`` only).
 
 
 .. [#f1] Buscher D. 2016, Optics Express, Vol. 24, Issue 20, pp. 23566
