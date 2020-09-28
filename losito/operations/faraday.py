@@ -123,10 +123,8 @@ def run(obs, h5parmFilename, h_ion = 250.e3, stepname='rm', ncpu=0):
     # is going from receriver to source --> matches LiLF
     B_parallel = (PD[:,np.newaxis,:,:]*B_vec).sum(-1)
     RM = constants * TECU * B_parallel * sTEC # rad*m**-2
-    # reference RM to 1st antenna:
-    RM = RM - RM[:,0,:][:,np.newaxis]
-    
-    # Delete rotationmeasureXYZ if it already exists
+
+    # Delete rotationmeasure000 if it already exists
     stabnames = solset.getSoltabNames()
     rmtabs = [_tab for _tab in stabnames if 'rotationmeasure' in _tab]
     if 'rotationmeasure000' in solset.getSoltabNames():   

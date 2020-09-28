@@ -9,6 +9,7 @@ import numpy as np
 import multiprocessing as mp
 from numpy import sqrt, fft, random, pi
 from scipy.interpolate import RectBivariateSpline
+from scipy.special import gamma
 import astropy.units as u
 import astropy.coordinates as coord
 from astropy.time import Time
@@ -487,6 +488,17 @@ def FrequencyGrid(shape, pixelSize=1.0):
 def VonKarmanSpectrum(f, r0, L0=1e6, alpha=11.0 / 3.0):
     """Phase spectrum of atmospheric seeing with Von Karman turbulence"""
     return 0.0229 * r0 ** (2.0 - alpha) * (f ** 2 + 1 / L0 ** 2) ** (-alpha / 2)
+
+def GeneralizedVonKarmanSpectrum(f, r0, L0=1e6, alpha=11.0/3.0):
+    """
+    Taken from >>Zernike expansions for non-Kolmogorov turbulence<<,
+    correctly normalize such that r0 follows the 1rad/aperture definition.
+    """
+    def A_beta(beta):
+        return ((2**(beta-2)*(gamma(beta/2+1)**2)*gamma(beta/2+2)*gamma(beta/2)*np.sin(np.pi*(beta/2-1)))
+                / ((np.pi**beta)*gamma(beta+1)))
+
+    return A_beta(alpha) * r0 ** (2.0 - alpha) * (f ** 2 + 1 / L0 ** 2) ** (-alpha / 2)
 
 
 def FftScreen(spectrum, shape, pixelSize=1.0, seed = 0):
