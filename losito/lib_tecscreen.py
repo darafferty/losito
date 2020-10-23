@@ -445,7 +445,6 @@ def comoving_tecscreen(sp, directions, times, hIon = 250.e3, vIon = 10,
     TEC *= maxdtec/greatest_delta
     if expfolder:
         export *= maxdtec/greatest_delta
-    print(np.max(TEC), np.min(TEC),np.max(np.max(TEC, axis=0) - np.min(TEC, axis=0)))
 
     # add constant vertical TEC (taking into account projection and daily variation)
     daytime_variation_factor = daytime_tec_modulation(times)

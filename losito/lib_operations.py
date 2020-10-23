@@ -61,17 +61,17 @@ class Scheduler():
         """
         import socket
         hostname = socket.gethostname()
-        dnsdomain = socket.getfqdn().split('.', 1)[1]
+        dnsdomain = socket.getfqdn()
         if (hostname in ['node31','node32','node33','node34','node35']):
             return "Hamburg_fat"
-        elif dnsdomain == 'lofar.gpu.cluster':
+        elif 'lofar.gpu.cluster' in dnsdomain:
               return "Hamburg"
         elif ('leidenuniv' in hostname):
             return "Leiden"
         elif (hostname[0 : 3] == 'lof'):
             return "CEP3"
         else:
-            logger.warning('Hostname %s unknown.' % hostname)
+            logger.warning('Hostname %s unknown.' % dnsdomain)
             return "Unknown"
 
 

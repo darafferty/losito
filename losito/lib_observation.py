@@ -345,7 +345,6 @@ class Observation:
                 if colname in t.colnames() and 'LOFAR_APPLIED_BEAM_MODE' in t.getcolkeywords(colname):
                     t.putcolkeyword(colname, 'LOFAR_APPLIED_BEAM_MODE', 'None')
 
-    #def make_dirty_image(self):
 
     @staticmethod
     def convert_mjd(mjd_sec):
