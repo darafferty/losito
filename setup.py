@@ -1,4 +1,3 @@
-from __future__ import print_function
 from setuptools import setup, Command
 
 import os
@@ -29,8 +28,8 @@ setup(
         'Topic :: Software Development :: Libraries :: Python Modules',
         ],
     install_requires=['numpy', 'scipy', 'astropy'],
-    scripts = ['bin/losito', 'bin/skymodel', 'bin/tecscreen'],
+    scripts = ['bin/losito', 'bin/skymodel', 'bin/synthms', 'bin/tecscreen'],
     packages=['losito','losito.operations'],
-    package_data={'losito': [
-        '../data/*']},
+    package_data={'losito': ['./data/noise/*','./data/noise/*','./data/ms_templates/*/*']},
+    include_package_data=True
     )

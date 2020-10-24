@@ -4,7 +4,7 @@
 Bandpass-operation: Get bandpass amplitudes as solution-table
 in h5parm file.
 """
-import os
+import os, pkg_resources
 import numpy as np
 from scipy.interpolate import interp1d
 from losoto.h5parm import h5parm
@@ -28,11 +28,13 @@ def bandpass(freq):
     """
     # Only HBA-low bandpass is included
     is_lba = np.any((freq > 10e6) & (freq < 90e6))
-    mod_dir = os.path.dirname(os.path.abspath(__file__))
-    bp_dir = mod_dir + '/../../data/bandpass/'
-    dat_lba = np.loadtxt(bp_dir + 'bandpass_lba.txt').T
+
+    file_lba = pkg_resources.resource_filename('losito', 'data/bandpass/bandpass_lba.txt')
+    dat_lba = np.loadtxt(file_lba).T
     bp_lba = interp1d(*dat_lba, kind='linear', fill_value=0, bounds_error=False)
-    dat_hba = np.loadtxt(bp_dir + 'bandpass_hba_low.txt').T
+
+    file_hba = pkg_resources.resource_filename('losito', 'data/bandpass/bandpass_hba_low.txt')
+    dat_hba = np.loadtxt(file_hba).T
     bp_hba = interp1d(*dat_hba, kind='linear', fill_value='extrapolate',
                       bounds_error=False)
     amplitude = np.zeros_like(freq)

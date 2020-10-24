@@ -4,6 +4,7 @@
 Noise operation for losito: adds Gaussian noise to a data column
 """
 import os, argparse
+import pkg_resources
 import numpy as np
 from scipy.interpolate import interp1d
 from losito.lib_io import progress, logger
@@ -39,13 +40,11 @@ def SEFD(ms, station1, station2, freq):
     SEFD : (n,) ndarray
         SEFD in Jansky.
     '''
-    mod_dir = os.path.dirname(os.path.abspath(__file__))
-    sefd_pth = mod_dir + '/../../data/noise/SEFD_{}.csv'
 
     def interp_sefd(freq, antennamode):
         # Load antennatype datapoints and interpolate, then reevaluate at freq.
-        points = np.loadtxt(sefd_pth.format(antennamode), dtype=float,
-                            delimiter=',')
+        sefd_pth = pkg_resources.resource_filename('losito', 'data/noise/SEFD_{}.csv'.format(antennamode))
+        points = np.loadtxt(sefd_pth, dtype=float, delimiter=',')
         # Lin. extrapolation, so edge band noise is not very accurate.
         fun = interp1d(points[:, 0], points[:, 1], fill_value='extrapolate',
                         kind='linear')

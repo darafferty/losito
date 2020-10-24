@@ -121,7 +121,7 @@ def make_minsb(name, start, tobs, ra, dec, stationtype, lofarversion,
     ----------
     '''
     # Load template table
-    if stationtype == 'LBA':
+    if stationtype.lower() == 'lba':
         if lofarversion == 1:
             logger.info('LOFAR version 1')
             template = tab.table(template_dir+'LBA_LOFAR1.MS', readonly=True,
@@ -130,11 +130,11 @@ def make_minsb(name, start, tobs, ra, dec, stationtype, lofarversion,
             logger.info('LOFAR version 2')
             template = tab.table(template_dir + 'LBA_LOFAR2.MS', readonly=True,
                                  memorytable=True, ack=False)
-    elif stationtype == 'HBA':
+    elif stationtype.lower() == 'hba':
         template = tab.table(template_dir+'HBA_LOFAR.MS', readonly=True,
                              memorytable=True, ack=False)
     else:
-        logger.error('Stationtype '+stationtype+' unknown. Select LBA or HBA.')
+        raise ValueError('Stationtype '+stationtype+' unknown. Select LBA or HBA.')
 
     # Get times & pointing ready
     ntimes = int((3600 * tobs) // 4.00556032 + 1) # 4s exposure
