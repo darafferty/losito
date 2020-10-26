@@ -11,6 +11,7 @@ run the script:
 import argparse
 import os
 import sys
+import pkg_resources
 
 import casacore.tables as tab
 import numpy as np
@@ -23,9 +24,6 @@ from losito.lib_io import progress, logger
 
 # iers.Conf.iers_auto_url.set('https://datacenter.iers.org/data/9/finals2000A.all')
 iers.Conf.iers_auto_url.set('ftp://cddis.gsfc.nasa.gov/pub/products/iers/finals2000A.all')
-
-mod_dir = os.path.dirname(os.path.abspath(__file__))
-template_dir = mod_dir + '/../data/ms_templates/'
 
 def timestamp(mjds):
     jd = Time(mjds / (3600. * 24.), format='mjd')
@@ -121,6 +119,7 @@ def make_minsb(name, start, tobs, ra, dec, stationtype, lofarversion,
     ----------
     '''
     # Load template table
+    template_dir = pkg_resources.resource_filename('losito', 'data/ms_templates/')
     if stationtype.lower() == 'lba':
         if lofarversion == 1:
             logger.info('LOFAR version 1')
