@@ -122,18 +122,16 @@ def make_minsb(name, start, tobs, ra, dec, stationtype, lofarversion,
     template_dir = str(pkg_resources.resource_filename('losito', 'data/ms_templates/'))
     if stationtype.lower() == 'lba':
         if lofarversion == 1:
-            logger.info('LOFAR version 1')
-            template = tab.table(template_dir+'LBA_LOFAR1.MS', readonly=True,
-                             memorytable=True, ack=False)
+            logger.info('Creating LOFAR 1 MS')
+            template_name = template_dir+'LBA_LOFAR1.MS'
         elif lofarversion == 2:
-            logger.info('LOFAR version 2')
-            template = tab.table(template_dir + 'LBA_LOFAR2.MS', readonly=True,
-                                 memorytable=True, ack=False)
+            logger.info('Creating LOFAR 2.0 MS')
+            template_name = template_dir+'LBA_LOFAR2.MS'
     elif stationtype.lower() == 'hba':
-        template = tab.table(template_dir+'HBA_LOFAR.MS', readonly=True,
-                             memorytable=True, ack=False)
+        template_name = template_dir + 'HBA_LOFAR.MS'
     else:
         raise ValueError('Stationtype '+stationtype+' unknown. Select LBA or HBA.')
+    template = tab.table(template_name, readonly=True, memorytable=True, ack=False)
 
     # Get times & pointing ready
     ntimes = int((3600 * tobs) // 4.00556032 + 1) # 4s exposure
@@ -146,10 +144,10 @@ def make_minsb(name, start, tobs, ra, dec, stationtype, lofarversion,
     msname = '{}_t{}_SB{}{}.MS'.format(name, timestamp(start), stationtype[0],
                                        minsb)
     sbname = 'SB-'+str(minsb)
-    n_stations = len(template.ANTENNA)
+    n_stations = len(tab.table(template_name+'::ANTENNA', readonly=True, ack=False, memorytable=True))
     n_bl = len(template)
     # UVW values
-    sp = template.LOFAR_ANTENNA_FIELD.getcol('POSITION')
+    sp = tab.table(template_name+'::LOFAR_ANTENNA_FIELD', readonly=True, ack=False, memorytable=True).getcol('POSITION')
     ant1, ant2 = template.getcol('ANTENNA1'), template.getcol('ANTENNA2')
     def _get_uvw(_time):
         """ Get the ICRS UVW values for all baselines at a certain time. """
