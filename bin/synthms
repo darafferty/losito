@@ -119,7 +119,7 @@ def make_minsb(name, start, tobs, ra, dec, stationtype, lofarversion,
     ----------
     '''
     # Load template table
-    template_dir = pkg_resources.resource_filename('losito', 'data/ms_templates/')
+    template_dir = str(pkg_resources.resource_filename('losito', 'data/ms_templates/'))
     if stationtype.lower() == 'lba':
         if lofarversion == 1:
             logger.info('LOFAR version 1')
