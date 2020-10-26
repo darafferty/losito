@@ -34,9 +34,8 @@ python setup.py install --prefix=~/mydir/
 ### Directory Structure
 LoSiTo contains the following sub-directories:
 * **bin** the ```losito``` main program and a number of scripts for your convenience
-* **data** data files for the bandpass
 * **examples** example parsets
-* **losito** the losito Python files
+* **losito** the losito Python files, operations and data.
 
 LoSiTo was developed by:
 * David Rafferty
