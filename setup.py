@@ -30,6 +30,6 @@ setup(
     install_requires=['numpy', 'scipy', 'astropy'],
     scripts = ['bin/losito', 'bin/skymodel', 'bin/synthms', 'bin/tecscreen'],
     packages=['losito','losito.operations'],
-    package_data={'losito': ['./data/bandpass/*','./data/noise/*','./data/ms_templates/*/*/*']},
+    package_data={'losito': ['.*','.*/*','.*/*/*','.*/*/*/*','.*/*/*/*/*']},
     include_package_data=True
     )
