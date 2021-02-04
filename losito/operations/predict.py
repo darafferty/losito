@@ -73,10 +73,10 @@ def run(obs, outputColumn='DATA', predictType='h5parmpredict',
         msname = os.path.split(ms.ms_filename)[1]
         s.add(cmd, commandType='DPPP', log='predict_'+msname, processors='max')
     logger.info('Predict visibilities...')
-    result = s.run(check=True)
+    s.run(check=True)
 
     # Ensure again that the LOFAR_APPLIED_BEAM_MODE keyword is unset
     obs.reset_beam_keyword(outputColumn)
 
     # Return result
-    return result
+    return 0
