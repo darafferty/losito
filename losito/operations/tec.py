@@ -66,7 +66,7 @@ def _gettec(altaz_args):
         ppaproj = EarthLocation.from_geodetic(-ppa.lon.deg + A12.lon.deg, -ppa.lat.deg + A12.lat.deg, ppa.height)
         x = ppaproj.z.value
         y = ppaproj.y.value
-        tec = _tid(x, times * 3600. * 24, tidAmp, tidLen, tidVel)
+        tec = _tid(x, times, tidAmp, tidLen, tidVel)
         alltec.append([tec, x, y, altaz.secz])
     return alltec
 
@@ -220,7 +220,7 @@ def run(obs, method, h5parmFilename, maxdtec=0.5, maxvtec=50, alphaIon = 11/3, h
     soltabs = solset.getSoltabs()
     for st in soltabs:
         st.addHistory('CREATE (by TEC operation of LoSiTo from obs {0} '
-                      'and method="{{1}}")'.format(h5parmFilename, method))
+                      'and method="{1}")'.format(h5parmFilename, method))
     ho.close()
 
     # Update predict parset parameters for the obs
