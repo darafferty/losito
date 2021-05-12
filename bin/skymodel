@@ -4,10 +4,12 @@ import os
 import logging, argparse, sys
 import numpy as np
 import casacore.tables as pt
+import scipy.stats, scipy.integrate
 import astropy.coordinates as apy
 import random
 import lsmtool
 logging.basicConfig(level=logging.INFO)
+from losito.lib_io import progress
 
 def add_source(src, ref_freq, name, Jy = 1.0, s_idx = -.5, log_si='true',
                maj_axis=0.0, min_axis=0.0, pa=0.0, type='POINT'):
@@ -208,6 +210,189 @@ def add_tree(phs_c, ref_freq, scale = 1.):
 
     return add_opt
 
+class Windhorst_distribution(scipy.stats.rv_continuous):
+    """
+    This distribution (see Windhorst 1990) describes the distribution of the geometric mean of the
+    angular extension of radio sources.
+    This implementation is valid for a reference frequency of 150 MHz
+    Parameters
+    ----------
+    max_theta: float, optional. Maximum extension in arcseconds.
+    """
+
+    def __init__(self, max_theta = 100., **kwargs):
+        scipy.stats.rv_continuous.__init__(self,  **kwargs)
+        self.max_theta = max_theta
+
+    def _cdf(self, theta, S):
+        """
+        Cumulative density function.
+        Parameters
+        ----------
+        theta: float, median source extension in arcseconds
+        S: float, flux density at 150MHz in Jy
+
+        Returns
+        -------
+        fraction: float, fraction of sources with an extension < theta
+        """
+        q = 0.62
+        fraction_at_max_theta = 1 - np.exp(-np.log(2*(self.max_theta/self.theta_med(S))**q))
+        fraction =  1 - np.exp(-np.log(2*(theta/self.theta_med(S))**q))
+        if fraction < 0.: return 0.0
+        else:
+            if theta > self.max_theta:
+                return 1.
+            fraction /= fraction_at_max_theta  # normalize fraction to be 1 at theta=max_theta
+            return fraction
+
+    def theta_med(self, x):
+        S_1400Mhz = 1000*x*(150/1400)**(0.7) # flux density in mJy at 1400MHz assuming SI of 0.7
+        if S_1400Mhz < 4.5:
+            return (3.5 - 1.5 * np.exp(-S_1400Mhz / 2)) * S_1400Mhz ** 0.3
+        else:
+            return (2.0 + 1.5 * np.exp(-S_1400Mhz / 200)) * S_1400Mhz ** 0.3
+
+class Source_density_mandal2021(scipy.stats.rv_continuous):
+    """
+    Return number of sources per differential flux and solid angle interval using the fit from Mandal 2021.
+    This implementation is valid for a reference frequency of 150 MHz.
+    """
+
+    def __init__(self, a, b, **kwargs):
+        scipy.stats.rv_continuous.__init__(self, a=a, b=b, **kwargs)
+        self.norm = scipy.integrate.quad(self._density, self.a, self.b)[0]
+
+    def _density(self, x):
+        coefficients = np.array([1.655, -0.1150, 0.2272, 0.51788, -0.449661, 0.160265, -0.028541, 0.002041])
+        if 2.e-4 < x < 10:
+            # factor 1000 from x-axis integration mJy to Jy
+            return 1000 * x ** (-5 / 2) * np.sum(coefficients * np.log10(x * 1e3) ** np.arange(len(coefficients))) # sr-1 Jy-1
+        else: return 0.0
+
+    def _pdf(self, x):
+        return self._density(x)/self.norm
+
+def random_sample_ra_dec(center, max_angle_rad):
+    """
+    Sample a radius of max_angle_rad around a center given as sky coord.
+    Nice way to do this would be to sample in polar coords...
+
+    Parameters
+    ----------
+    center: SkyCoord
+    max_angle_rad: float, radius within which samples are drawn
+
+    Returns
+    -------
+    ra
+    dec
+    """
+    try:
+        del_ra = max_angle_rad / np.cos(phs_c.dec.rad)
+    except ZeroDivisionError:
+        del_ra = np.pi
+    if del_ra > np.pi:
+        del_ra = np.pi
+    while True:
+        ra = random.uniform(center.ra.rad - del_ra, center.ra.rad + del_ra)
+        dec = random.uniform(center.dec.rad - max_angle_rad, center.dec.rad + max_angle_rad)
+        dist = apy.angle_utilities.angular_separation(center.ra.rad, center.dec.rad, ra, dec)
+        if dist < max_angle_rad:
+            return ra, dec
+
+def add_random_realistic(phs_c, max_angle, max_extension_arcsec=60., max_ell=0.5, min_flux_jy=0.1, min_s_idx=0.5,
+                          max_s_idx=0.9, log_si='false'):
+    """
+    Create random sky model which obeys the source counts fom Mandal2021.
+    The total number of sources in the sky model is given by the minimum flux and the radius.
+    This function will sample the differential source count pdf of Mandal2021 down to the min flux.
+    Parameters
+    ----------
+    phs_c: SkyCoord object
+        phase center of observation
+    max_angle: float,
+        Radius in which to sample sources in degree.
+    max_extension_arcsec: float, optional. Default = 60
+        Maximum extension defined as max_extension_arcsec=sqrt(minor_ax*major_ax)
+    max_ell: float, optional. Default =0.5
+        Max eccentricity for Gaussian sources.
+    min_flux_jy: float, optinal. Default = 0.1 Jy
+        Minimum flux in Jy.
+    Returns
+    -------
+    Returns
+      -------
+      add_opt : str
+          Output string to be added to sky model.
+    """
+    area_sr = np.pi*max_angle**2/3283
+    if min_flux_jy < 0.0002:
+        logging.warning('No fluxes below 2e-4 Jy supported. Source count distribution uncertain.')
+    distr_flux = Source_density_mandal2021(a=min_flux_jy, b=10)
+    distr_angle = Windhorst_distribution(max_theta=max_extension_arcsec)
+    n_src = area_sr * scipy.integrate.quad(distr_flux._density, min_flux_jy, 10)[0]
+    n_src = int(n_src)
+    if n_src < 1:
+        raise ValueError(f'N_sources < 1. Please increase the radius or decrease the minimum flux density.')
+    logging.info(f'Sampling {n_src} sources.')
+    if n_src > 2000:
+        logging.info(f'This may take a while. If you do not care about realistic distributions, '
+                     f'you might want to use "--kind random" instead.')
+    # flux_list = distr_flux.rvs(size=n_src)
+    max_angle_rad = max_angle * np.pi / 180.0
+    flux_list = []
+    ra_list = []
+    dec_list = []
+    s_idx_list = []
+    pa_list = []
+    maj_list = []
+    min_list = []
+    type_list = []
+    # Generate random RA and Dec, peak flux density, spectral index
+    for i in range(n_src):
+        progress(i, n_src, status='Creating radio sky...')
+        ra, dec = random_sample_ra_dec(phs_c, max_angle_rad)
+        ra_list.append(ra)
+        dec_list.append(dec)
+        flux = distr_flux.rvs()
+        flux_list.append(flux)
+        # Generate spectral index, assuming logarithmic polynomial:
+        #   S = e^(log(S0) + s_idx * log(nu/refnu - 1))
+        s_idx = random.uniform(min_s_idx, max_s_idx)
+        s_idx_list.append(s_idx)
+        if log_si == 'false':
+            # Convert spectral index to approximate non-logarithmic polynomial if
+            # log_si = 'false':
+            #   S = S0 + s_idx * (nu/refnu - 1)
+            # We use a Taylor series expansion of the logarithmic equation and keep just the
+            # first two terms: S = S0 + s_idx * S0 * (nu/refnu - 1), so the new s_idx
+            # becomes s_idx * S0
+            s_idx *= flux
+        s_idx_list.append(s_idx)
+        # Set source size and shape
+        extension_arcsec = distr_angle.rvs(flux)
+        if extension_arcsec < 0.1:
+            maj_list.append(0.0)
+            min_list.append(0.0)
+            pa_list.append(0.0)
+            type_list.append('POINT')
+        else:
+            eccentricity = np.random.uniform(0.0, max_ell)
+            maj_list.append(extension_arcsec/(1-eccentricity)**0.5)
+            min_list.append(extension_arcsec*(1-eccentricity)**0.5)
+            pa_list.append(random.uniform(0.0, 180.0))
+            type_list.append('GAUSSIAN')
+    # sources to SkyCoord, get string return
+    sources = apy.SkyCoord(ra_list, dec_list, unit='rad')
+    add_opt = ''
+    for i, src in enumerate(sources):
+        add_opt += add_source(src, 150.e6, 's'+str(i), Jy=flux_list[i],
+                              s_idx=s_idx_list[i], log_si=log_si, maj_axis=maj_list[i],
+                              min_axis=min_list[i], pa=pa_list[i], type=type_list[i])
+    return add_opt
+
+
 
 def add_random(phs_c, ref_freq, max_angle = 0.5, nptsrc=100, ngauss=100, min_flux_jy=0.1,
                max_flux_jy=5.0, min_maj_arcsec=5.0, max_maj_arcsec=100.0, max_ell=0.5,
@@ -264,41 +449,32 @@ def add_random(phs_c, ref_freq, max_angle = 0.5, nptsrc=100, ngauss=100, min_flu
     # Generate random RA and Dec, peak flux density, spectral index
     ntot = nptsrc + ngauss
     ra_list = []
-    try:
-        del_ra = max_angle_rad / np.cos(phs_c.dec.rad)
-    except ZeroDivisionError:
-        del_ra = np.pi
-    if del_ra > np.pi:
-        del_ra = np.pi
-    while len(ra_list) < ntot:
-        ra = random.uniform(phs_c.ra.rad-del_ra, phs_c.ra.rad+del_ra)
-        dec = random.uniform(phs_c.dec.rad-max_angle_rad, phs_c.dec.rad+max_angle_rad)
-        dist = apy.angle_utilities.angular_separation(phs_c.ra.rad, phs_c.dec.rad, ra, dec)
-        if dist < max_angle_rad:
-            ra_list.append(ra)
-            dec_list.append(dec)
+    for i in range(ntot):
+        ra, dec = random_sample_ra_dec(phs_c, max_angle_rad)
+        ra_list.append(ra)
+        dec_list.append(dec)
 
-            # For peak flux density, use a Euclidean distribution (N ~ S^(-5/2)) to
-            # better approximate the actual radio sky
-            if min_flux_jy == max_flux_jy:
-                flux_list.append(min_flux_jy)
-            else:
-                r = random.uniform(0, 1)
-                flux = min(min_flux_jy * (1.0 - r)**(-1.0 / (5.0/2.0 - 1)), max_flux_jy)
-                flux_list.append(flux)
+        # For peak flux density, use a Euclidean distribution (N ~ S^(-5/2)) to
+        # better approximate the actual radio sky
+        if min_flux_jy == max_flux_jy:
+            flux_list.append(min_flux_jy)
+        else:
+            r = random.uniform(0, 1)
+            flux = min(min_flux_jy * (1.0 - r)**(-1.0 / (5.0/2.0 - 1)), max_flux_jy)
+            flux_list.append(flux)
 
-            # Generate spectral index, assuming logarithmic polynomial:
-            #   S = e^(log(S0) + s_idx * log(nu/refnu - 1))
-            s_idx = random.uniform(min_s_idx, max_s_idx)
-            if log_si == 'false':
-                # Convert spectral index to approximate non-logarithmic polynomial if
-                # log_si = 'false':
-                #   S = S0 + s_idx * (nu/refnu - 1)
-                # We use a Taylor series expansion of the logarithmic equation and keep just the
-                # first two terms: S = S0 + s_idx * S0 * (nu/refnu - 1), so the new s_idx
-                # becomes s_idx * S0
-                s_idx *= flux
-            s_idx_list.append(s_idx)
+        # Generate spectral index, assuming logarithmic polynomial:
+        #   S = e^(log(S0) + s_idx * log(nu/refnu - 1))
+        s_idx = random.uniform(min_s_idx, max_s_idx)
+        if log_si == 'false':
+            # Convert spectral index to approximate non-logarithmic polynomial if
+            # log_si = 'false':
+            #   S = S0 + s_idx * (nu/refnu - 1)
+            # We use a Taylor series expansion of the logarithmic equation and keep just the
+            # first two terms: S = S0 + s_idx * S0 * (nu/refnu - 1), so the new s_idx
+            # becomes s_idx * S0
+            s_idx *= flux
+        s_idx_list.append(s_idx)
 
     # Set source size and shape
     for i in range(nptsrc):
@@ -358,15 +534,16 @@ if __name__ == '__main__':
     parser.add_argument('--kind', help='Kind of sky model: cross, spiral, tree, random or cat.', default= 'cross', type=str)
     parser.add_argument('--radius', help='Radius in degrees within which sources are added.', default=2.0, type=float)
     parser.add_argument('--nptsrc', help='Number of point sources to generate.', default=10, type=int)
-    parser.add_argument('--ngauss', help='Number of Gaussians to generate (kind=random only).', default=10, type=int)
-    parser.add_argument('--minflux', help='Minimum peak flux density in Jy (kind=random only).', default=0.1, type=float)
-    parser.add_argument('--maxflux', help='Maximum peak flux density in Jy (kind=random only).', default=5.0, type=float)
-    parser.add_argument('--minmaj', help='Minimum major axis in arcsec of Gaussian sources.', default=5.0, type=float)
-    parser.add_argument('--maxmaj', help='Maximum major axis in arcsec of Gaussian sources.', default=30.0, type=float)
+    parser.add_argument('--ngauss', help='Number of Gaussians to generate (kind=random, kind=random_realistic only).', default=10, type=int)
+    parser.add_argument('--minflux', help='Minimum peak flux density in Jy (kind=random, kind=random_realistic only).', default=0.1, type=float)
+    parser.add_argument('--maxflux', help='Maximum peak flux density in Jy (kind=random, kind=random_realistic only).', default=10.0, type=float)
+    parser.add_argument('--minmaj', help='Minimum major axis in arcsec of Gaussian sources (only kind=random).', default=5.0, type=float)
+    parser.add_argument('--maxmaj', help='Maximum major axis in arcsec of Gaussian sources (only kind=random).', default=30.0, type=float)
+    parser.add_argument('--maxext', help='Maximum source extension (mean of minor and major axis) in arcsec (only kind=random_realistic).', default=30.0, type=float)
     parser.add_argument('--maxell', help='Maximum ellipticity (1 - maj/min) of Gaussian sources.', default=0.25, type=float)
-    parser.add_argument('--minspidx', help='Minimum spectral index of sources (kind=random only).', default=-1.2, type=float)
-    parser.add_argument('--maxspidx', help='Maximum spectral index of sources (kind=random only).', default=-0.6, type=float)
-    parser.add_argument('--logsi', help='Value for LogarithmicSI: true or false (kind=random only).', default='true', type=str)
+    parser.add_argument('--minspidx', help='Minimum spectral index of sources (kind=random, kind=random_realistic only).', default=-1.2, type=float)
+    parser.add_argument('--maxspidx', help='Maximum spectral index of sources (kind=random, kind=random_realistic only).', default=-0.6, type=float)
+    parser.add_argument('--logsi', help='Value for LogarithmicSI: true or false (kind=random, kind=random_realistic only).', default='true', type=str)
 
     args = parser.parse_args()
     msfile = args.msfile
@@ -386,6 +563,10 @@ if __name__ == '__main__':
         opt += add_spiral(phs_c, ref_freq, max_angle=args.radius, npoints=args.nptsrc)
     elif args.kind == 'tree':
         opt += add_tree(phs_c, ref_freq, scale=args.radius)
+    elif args.kind == 'random_realistic':
+        opt += add_random_realistic(phs_c, max_angle=args.radius, max_extension_arcsec=args.maxext, max_ell= args.maxell,
+                                     min_flux_jy=args.minflux, min_s_idx=args.minspidx, max_s_idx=args.maxspidx,
+                                     log_si=args.logsi)
     elif args.kind == 'random':
         opt += add_random(phs_c, ref_freq, max_angle=args.radius, nptsrc=args.nptsrc,
                           ngauss=args.ngauss, min_flux_jy=args.minflux, max_flux_jy=args.maxflux,

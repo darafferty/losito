@@ -213,7 +213,7 @@ def run(obs, method, h5parmFilename, maxdtec=0.5, maxvtec=50, alphaIon = 11/3, h
     antennaTable = solset.obj._f_get_child('antenna')
     antennaTable.append(list(zip(*(ants, sp))))
     sourceTable = solset.obj._f_get_child('source')
-    vals = [[ra, dec] for ra, dec in zip(ras, decs)]
+    vals = [[np.deg2rad(ra), np.deg2rad(dec)] for ra, dec in zip(ras, decs)]
     sourceTable.append(list(zip(*(source_names, vals))))
 
     # Add CREATE entry to history

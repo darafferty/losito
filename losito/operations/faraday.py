@@ -86,12 +86,12 @@ def run(obs, h5parmFilename, h_ion = 250.e3, stepname='rm', ncpu=0):
     for srcname in solset.getSou():
         if srcname in soltab.dir:
             directions.append(solset.getSou()[srcname])        
-    directions = np.array(directions)
+    directions = np.rad2deg(directions)
     times = soltab.getAxisValues('time')
     
     sTEC = soltab.getValues()[0]
     if np.any(sTEC < 0): # Make sure absolute TEC is used
-        logger.warning('''Negative TEC values in {}. You are porbably using 
+        logger.warning('''Negative TEC values in {}. You are probably using 
                     differential TEC. For an accurate estimate of the rotation
                     measure, absolute TEC is required.'''.format(h5parmFilename))    
     

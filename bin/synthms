@@ -25,6 +25,48 @@ from losito.lib_io import progress, logger
 # iers.Conf.iers_auto_url.set('https://datacenter.iers.org/data/9/finals2000A.all')
 iers.Conf.iers_auto_url.set('ftp://cddis.gsfc.nasa.gov/pub/products/iers/finals2000A.all')
 
+
+def lofar_nu2num(nu, nu_clk = 200.e6):
+    """
+    Get LOFAR SB number from the freq in MHz
+    """
+    #nyquist zones
+    if nu < 90e6:
+        n = 1
+    elif nu < 170e6:
+        n = 2
+    else:
+        n = 3
+    if nu_clk == 200e6:
+        SBband = 195312.5
+    elif nu_clk == 160e6:
+        SBband = 156250.0
+
+    return np.int(np.floor((1024./nu_clk) * (nu - (n-1) * nu_clk/2.)))
+
+def lofar_num2nu(num, station, nu_clk = 200.e6):
+    """
+    Get channel freq in MHz from LOFAR SB
+    Parameters
+    ----------
+    num: SB number
+    station: str, LBA or HBA
+    nu_clk: clock frequency
+
+    Returns
+    -------
+    freq : (4,) array of floats, frequencies of channels
+    ref_freq: float, reference freq.
+    """
+    if nu_clk == 200e6:
+        SBband = 195312.5
+    elif nu_clk == 160e6:
+        SBband = 156250.0
+    n = 1 if station == 'LBA' else 2
+    nu_0 = nu_clk*(num/1024 + (n-1)/2)
+    f = np.arange(4) * nu_clk/1024 + nu_0
+    return f, np.mean(f)
+
 def timestamp(mjds):
     jd = Time(mjds / (3600. * 24.), format='mjd')
     year = jd.to_datetime().year
@@ -51,32 +93,6 @@ def putcol_subtable(table, subtable, colname, val):
     st.done()
 
 
-def get_sb_spectral_window(sb, stationtype):
-    ''' Return informatio of the SPECTRAL_WINDOW sub table for a certain
-    subband. Each subbband has 4 frequency channels.
-    Parameters
-    ----------
-    sb : int,
-    stationtype : str, 'LBA' or 'HBA
-
-    Returns
-    -------
-    f : (4,) ndarray, frequency of the 4 subband channels.
-    ref_freq : float, reference frequency of this subband.
-    '''
-    if sb < 150 or sb > 393:
-        logger.error('SB{} is not a viable frequency band. Frequency bands'
-                      'are from 150 to 393.')
-    d_freq = 48828.125
-    if stationtype == 'LBA':
-        lowest_freq =  29222106.93359375
-    elif stationtype == 'HBA':
-        lowest_freq = 120237731.93359375
-    else:
-        logger.error('Stationtype '+ stationtype +' not understood. Select' 
-                      'either LBA or HBA')
-    f = lowest_freq + d_freq * (np.arange(4) + (sb - 150) * 4)
-    return f, np.mean(f)
 
 
 def make_copy_change_frequency(inputms, outputsb, outputname, stationtype):
@@ -91,13 +107,13 @@ def make_copy_change_frequency(inputms, outputsb, outputname, stationtype):
         Name of the output MS.
     """
     outtab = inputms.copy(outputname, deep=True)
-    f, ref_freq = get_sb_spectral_window(outputsb, stationtype)
+    f, ref_freq = lofar_num2nu(outputsb, stationtype)
     tab.taql('''UPDATE $outtab::SPECTRAL_WINDOW SET CHAN_FREQ=$f, REF_FREQUENCY=$ref_freq''')
     outtab.close()
 
 
-def make_minsb(name, start, tobs, ra, dec, stationtype, lofarversion,
-               minsb=150):
+def make_minsb(name, start, tobs, ra, dec, stationtype, lofarversion, tres,
+               minfreq):
     '''Generate a measurement set for the lowest frequency sub-band.
     One subband contains four frequency channels.
 
@@ -116,6 +132,9 @@ def make_minsb(name, start, tobs, ra, dec, stationtype, lofarversion,
         For which hardware development version to create the ms. Either 1 or 2.
     stationtype : string
         Either LBA or HBA.
+    tres : float
+        Time resolution in seconds.
+    minfreq : float, frequency in MHz
     ----------
     '''
     # Load template table
@@ -134,16 +153,16 @@ def make_minsb(name, start, tobs, ra, dec, stationtype, lofarversion,
     template = tab.table(template_name, readonly=True, memorytable=True, ack=False)
 
     # Get times & pointing ready
-    ntimes = int((3600 * tobs) // 4.00556032 + 1) # 4s exposure
-    end =  start + (ntimes - 1) * 4.00556032 # endtime
+    ntimes = int((3600 * tobs) // tres + 1) # 4s exposure
+    end =  start + (ntimes - 1) * tres # endtime
     times = np.linspace(start, end,  ntimes)
 
     time_centroid = (start + end) / 2
     p = np.array([[ra, dec]])
-    f, ref_freq = get_sb_spectral_window(minsb, stationtype)
+    f, ref_freq = lofar_num2nu(lofar_nu2num(minfreq), stationtype)
     msname = '{}_t{}_SB{}{}.MS'.format(name, timestamp(start), stationtype[0],
-                                       minsb)
-    sbname = 'SB-'+str(minsb)
+                                       str(lofar_nu2num(ref_freq)))
+    sbname = 'SB-'+str(lofar_nu2num(ref_freq))
     n_stations = len(tab.table(template_name+'::ANTENNA', readonly=True, ack=False, memorytable=True))
     n_bl = len(template)
     # UVW values
@@ -189,6 +208,7 @@ def make_minsb(name, start, tobs, ra, dec, stationtype, lofarversion,
         tab.taql('UPDATE $out_ms SET TIME=$t, TIME_CENTROID=$t OFFSET $offset')
     template.close()
     out_ms.putcol('UVW', uvw)
+    tab.taql(f'UPDATE $out_ms SET EXPOSURE={tres}, INTERVAL={tres}')
     # SUBTABLES
     # ::SPECTRAL_WINDOW
     tab.taql('UPDATE $out_ms::SPECTRAL_WINDOW SET CHAN_FREQ=$f, REF_FREQUENCY=$ref_freq, NAME=$name')
@@ -223,10 +243,11 @@ if __name__ == '__main__':
     parser.add_argument('--tobs', help='Observation time in hours.', default=8.0, type=float)
     parser.add_argument('--ra', help='Target right ascension in rad', default=2.75570763, type=float)
     parser.add_argument('--dec', help='Target declination in rad', default=0.61219363, type=float)
-    parser.add_argument('--station', help='>LBA<, >HBA< or >both<', default='both', type = str)
+    parser.add_argument('--station', help='>LBA< or >HBA<', default='LBA', type = str)
     parser.add_argument('--lofarversion', help='>1< for the current instrument, >2< for LOFAR2.0', default=2, type=int)
-    parser.add_argument('--minsb', help='Lowest sub band, >= 150', default=150, type=int)
-    parser.add_argument('--maxsb', help='Highest sub band', default=393, type=int)
+    parser.add_argument('--tres', help='time resolution in seconds', default=4.00556032, type=float)
+    parser.add_argument('--minfreq', help='Lowest frequency', default=-1, type=float)
+    parser.add_argument('--maxfreq', help='Highest frequency', default=-1, type=float)
 
     # Parse parset
     args = parser.parse_args()
@@ -236,45 +257,37 @@ if __name__ == '__main__':
     ra = args.ra
     dec = args.dec
     lofarversion = args.lofarversion
-    minsb, maxsb = args.minsb, args.maxsb
+    station = args.station.upper()
+    tres = args.tres
+    minfreq, maxfreq = args.minfreq, args.maxfreq
 
     if lofarversion not in [1,2]:
         logger.error('Invalid value for option lofarversion. Select 1 or 2.')
         sys.exit(1)
 
-    if args.station not in ['LBA', 'HBA', 'both']:
+    if args.station not in ['LBA', 'HBA']:
         logger.error('Stationtype ' + args.station + ' unknown. Select LBA or HBA.')
-
-    # Make LBA MSs
-    if args.station == 'LBA' or args.station == 'both':
-        logger.info('Start synthesizing measurement sets for LBA')
-        # Make lowest freq. subband from template
-        min_sbl = make_minsb(name, start, tobs, ra, dec, 'LBA', lofarversion,
-                             minsb=minsb)
-        _name = min_sbl.name() # close and reopen: workaround for some versions of tables...
-        min_sbl.close()
-        min_sbl = tab.table(_name, ack=False)
-        # Get other subbands from first sb
-        logger.info('Expand in frequency')
-        for sb in range(minsb+1, maxsb+1):
-            progress(sb-minsb, maxsb-minsb, status='Make LBA SB {}'.format(sb))
-            output_name = '{}_t{}_SBL{}.MS'.format(name, timestamp(start), sb)
-            make_copy_change_frequency(min_sbl, sb, output_name, 'LBA')
-        min_sbl.close()
-
-    # Make HBA MSs
-    if args.station == 'HBA' or args.station == 'both':
-        logger.info('Start synthesizing measurement sets for HBA')
-        # Make lowest freq. subband from template
-        min_sbh = make_minsb(name, start, tobs, ra, dec, 'HBA', lofarversion,
-                             minsb=minsb)
-        _name = min_sbh.name() # close and reopen: workaround for some versions of tables...
-        min_sbh.close()
-        min_sbh = tab.table(_name, ack=False)
-        # Get other subbands from first sb
-        logger.info('Expand in frequency')
-        for sb in range(minsb+1, maxsb + 1):
-            progress(sb-minsb, maxsb-minsb, status='Make HBA SB {}'.format(sb))
-            output_name = '{}_t{}_SBH{}.MS'.format(name, timestamp(start), sb)
-            make_copy_change_frequency(min_sbh, sb, output_name, 'HBA')
-        min_sbh.close()
+    if minfreq == -1:
+        minfreq = 30.e6 if station == 'LBA' else 120.e6
+    if maxfreq == -1:
+        maxfreq =  78.e6 if station == 'LBA' else 168.e6
+    if station == 'LBA' and (minfreq < 10e6 or maxfreq > 90e6):
+        raise ValueError(f'LBA frequencies must be between 10MHz and 90MHz.')
+    elif station == 'HBA' and (minfreq < 110e6 or maxfreq > 170e6):
+        raise ValueError(f'HBA frequencies must be between 110MHz and 200MHz.')
+    if minfreq > maxfreq:
+        raise ValueError('Min frequency is larger than max frequency!')
+    logger.info(f'Start synthesizing measurement sets {args.station}')
+    # Make lowest freq. subband from template
+    min_sbl = make_minsb(name, start, tobs, ra, dec, args.station, lofarversion, tres, minfreq)
+    _name = min_sbl.name() # close and reopen: workaround for some versions of tables...
+    min_sbl.close()
+    min_sbl = tab.table(_name, ack=False)
+    # Get other subbands from first sb
+    logger.info('Expand in frequency')
+    minsb, maxsb = lofar_nu2num(minfreq), lofar_nu2num(maxfreq)
+    for sb in range(minsb+1, maxsb+1):
+        progress(sb-minsb, maxsb-minsb, status='Make SB {}'.format(sb))
+        output_name = '{}_t{}_SB{}{}.MS'.format(name, timestamp(start), args.station[0] ,sb)
+        make_copy_change_frequency(min_sbl, sb, output_name, args.station)
+    min_sbl.close()
