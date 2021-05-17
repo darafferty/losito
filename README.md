@@ -20,7 +20,7 @@ The full documentation can be found at the [LoSiTo webpage](https://www.astron.n
 * [LoSoTo](https://github.com/revoltek/losoto)
 * [RMextract](https://github.com/maaijke/RMextract)
 * [LSMTool](https://github.com/darafferty/LSMTool)
-* Python (including scipy, numpy, and astropy)
+* Python 3.6+ (including scipy, numpy, and astropy)
 
 ### Installation
 The recommended way to install LoSiTo is to download it from github and install with:

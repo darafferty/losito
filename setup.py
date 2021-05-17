@@ -27,6 +27,7 @@ setup(
         'Topic :: Scientific/Engineering :: Astronomy',
         'Topic :: Software Development :: Libraries :: Python Modules',
         ],
+    python_requires='>3.6.0',
     install_requires=['numpy', 'scipy', 'astropy'],
     scripts = ['bin/losito', 'bin/skymodel', 'bin/synthms', 'bin/tecscreen'],
     packages=['losito','losito.operations'],
