@@ -360,7 +360,6 @@ def add_random_realistic(phs_c, max_angle, max_extension_arcsec=60., max_ell=0.5
         # Generate spectral index, assuming logarithmic polynomial:
         #   S = e^(log(S0) + s_idx * log(nu/refnu - 1))
         s_idx = random.uniform(min_s_idx, max_s_idx)
-        s_idx_list.append(s_idx)
         if log_si == 'false':
             # Convert spectral index to approximate non-logarithmic polynomial if
             # log_si = 'false':
@@ -539,7 +538,7 @@ if __name__ == '__main__':
     parser.add_argument('--maxflux', help='Maximum peak flux density in Jy (kind=random, kind=random_realistic only).', default=10.0, type=float)
     parser.add_argument('--minmaj', help='Minimum major axis in arcsec of Gaussian sources (only kind=random).', default=5.0, type=float)
     parser.add_argument('--maxmaj', help='Maximum major axis in arcsec of Gaussian sources (only kind=random).', default=30.0, type=float)
-    parser.add_argument('--maxext', help='Maximum source extension (mean of minor and major axis) in arcsec (only kind=random_realistic).', default=30.0, type=float)
+    parser.add_argument('--maxext', help='Maximum source extension (mean of minor and major axis) in arcsec (only kind=random_realistic).', default=180., type=float)
     parser.add_argument('--maxell', help='Maximum ellipticity (1 - maj/min) of Gaussian sources.', default=0.25, type=float)
     parser.add_argument('--minspidx', help='Minimum spectral index of sources (kind=random, kind=random_realistic only).', default=-1.2, type=float)
     parser.add_argument('--maxspidx', help='Maximum spectral index of sources (kind=random, kind=random_realistic only).', default=-0.6, type=float)

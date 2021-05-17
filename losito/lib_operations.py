@@ -136,8 +136,10 @@ class Scheduler():
         def worker(queue):
             for cmd in iter(queue.get, None):
                 if self.qsub and self.cluster == "Hamburg":
-                    cmd = 'salloc --job-name LoSiTo --time=24:00:00 --nodes=1 --tasks-per-node='+cmd[0]+ \
-                          ' /usr/bin/srun --ntasks=1 --nodes=1 --preserve-env \''+cmd[1]+'\''
+                    print(cmd[0])
+                    cmd = f'salloc --job-name LoSiTo --cpus-per-task {int(cmd[0])} --mem-per-cpu 5G --time=24:00:00 ' \
+                          f'--nodes=1 --tasks-per-node={6//int(cmd[0])} /usr/bin/srun --ntasks=1 --nodes=1 --preserve-env \'{cmd[1]}\''
+                print(cmd)
                 gc.collect()
                 subprocess.call(cmd, shell = True)
 
