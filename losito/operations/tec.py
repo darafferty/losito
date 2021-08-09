@@ -6,7 +6,7 @@ TEC operation for losito: generates TEC corruptions
 import multiprocessing as mp
 import warnings
 
-import RMextract.PosTools as post
+import RMextract.RMextract.PosTools as post
 import astropy.coordinates as coord
 import numpy as np
 from astropy import units as u

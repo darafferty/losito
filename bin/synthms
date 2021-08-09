@@ -44,13 +44,14 @@ def lofar_nu2num(nu, nu_clk = 200.e6):
 
     return np.int(np.floor((1024./nu_clk) * (nu - (n-1) * nu_clk/2.)))
 
-def lofar_num2nu(num, station, nu_clk = 200.e6):
+def lofar_num2nu(num, station, n_chan = 4, nu_clk = 200.e6):
     """
     Get channel freq in MHz from LOFAR SB
     Parameters
     ----------
     num: SB number
     station: str, LBA or HBA
+    n_chan: int, number of channels
     nu_clk: clock frequency
 
     Returns
@@ -63,8 +64,9 @@ def lofar_num2nu(num, station, nu_clk = 200.e6):
     elif nu_clk == 160e6:
         SBband = 156250.0
     n = 1 if station == 'LBA' else 2
-    nu_0 = nu_clk*(num/1024 + (n-1)/2)
-    f = np.arange(4) * nu_clk/1024 + nu_0
+    nu_0 = nu_clk*(num/1024 + (n-1)/2) # ref freq of SB
+    delta_nu = nu_clk / (1024 * n_chan) # difference between channels
+    f = np.arange(n_chan)*delta_nu + nu_0 - delta_nu * (n-1)/2
     return f, np.mean(f)
 
 def timestamp(mjds):

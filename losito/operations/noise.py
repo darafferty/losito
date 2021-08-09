@@ -118,8 +118,8 @@ def run(obs, column='DATA', factor=1.0):
             cmd = 'python {} --msin={} --start={} --end={} --column={} --factor={}'.format(thisfile,
                                  ms.ms_filename, ms.starttime, ms.endtime, column, factor)
             s.add(cmd, commandType='python', log='losito_add_noise', processors=1)
-        result = s.run(check=True)
-        return result
+        s.run(check=True)
+        return 0
     else: # add noise linear on one cpu
         results = []
         for i, ms in enumerate(obs):

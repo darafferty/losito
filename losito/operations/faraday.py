@@ -5,7 +5,7 @@ FARADAY operation for LoSiTo
 import numpy as np
 import multiprocessing as mp
 from astropy.time import Time
-import EMM.EMM as EMM
+import RMextract.EMM as EMM
 from losoto.h5parm import h5parm
 from ..lib_tecscreen import get_PP_PD, geocentric_to_geodetic
 from ..lib_io import progress, logger
