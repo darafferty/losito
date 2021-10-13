@@ -465,6 +465,21 @@ def comoving_tecscreen(sp, directions, times, hIon = 250.e3, vIon = 10,
         logger.info('Exporting tecscreen data to: ' + expfolder+'/')
     return TEC
            
+def delta_z(nu, z, h_iono=250e3, nu_plasma=10e6, delta_h=50e3):
+    """
+    Helper function, currently not used. Calculate the ionospheric refraction angle.
+    Parameters
+    ----------
+    nu
+    z
+    h_iono
+    nu_plasma
+    delta_h: thickness of ionospheric layer
+
+    Returns
+    -------
+    """
+    return (2*delta_h*np.sin(np.deg2rad(z))/(3*6370e3)) * (nu_plasma/nu)**2 * (1 + h_iono/6370e3) * (np.cos(np.deg2rad(z))**3 + 2*h_iono/6370e3)
 
 # The following code is taken from "Simulating large atmospheric phase 
 # screens using a woofer-tweeter algorithm " (2016) by D. Buscher.
