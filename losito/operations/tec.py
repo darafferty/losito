@@ -28,8 +28,9 @@ warnings.simplefilter('ignore', category=AstropyWarning)
 def _run_parser(obs, parser, step):
     method = parser.getstr(step, 'method', default='turbulence')
     h5parmFilename = parser.getstr(step, 'h5parmFilename', 'corruptions.h5')
-    maxdtec = parser.getfloat(step, 'maxdtec', default=.5)
+    r0 = parser.getfloat(step, 'r0', default=10)
     maxvtec = parser.getfloat(step, 'maxvtec', default=10.)
+    maxdtec = parser.getfloat(step, 'maxvtec', default=0.5)
     alphaIon = parser.getfloat(step, 'alphaIon', default=11/3)
     hIon = parser.getfloat(step, 'hIon', default=250e3)
     vIon = parser.getfloat(step, 'vIon', default=20)
@@ -39,11 +40,11 @@ def _run_parser(obs, parser, step):
     expfolder = parser.getstr(step, 'expfolder', default='')
     ncpu = parser.getint('_global', 'ncpu', 0)
 
-    parser.checkSpelling(step, ['method', 'h5parmFilename', 'maxdtec',
+    parser.checkSpelling(step, ['method', 'h5parmFilename', 'r0', 'maxdtec',
                                 'maxvtec', 'alphaIon', 'hIon', 'vIon', 'seed',
                                 'fitsFilename', 'angRes',
                                 'expfolder', 'ncpu'])
-    return run(obs, method, h5parmFilename, maxdtec, maxvtec, alphaIon, hIon, vIon, seed,
+    return run(obs, method, h5parmFilename, r0, maxdtec, maxvtec, alphaIon, hIon, vIon, seed,
                fitsFilename, step, angRes, expfolder, ncpu)
 
 
@@ -75,7 +76,7 @@ def _tid(x, t, amp=0.2, wavelength=200e3, omega=500.e3 / 3600.):
     return amp * np.sin((x + omega * t) * 2 * np.pi / wavelength)
 
 
-def run(obs, method, h5parmFilename, maxdtec=0.5, maxvtec=50, alphaIon = 11/3, hIon=250e3,
+def run(obs, method, h5parmFilename, r0=10, maxdtec=0.5, maxvtec=50, alphaIon = 11/3, hIon=250e3,
         vIon=20, seed=0, fitsFilename=None, stepname='tec',
         angRes=60, expfolder='', ncpu=0):
     """
@@ -85,30 +86,33 @@ def run(obs, method, h5parmFilename, maxdtec=0.5, maxvtec=50, alphaIon = 11/3, h
     ----------
     method : str
         Method to use:
+        "turbulence": sample tec values from a turbulent TEC-screen.
         "fits": read TEC values from the FITS cube specified by fitsFilename
         "tid": generate a traveling ionospheric disturbance (TID) wave
-        "turbulence": generate a turbulent ionosphere
     h5parmFilename : str
         Filename of output h5parm file.
-    maxdtec : float, optional. Default = 0.5
-        Maximum screen dTEC per timestep in TECU.
+    r0 : float, optional. Default = 10km, .
+        Diffractive scale / Fried parameter ath 150MHz in km. This controls the amplitude of the dTEC.
+        (only for method='turbulence')
+    maxdtec: float, optional. Default = 50 .
+        Maximum dTEC in TECU (only for method='tid').
     maxvtec: float, optional. Default = 50.
         Highest vTEC in daily modulation in TECU.
     alphaIon: float, optional. Default = 11/3.
-        Ionosphere power spectrum exponent. Is 11/3 for Kolmogorov,
-        de Gasperin and Mevius found 3.89 for LOFAR.
+        Ionosphere power spectrum exponent (only for method='turbulence'). Is 11/3 for Kolmogorov,
+        F. de Gasperin and M. Mevius found ~3.89 for LOFAR.
     hIon : float, optional. Default = 250 km
         Height of thin layer ionoshpere.
     vIono : float, optional. Default = 20 m/s
-        Velocity of tecscreen. This controls the tec variation frequency.
+        Velocity of tecscreen. This controls the tec variation frequency (only for method='turbulence').
     seed: int, optional.
         Random screen seed. Use for reproducibility.
     fitsFilename : str, optional
-        Filename of input FITS cube with dTEC solutions.
+        Filename of input FITS cube with dTEC solutions (only method='fits').
     stepname _ str, optional
         Name of step to use in DPPP parset
     angRes : float, optional. Default = 60.
-        Angular resolution of the screen [arcsec]. Only for turbulent model.
+        Angular resolution of the screen [arcsec] (Only for turbulent model).
     expfolder : str, optional. Default = None
         Export the tecscreen data to this folder for plotting. Depending on
         system memory, this will not work for very large/highres screens.
@@ -117,6 +121,7 @@ def run(obs, method, h5parmFilename, maxdtec=0.5, maxvtec=50, alphaIon = 11/3, h
         Number of cores to use, by default all available.
     """
     # TODO : Test TID and polynomial method for multi-ms usage
+
     method = method.lower()
     if ncpu == 0:
         ncpu = mp.cpu_count()
@@ -131,10 +136,11 @@ def run(obs, method, h5parmFilename, maxdtec=0.5, maxvtec=50, alphaIon = 11/3, h
     weights = np.ones_like(tecvals)
 
     if method == 'turbulence':
+        # Handle default arguments:
         directions = np.array([ras, decs]).T
         tecvals = comoving_tecscreen(sp, directions, times, alpha=alphaIon, angRes=angRes,
                                      hIon=hIon, vIon=vIon, maxvtec=maxvtec,
-                                     maxdtec=maxdtec, ncpu=ncpu,
+                                     r0=r0, ncpu=ncpu,
                                      expfolder=expfolder, seed=seed)
     elif method == 'fits':
     # Load solutions from FITS cube

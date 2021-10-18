@@ -243,119 +243,9 @@ def screen_grid_comoving(edges, angRes, hIon):
     logger.info('Tecscreen resolution {} x {} pixel'.format(len(grid_lat[0]), len(grid_lon[0])))
     return grid_lon, grid_lat, cellsz_lon, cellsz_lat
 
-# def fixed_tecscreen(sp, directions, times, hIon = 200.e3, vIon = 50,
-#                        absoluteTEC = True, maxvtec = 50,  maxdtec = 1,
-#                        angRes = 60, ncpu = None, seed = 0, expfolder = None):
-#     ''' Return TEC values for [times, station, source].
-#     The differential TEC is modeled using a tecscreen with von-Karman
-#     turbulence. Absolute TEC (optional) is modeled sinusoidal and peakes at
-#     15h. Airmass-effect caused by elevation of source is considered.
-#     Parameters
-#     ----------
-#     sp : (n,3) ndarray
-#         Station positions in geocentric coordinates (meters).
-#     direction : (m,3) ndarray
-#           Source directions RA and DEC in degree.
-#     times : (n,) ndarray
-#         Timestamps in MJDseconds
-#     hIon : float, optional. Default = 200e3 meter.
-#         Height of ionospheric layer in meter.
-#     vIon : float, optional. Default = 50 m/s
-#         Velocity of tecscreen in frozen turbulence model.
-#     absoluteTEC : bool, optional. Default = True
-#         Whether to use absolute (vTEC) or differential (dTEC) TEC
-#     maxvtec : float, optinal. Default = 50
-#         Daytime vTEC peak value for tec modulation in TECU.
-#     maxdtec : float, optional. Default = 1
-#         Maximum allowed dTEC of the screen for a single timestep.
-#     angRes : float, optional. Default = 60 arcseconds
-#         Angular resolution of the tecscreen grid as seen from a station.
-#     seed : int, optional.
-#         Random seed to reproduce turbulence.
-#     savefile: str, optional. Default = None.
-#         If filename is set, tecscreen array and other data for a plot
-#         are exported to the specified directory. Beware: For a high resolution
-#         tecscreen, the tecscreen array can easily overflow the system memory.
-#     Returns
-#     -------
-#     TEC : (n, i, j) ndarray
-#         TECscreen time dependent grid, the axes are (time, lon, lat)
-#     '''
-#     if ncpu == 0:
-#         ncpu = mp.cpu_count()
-#     # Get the ionospheric pierce points)
-#     PP, PD = get_PP_PD(sp, directions, times, hIon, ncpu)
-#     # Find the outermost piercepoints to define tecscreen size:
-#     PP_llr = geocentric_to_geodetic(PP)
-#     edges = [np.min(PP_llr[...,0]), np.max(PP_llr[...,0]),
-#              np.min(PP_llr[...,1]), np.max(PP_llr[...,1])]
-#     grid_lon, grid_lat, cellsz_lon, cellsz_lat = screen_grid(edges, angRes,
-#                                                              hIon)
-#     # Find scales for von-Karman turbulence
-#     r0 =np.arctan(30e3/hIon)/np.deg2rad(angRes/3600) # Assuming r0 = 30km
-#     L0 =np.arctan(1000e3/hIon)/np.deg2rad(angRes/3600)  # Assuming L0 = 1000km
-#     dx = vIon /(hIon*np.tan(np.deg2rad(angRes/3600))) # pixel per second
-#     dx *= (times[-1] - times[0])/len(times) # pixel per step
-#     # Get turbulent screen generator object and convert to array
-#     it = MegaScreen(r0, L0, windowShape = [len(grid_lon), len(grid_lat)],
-#                dx = dx, theta = 0, seed = seed, numIter = len(times))
-#
-#     cos_pierce = (unit_vec(PP)*unit_vec(PD)[:,np.newaxis]).sum(-1)
-#     if expfolder is None: # Needs less memory
-#         TEC = np.zeros((len(times), len(sp), len(directions)))
-#         for i, tecsc in enumerate(it):
-#             progress(i, len(times), status='Generating tecscreen')
-#             # Rescale each timestep screen to have max dtec
-#             tecsc *= maxdtec / (np.max(tecsc, axis=0) - np.min(tecsc, axis=0))
-#             if absoluteTEC:
-#                 tecsc = (daytime_tec_modulation(times)[i,np.newaxis,np.newaxis]
-#                          * (tecsc + maxvtec))
-#             else:
-#                 tecsc = (daytime_tec_modulation(times)[i,np.newaxis,np.newaxis]
-#                          *tecsc)
-#             # Interpolate screen for each time and get values at pierce points
-#             sc_interp = RectBivariateSpline(grid_lon, grid_lat, tecsc)
-#             TEC_ti = sc_interp.ev(PP_llr[i,:,:,0], PP_llr[i,:,:,1])
-#             # slant TEC from pierce angle: (e_r*e_d)^-1 = cos(pierce_angle)^-1
-#             TEC[i] = TEC_ti/cos_pierce[i]
-#         return TEC
-#     else:  # Hard on mem
-#         tecsc = np.zeros((len(times), len(grid_lon), len(grid_lat)))
-#         for i, sc in enumerate(it):
-#             progress(i, len(tecsc), status='Generating tecscreen')
-#             tecsc[i] = sc
-#         # Rescale each timestep screen to have max dtec
-#         tecsc *= maxdtec / (np.max(tecsc, axis=0) - np.min(tecsc, axis=0))
-#         if absoluteTEC:
-#             tecsc = (daytime_tec_modulation(times)[:,np.newaxis,np.newaxis]
-#                      * (tecsc + maxvtec))
-#         else:
-#             tecsc = (daytime_tec_modulation(times)[:,np.newaxis,np.newaxis]*tecsc)
-#         cos_pierce = (unit_vec(PP)*unit_vec(PD)[:,np.newaxis,:,:]).sum(-1)
-#         # Interpolate screen for each time and get values at pierce points
-#         TEC = np.zeros((len(times), len(sp), len(directions)))
-#         for (i, sc) in enumerate(tecsc): # iterate times
-#             sc_interp = RectBivariateSpline(grid_lon, grid_lat, sc)
-#             TEC_ti = sc_interp.ev(PP_llr[i,:,:,0], PP_llr[i,:,:,1])
-#             TEC[i] = TEC_ti
-#         # slant TEC from pierce angle: (e_r*e_d)**-1 = cos(pierce_angle)**-1
-#         TEC /= cos_pierce
-#
-#         if expfolder:
-#             if not os.path.exists(expfolder):
-#                 os.mkdir(expfolder) #exist_ok=True
-#             np.save(expfolder + '/tecscreen.npy', tecsc)
-#             np.save(expfolder + '/piercepoints.npy', PP_llr)
-#             np.save(expfolder + '/times.npy', times)
-#             np.save(expfolder + '/grid.npy', np.array([grid_lon, grid_lat]))
-#             np.save(expfolder + '/res.npy', np.array([cellsz_lon, cellsz_lat]))
-#             logger.info('Exporting tecscreen data to: ' + expfolder+'/')
-#         print(np.shape(sp), np.shape(d), np.shape(times))
-#         return TEC
-
 
 def comoving_tecscreen(sp, directions, times, hIon = 250.e3, vIon = 10,
-                       alpha = 11/3, maxvtec = 10,  maxdtec = 0.5,
+                       alpha = 11/3, r0=10, maxvtec = 10,
                        angRes = 60, ncpu = None, seed = 0, expfolder = None):
     ''' Return TEC values for [times, station, source]. 
     The differential TEC is modeled using a tecscreen with von-Karman
@@ -363,9 +253,7 @@ def comoving_tecscreen(sp, directions, times, hIon = 250.e3, vIon = 10,
     15h. Airmass-effect caused by elevation of source is considered.
     To save computation time, the longitude-latitude grid of the screen is
     comoving, and the screen is just big enough to cover all piercepoints.
-    TODO: ONLY r0 should be used to control dTEC strength!
-          Implement r0~10km and empiric values or beta=1.85
-    
+
     Parameters
     ----------
     sp : (n,3) ndarray
@@ -380,10 +268,10 @@ def comoving_tecscreen(sp, directions, times, hIon = 250.e3, vIon = 10,
         Velocity of tecscreen in frozen turbulence model.
     alpha : float, optional. Default = 11/3
         Ionosphere power spectrum exponent. Is 11/3 for Kolmogorov, de Gasperin and Mevius found ~ 3.89 with LOFAR.
+    r0 : float, optional. Default = 10km
+        Diffractive scale / Fried parameter at 150MHz in kilometer
     maxvtec : float, optinal. Default = 50
         Daytime vTEC peak value for tec modulation in TECU.
-    maxdtec : float, optional. Default = 0.5
-        Maximum allowed dTEC for whole observation.
     angRes : float, optional. Default = 60 arcseconds
         Angular resolution of the tecscreen grid as seen from a station.
     seed : int, optional. 
@@ -418,7 +306,7 @@ def comoving_tecscreen(sp, directions, times, hIon = 250.e3, vIon = 10,
         export = np.zeros((len(times), len(grid_lon[0]), len(grid_lat[0])))
         
     # Find scales for von-Karman turbulence
-    r0 = np.arctan(30e3/hIon)/np.deg2rad(angRes/3600) # Assuming r0 = 30km (probably this value doesn't matter since we rescale the screen to maxdtec anyways)
+    r0 = np.arctan(r0*1e3/hIon)/np.deg2rad(angRes/3600)
     L0 = np.arctan(1000e3/hIon)/np.deg2rad(angRes/3600) # Assuming L0 = 1000km
     dx = vIon /(hIon*np.tan(np.deg2rad(angRes/3600))) # pixel per second
     dx *= (times[-1] - times[0])/len(times) # pixel per step
@@ -433,18 +321,13 @@ def comoving_tecscreen(sp, directions, times, hIon = 250.e3, vIon = 10,
     for i, tecsc in enumerate(sc_gen):
         progress(i, len(times), status='Generating tecscreen')        
         # Interpolate screen for each time and get values at pierce points
+        tecsc /= 56.32 # transformation from PHASE at 150MHz to dTEC (to make difdractive scale r0 physical)
         sc_interp = RectBivariateSpline(grid_lon[i], grid_lat[i], tecsc)
         TEC_ti = sc_interp.ev(PP_llr[i,:,:,0], PP_llr[i,:,:,1])
         # slant TEC from pierce angle: (e_r*e_d)^-1 = cos(pierce_angle)^-1
         TEC[i] = TEC_ti/cos_pierce[i]       
         if expfolder: # export screen data for plotting
             export[i] = tecsc
-
-    # normalize dTEC to maxdTEC
-    greatest_delta = np.max(np.max(TEC, axis=0) - np.min(TEC, axis=0)) # per time step
-    TEC *= maxdtec/greatest_delta
-    if expfolder:
-        export *= maxdtec/greatest_delta
 
     # add constant vertical TEC (taking into account projection and daily variation)
     daytime_variation_factor = daytime_tec_modulation(times)

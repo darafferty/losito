@@ -6,7 +6,9 @@ skymodel = example.sky
 ######## IONOSPHERE #######
 [tec]
 operation=TEC
-method = turbulence
+method=turbulence
+r0=14 # diffractive scale of 14 km
+angRes=240 # 4 arcmin resolution
 
 [faraday]
 operation=FARADAY
