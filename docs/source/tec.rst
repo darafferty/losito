@@ -70,7 +70,7 @@ The following parameters are available for this operation:
         This parameter is a float (default is ``60``) that sets the angular resolution of the screen in arcsec. (:term:`method` = ``'turbulence'`` only).
 
     hIon
-        This parameter is a float (default is ``250``) that sets the height of thin layer ionoshpere in km (:term:`method` = ``'turbulence'`` only).
+        This parameter is a float (default is ``250e3``) that sets the height of thin layer ionoshpere in m (:term:`method` = ``'turbulence'`` only).
 
     vIono
         This parameter is a float (default is ``20``) that sets the velocity of the TEC screen in m/s (:term:`method` = ``'turbulence'`` only), which controls the TEC variation frequency.
