@@ -63,7 +63,7 @@ The script also features the generation of LOFAR2.0 simultaneous LBA + HBA measu
 
     usage: synthms [-h] [--name NAME] [--start START] [--tobs TOBS]
                     [--ra RA] [--dec DEC] [--station STATION]
-                    [--lofarversion LOFARVERSION] [--minsb MINSB] [--maxsb MAXSB]
+                    [--lofarversion LOFARVERSION] [--minfreq MINFREQ] [--maxfreq MAXFREQ]
 
     synthms - synthesize input ms files
 
@@ -77,8 +77,8 @@ The script also features the generation of LOFAR2.0 simultaneous LBA + HBA measu
       --dec DEC            Target declination in rad
       --station            >LBA<, >HBA< or >both<
       --lofarversion LOFARVERSION   >1< for the current instrument, >2< for LOFAR2.0
-      --minsb MINSB        Specify the lowest sub band of the observation. The lowest possible subband is defined as SB150
-      --maxsb MAXSB        Highest sub band
+      --minfreq MINFRE     Specify the lowest frequency of the observation.
+      --maxfreq MAXFREQ    Highest frequency in Hz
 
 
 
