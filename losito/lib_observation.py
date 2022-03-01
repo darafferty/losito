@@ -97,7 +97,7 @@ class MS:
         self.diam = float(tab.ANTENNA.getcol('DISH_DIAMETER')[0])
         self.stationpositions = tab.ANTENNA.getcol('POSITION')
         self.antennatype = tab.OBSERVATION.getcol('LOFAR_ANTENNA_SET')[0]
-        if self.antennatype not in ['LBA_OUTER', 'LBA_INNER', 'LBA_ALL',
+        if self.antennatype not in ['LBA_OUTER', 'LBA_INNER', 'LBA_SPARSE_EVEN', 'LBA_SPARSE_ODD', 'LBA_ALL',
                                     'HBA_DUAL_INNER']:
             logger.error('Antenna type not recognized (only LBA and HBA data '
                              'are supported)')
@@ -125,7 +125,7 @@ class Observation:
     E.g.:
         - associated MS files
         - various observation parameters
-        - DPPP parset parameters
+        - DP3 parset parameters
         - sky model file
         - etc.
 
@@ -158,7 +158,7 @@ class Observation:
         self.set_time() # Set and test time information from MSs
         self.set_stations() # Set station information from MSs
         # Initialize the parset
-        self.parset_filename = 'DPPP_predict.parset'
+        self.parset_filename = 'DP3_predict.parset'
         self.parset_parameters = {}
         self.initialize_parset_parameters()
 
@@ -179,7 +179,7 @@ class Observation:
 
     def make_sourcedb(self):
         """
-        Makes the sourcedb for DPPP from the sky model
+        Makes the sourcedb for DP3 from the sky model
         """
         self.save_skymodel()
         cmd = ['makesourcedb', 'in={}'.format(self.output_skymodel_filename),
@@ -238,14 +238,14 @@ class Observation:
 
     def get_patch_names(self):
         """
-        Returns list of DPPP-compatible patch names
+        Returns list of DP3-compatible patch names
         """
         patch_names = ['[{}]'.format(p) for p in self.skymodel.getPatchNames()]
         return patch_names
 
     def initialize_parset_parameters(self):
         """
-        Sets basic DPPP parset parameters. These are adjusted and added to
+        Sets basic DP3 parset parameters. These are adjusted and added to
         by the operations that are run.
         """
         self.parset_parameters['msout'] = '.'
@@ -254,7 +254,7 @@ class Observation:
         self.parset_parameters['steps'] = []
 
     def make_parset(self):
-        """ Write the DPPP parset parameters to a text file """
+        """ Write the DP3 parset parameters to a text file """
         with open(self.parset_filename, 'w') as f:
             for k, v in self.parset_parameters.items():
                 f.write('{0} = {1}\n'.format(k, v))

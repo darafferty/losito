@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-Predict operation for losito: runs DPPP to predict a sky model with corruptions
+Predict operation for losito: runs DP3 to predict a sky model with corruptions
 """
 import os
 from ..lib_io import logger
@@ -21,7 +21,7 @@ def _run_parser(obs, parser, step):
 def run(obs, outputColumn='DATA', predictType='h5parmpredict',
         resetWeights=True, ncpu=0):
     """
-    Runs DPPP to predict a sky model. Prediction type h5parmpredict will
+    Runs DP3 to predict a sky model. Prediction type h5parmpredict will
     apply corruptions stored in a .h5parmdb (default).
     Prediction type predict will generate uncorrupted ground truth
     visibilities.
@@ -33,7 +33,7 @@ def run(obs, outputColumn='DATA', predictType='h5parmpredict',
     outputColumn : str, optional
         Name of output column
     predictType : str, optional
-        Type of DPPP predict command
+        Type of DP3 predict command
     resetWeights : bool, optional
         Whether to reset the entries in WEIGHT_SPECTRUM column
     ncpu : int, optional
@@ -51,7 +51,7 @@ def run(obs, outputColumn='DATA', predictType='h5parmpredict',
     # Make sourcedb from sky model
     obs.make_sourcedb()
 
-    # TODO: Reset beam keyword using DPPP step setbeam
+    # TODO: Reset beam keyword using DP3 step setbeam
     # TODO: move most of this to observation class
     # Set parset parameters and write parset to file
     if not 'predict' in obs.parset_parameters['steps']:
@@ -62,16 +62,16 @@ def run(obs, outputColumn='DATA', predictType='h5parmpredict',
     obs.parset_parameters['predict.operation'] = 'replace'
     obs.parset_parameters['msout.datacolumn'] = outputColumn
     obs.make_parset()
-    # Ensure that the LOFAR_APPLIED_BEAM_MODE keyword is unset (otherwise DPPP may
+    # Ensure that the LOFAR_APPLIED_BEAM_MODE keyword is unset (otherwise DP3 may
     # complain that the beam has already been applied)
     obs.reset_beam_keyword(outputColumn)
 
-    # Run DPPP
+    # Run DP3
     for ms in obs:
-        cmd = 'DPPP {} msin={}'.format(obs.parset_filename, ms.ms_filename)
+        cmd = 'DP3 {} msin={}'.format(obs.parset_filename, ms.ms_filename)
         # TODO if ms filename contains dirname split
         msname = os.path.split(ms.ms_filename)[1]
-        s.add(cmd, commandType='DPPP', log='predict_'+msname, processors='max')
+        s.add(cmd, commandType='DP3', log='predict_'+msname, processors='max')
     logger.info('Predict visibilities...')
     s.run(check=True)
 

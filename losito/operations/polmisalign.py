@@ -45,7 +45,7 @@ def run(obs, h5parmFilename, seed=0, polDelay=1e-9, stepname='pol_misalign'):
     delays[1] -= delays[1, 0]
     weights = np.ones_like(delays)
 
-    # Write polarization misalignment values to h5parm file as DPPP input.
+    # Write polarization misalignment values to h5parm file as DP3 input.
     ho = h5parm(h5parmFilename, readonly=False)
     if 'sol000' in ho.getSolsetNames():
         solset = ho.getSolset('sol000')

@@ -81,7 +81,7 @@ class Scheduler():
         cmd:         the command to run
         log:         log file name that can be checked at the end
         logAppend:  if True append, otherwise replace
-        commandType: can be a list of known command types as "BBS", "DPPP", ...
+        commandType: can be a list of known command types as "BBS", "DP3", ...
         processors:  number of processors to use, can be "max" to automatically use max number of processors per node
         """
         if (log != ''):
@@ -96,8 +96,8 @@ class Scheduler():
         # if running wsclean add the string
         if commandType == 'wsclean':
             logger.debug('Running wsclean: %s' % cmd)
-        elif commandType == 'DPPP':
-            logger.debug('Running DPPP: %s' % cmd)
+        elif commandType == 'DP3':
+            logger.debug('Running DP3: %s' % cmd)
         elif commandType == 'python':
             logger.debug('Running python: %s' % cmd)
 
@@ -108,7 +108,7 @@ class Scheduler():
             # if number of processors not specified, try to find automatically
             if (processors == None):
                 processors = 1 # default use single CPU
-                # if ("DPPP" == cmd[ : 4]):
+                # if ("DP3" == cmd[ : 4]):
                 #     processors = 1
                 # if ("wsclean" == cmd[ : 7]):
                 #     processors = self.max_processors
@@ -184,7 +184,7 @@ class Scheduler():
             logger.warning("No log file found to check results: " + log)
             return 1
 
-        if (commandType == "DPPP"):
+        if (commandType == "DP3"):
             out = subprocess.check_output('grep -L "Finishing processing" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output('grep -l "Exception" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)
             out += subprocess.check_output('grep -l "**** uncaught exception ****" '+log+' ; exit 0', shell = True, stderr = subprocess.STDOUT)

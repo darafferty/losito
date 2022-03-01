@@ -3,7 +3,7 @@
 PREDICT operation
 -----------------
 
-The PREDICT operation runs DPPP to preform the prediction of the visibility data.
+The PREDICT operation runs DP3 to preform the prediction of the visibility data.
 
 .. note::
 

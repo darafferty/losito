@@ -72,7 +72,7 @@ def run(obs, h5parmFilename='', column='',method='ms', stepname='bandpass'):
     if method == 'h5parm':
         # Get the bandpass amplitude for all channel
         bp_amplitude = bandpass(freq)
-        # Write bandpass amplitude to h5parm file as DPPP input
+        # Write bandpass amplitude to h5parm file as DP3 input
         ho = h5parm(h5parmFilename, readonly=False)
         if 'sol000' in ho.getSolsetNames():
             solset = ho.getSolset('sol000')

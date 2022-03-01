@@ -114,7 +114,7 @@ def run(obs, h5parmFilename, seed= 0, mode='lofar1', clockAmp=None,
     else:
         logger.error('Only \'lofar1\' and \'lofar2\' are valid options for option \'mode\'.')
         return 1
-    # Write clock values to h5parm file as DPPP input
+    # Write clock values to h5parm file as DP3 input
     ho = h5parm(h5parmFilename, readonly=False)
     if 'sol000' in ho.getSolsetNames():   
         solset = ho.getSolset('sol000')
@@ -144,7 +144,7 @@ def run(obs, h5parmFilename, seed= 0, mode='lofar1', clockAmp=None,
         st.addHistory('CREATE (by CLOCK operation of LoSiTo from obs {0})'.format(h5parmFilename))
     ho.close()
 
-    # Update DPPP predict parset
+    # Update DP3 predict parset
     obs.add_to_parset(stepname, 'clock000', h5parmFilename, DDE=False)
 
     return 0

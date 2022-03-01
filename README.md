@@ -16,7 +16,7 @@ The full documentation can be found at the [LoSiTo webpage](https://www.astron.n
 
 ### Software requirements:
 * [casacore and python-casacore](https://casacore.github.io)
-* [DPPP](https://github.com/lofar-astron/DP3)
+* [DP3](https://github.com/lofar-astron/DP3)
 * [LoSoTo](https://github.com/revoltek/losoto)
 * [RMextract](https://github.com/maaijke/RMextract)
 * [LSMTool](https://github.com/darafferty/LSMTool)

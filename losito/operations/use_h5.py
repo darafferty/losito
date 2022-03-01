@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-Add an existing solution-table to the DPPP prediction step.
+Add an existing solution-table to the DP3 prediction step.
 """
 from ..lib_io import logger
 logger.debug('Loading USE_H5 module.')
@@ -24,7 +24,7 @@ def run(obs, h5parmFilename, corruption, step='use_h5'):
     '''
     corruption = corruption.lower()
     if corruption == 'clock':
-        # Add soltab to DPPP parset
+        # Add soltab to DP3 parset
         if not 'applycal' in obs.parset_parameters['steps']:
             obs.parset_parameters['steps'].append('applycal')
         obs.add_to_parset(step, 'clock000', h5parmFilename, DDE=False)

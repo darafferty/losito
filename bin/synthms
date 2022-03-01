@@ -114,7 +114,7 @@ def make_copy_change_frequency(inputms, outputsb, outputname, stationtype):
     outtab.close()
 
 
-def make_minsb(name, start, tobs, ra, dec, stationtype, lofarversion, tres,
+def make_minsb(name, start, tobs, ra, dec, stationtype, lofarversion, lbamode, tres,
                minfreq):
     '''Generate a measurement set for the lowest frequency sub-band.
     One subband contains four frequency channels.
@@ -132,6 +132,8 @@ def make_minsb(name, start, tobs, ra, dec, stationtype, lofarversion, tres,
         Target dec in rad
     lofarversion : int
         For which hardware development version to create the ms. Either 1 or 2.
+    lbamode: str
+        Whether to use 'outer' or 'sparse for LOFAR 1 LBA.
     stationtype : string
         Either LBA or HBA.
     tres : float
@@ -143,8 +145,14 @@ def make_minsb(name, start, tobs, ra, dec, stationtype, lofarversion, tres,
     template_dir = str(pkg_resources.resource_filename('losito', 'data/ms_templates/'))
     if stationtype.lower() == 'lba':
         if lofarversion == 1:
-            logger.info('Creating LOFAR 1 MS')
-            template_name = template_dir+'LBA_LOFAR1.MS'
+            if lbamode.lower() in ['default', 'outer']:
+                logger.info('Creating LOFAR 1 MS (mode: outer)')
+                template_name = template_dir+'LBA_OUTER.MS'
+            elif lbamode.lower() == 'sparse':
+                logger.info('Creating LOFAR 1 MS (mode: sparse)')
+                template_name = template_dir + 'LBA_SPARSE.MS'
+            else:
+                raise ValueError('LBAmode ' + lbamode + ' not supported.')
         elif lofarversion == 2:
             logger.info('Creating LOFAR 2.0 MS')
             template_name = template_dir+'LBA_LOFAR2.MS'
@@ -246,6 +254,7 @@ if __name__ == '__main__':
     parser.add_argument('--ra', help='Target right ascension in rad', default=2.75570763, type=float)
     parser.add_argument('--dec', help='Target declination in rad', default=0.61219363, type=float)
     parser.add_argument('--station', help='>LBA< or >HBA<', default='LBA', type = str)
+    parser.add_argument('--lbamode', help='>sparse< or >outer< (only if lofarversion==1).', default='default', type=str)
     parser.add_argument('--lofarversion', help='>1< for the current instrument, >2< for LOFAR2.0', default=2, type=int)
     parser.add_argument('--tres', help='time resolution in seconds', default=4.00556032, type=float)
     parser.add_argument('--minfreq', help='Lowest frequency', default=-1, type=float)
@@ -268,7 +277,11 @@ if __name__ == '__main__':
         sys.exit(1)
 
     if args.station not in ['LBA', 'HBA']:
-        logger.error('Stationtype ' + args.station + ' unknown. Select LBA or HBA.')
+        raise ValueError('Stationtype ' + args.station + ' unknown. Select LBA or HBA.')
+    if args.lbamode.lower() not in ['sparse', 'outer', 'default']:
+        raise ValueError('LBAmode ' + args.lbamode +' unknown. Use "outer" or "sparse".')
+    if args.lbamode.lower() in ['sparse', 'outer'] and lofarversion == 2:
+        raise ValueError('LBA mode ' + args.lbamode +' not valid for LOFAR 2.0.')
     if minfreq == -1:
         minfreq = 30.e6 if station == 'LBA' else 120.e6
     if maxfreq == -1:
@@ -281,7 +294,7 @@ if __name__ == '__main__':
         raise ValueError('Min frequency is larger than max frequency!')
     logger.info(f'Start synthesizing measurement sets {args.station}')
     # Make lowest freq. subband from template
-    min_sbl = make_minsb(name, start, tobs, ra, dec, args.station, lofarversion, tres, minfreq)
+    min_sbl = make_minsb(name, start, tobs, ra, dec, args.station, lofarversion, args.lbamode, tres, minfreq)
     _name = min_sbl.name() # close and reopen: workaround for some versions of tables...
     min_sbl.close()
     min_sbl = tab.table(_name, ack=False)

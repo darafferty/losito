@@ -110,7 +110,7 @@ def run(obs, method, h5parmFilename, r0=10, maxdtec=0.5, maxvtec=50, alphaIon = 
     fitsFilename : str, optional
         Filename of input FITS cube with dTEC solutions (only method='fits').
     stepname _ str, optional
-        Name of step to use in DPPP parset
+        Name of step to use in DP3 parset
     angRes : float, optional. Default = 60.
         Angular resolution of the screen [arcsec] (Only for turbulent model).
     expfolder : str, optional. Default = None
@@ -200,7 +200,7 @@ def run(obs, method, h5parmFilename, r0=10, maxdtec=0.5, maxvtec=50, alphaIon = 
         logger.error('method "{}" not understood'.format(method))
         return 1
 
-    # Write tec values to h5parm file as DPPP input
+    # Write tec values to h5parm file as DP3 input
     ho = h5parm(h5parmFilename, readonly=False)
 
     if 'sol000' in ho.getSolsetNames():
