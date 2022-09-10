@@ -63,7 +63,7 @@ The script also features the generation of LOFAR2.0 simultaneous LBA + HBA measu
 
     usage: synthms [-h] [--name NAME] [--start START] [--tobs TOBS]
                     [--ra RA] [--dec DEC] [--station STATION]
-                    [--lofarversion LOFARVERSION] [--lbamode LBAMODE] [--minfreq MINFREQ] [--maxfreq MAXFREQ]
+                    [--lofarversion LOFARVERSION] [--lbamode LBAMODE] [--minfreq MINFREQ] [--maxfreq MAXFREQ] [--chanpersb CHANPERSB]
 
     synthms - synthesize input ms files
 
@@ -80,6 +80,7 @@ The script also features the generation of LOFAR2.0 simultaneous LBA + HBA measu
       --lbamode LBAMODE    LBA mode for LOFAR 1 - use sparse or outer (default).
       --minfreq MINFREQ    Specify the lowest frequency of the observation.
       --maxfreq MAXFREQ    Highest frequency in Hz
+      --chanpersb CHANPERSB Number of Channels per LOFAR sub-band.
 
 
 
