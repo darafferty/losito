@@ -268,8 +268,8 @@ if __name__ == '__main__':
     parser.add_argument('--lbamode', help='>sparse< or >outer< (only if lofarversion==1).', default='default', type=str)
     parser.add_argument('--lofarversion', help='>1< for the current instrument, >2< for LOFAR2.0', default=2, type=int)
     parser.add_argument('--tres', help='time resolution in seconds', default=4.00556032, type=float)
-    parser.add_argument('--minfreq', help='Lowest frequency', default=-1, type=float)
-    parser.add_argument('--maxfreq', help='Highest frequency', default=-1, type=float)
+    parser.add_argument('--minfreq', help='Lowest frequency in Hz', default=-1, type=float)
+    parser.add_argument('--maxfreq', help='Highest frequency in Hz', default=-1, type=float)
     parser.add_argument('--chanpersb', help='Number of channels per LOFAR sub-band. Must be <= 4.', default=3, type=int)
 
     # Parse parset
