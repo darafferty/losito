@@ -83,7 +83,7 @@ def add_noise_to_ms(ms, column='DATA', factor=1.0):
     # Iterate over frequency channels to save memory.
     for i, nu in enumerate(freq):
         # find correct standard deviation from SEFD
-        std = factor * eta * SEFD(ms, ant1, ant2, nu)
+        std = factor * (eta**-1) * SEFD(ms, ant1, ant2, nu)
         std /= np.sqrt(2 * exposure * chan_width[i])
         # draw complex valued samples of shape (row, corr_pol)
         noise = np.random.normal(loc=0, scale=std, size=[4, *np.shape(std)]).T
