@@ -29,6 +29,7 @@ dependencies = [
     "astropy",
     "losoto>=2.4.3",
     "lsmtool>=1.6",
+    "RMextract",
     "matplotlib",
     "numpy<2",
     "python-casacore",
