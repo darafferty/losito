@@ -39,7 +39,7 @@ dynamic = ["version"]
 
 [tool.setuptools]
 # package-data is specified below in section [tool.setuptools.package-data]
-include-package-data = false
+include-package-data = true
 packages = [
     "losito",
     "losito.operations",
@@ -52,7 +52,7 @@ script-files = [
 ]
 
 [tool.setuptools.package-data]
-rapthor = [
+losito = [
     "data/****",
 ]
 
