@@ -1,0 +1,59 @@
+[build-system]
+build-backend = "setuptools.build_meta"
+requires = [
+    "setuptools>=45",
+    "setuptools_scm[toml]>=6.2",
+    "wheel",
+]
+
+[project]
+name = "losito"
+authors = [
+    {name = "David Rafferty", email = "drafferty@hs.uni-hamburg.de"},
+    {name = "Henrik Edler", email = "henrik.edler@hs.uni-hamburg.de"},
+]
+description = "LoSiTo: The LOFAR simulation tool"
+readme = "README.md"
+requires-python = ">=3.7"
+license = {file = "LICENSE"}
+classifiers=[
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    "Natural Language :: English",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Astronomy",
+]
+dependencies = [
+    "astropy",
+    "losoto>=2.4.3",
+    "lsmtool>=1.6",
+    "matplotlib",
+    "numpy<2",
+    "python-casacore",
+    "scipy",
+]
+dynamic = ["version"]
+
+[tool.setuptools]
+# package-data is specified below in section [tool.setuptools.package-data]
+include-package-data = false
+packages = [
+    "losito",
+    "losito.operations",
+]
+script-files = [
+    "bin/losito",
+    "bin/skymodel",
+    "bin/synthms",
+    "bin/tecscreen",
+]
+
+[tool.setuptools.package-data]
+rapthor = [
+    "data/****",
+]
+
+[tool.setuptools_scm]
+write_to = "losito/_version.py"
