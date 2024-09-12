@@ -1,0 +1,8 @@
+astropy
+losoto
+lsmtool
+RMextract
+matplotlib
+numpy
+python-casacore
+scipy

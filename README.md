@@ -20,7 +20,7 @@ The full documentation can be found at the [LoSiTo webpage](https://losito.readt
 * [LoSoTo](https://github.com/revoltek/losoto)
 * [RMextract](https://github.com/maaijke/RMextract)
 * [LSMTool](https://github.com/darafferty/LSMTool)
-* Python 3.6+ (including scipy, numpy, and astropy)
+* Python 3.7+ (including scipy, numpy, and astropy)
 
 ### Installation
 The recommended way to install LoSiTo is to download it from github and install with:
@@ -28,7 +28,7 @@ The recommended way to install LoSiTo is to download it from github and install 
 ```
 git clone https://github.com/darafferty/losito.git
 cd losito
-python setup.py install --prefix=~/mydir/
+pip install .
 ```
 
 ### Directory Structure
