@@ -37,7 +37,10 @@ The parset file starts with a number of global parameters, most importantly the 
         Input MS file name. Multiple MS files may be used if they have the same time-information. Glob-like expressions (``example_SB*.MS``) are supported.
 
     skymodel
-        Name of the sky model file.
+        Filename of the sky model file. The sky model can be a text file in makesourcedb format or a FITS image. If it is a FITS image, a regions file must also be supplied.
+
+    regions
+        Filename of a ds9 region file that defines the directions (facets) used during prediction (optional). This file is used only when the input sky model is a FITS image.
 
     ncpu
         Integer, optional. How many cores to use. The default value of -1 will use all available cores.
