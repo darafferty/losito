@@ -40,7 +40,7 @@ The parset file starts with a number of global parameters, most importantly the 
         Filename of the sky model file. The sky model can be a text file in makesourcedb format or a FITS image. If it is a FITS image, a regions file must also be supplied.
 
     regions
-        Filename of a ds9 region file that defines the directions (facets) used during prediction (optional). This file is used only when the input sky model is a FITS image.
+        Filename of a ds9 region file that defines the directions (facets) used during prediction (optional). This file is used only when the input sky model is a FITS image and must follow the conventions described at https://wsclean.readthedocs.io/en/latest/ds9_facet_file.html.
 
     ncpu
         Integer, optional. How many cores to use. The default value of -1 will use all available cores.
