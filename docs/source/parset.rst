@@ -42,6 +42,10 @@ The parset file starts with a number of global parameters, most importantly the 
     regions
         Filename of a ds9 region file that defines the directions (facets) used during prediction (optional). This file is used only when the input sky model is a FITS image and must follow the conventions described at https://wsclean.readthedocs.io/en/latest/ds9_facet_file.html.
 
+        .. note::
+
+            Currently, when predicting from a FITS image, only direction-independent corruptions can be applied. Therefore the region file must specify only a single direction.
+
     ncpu
         Integer, optional. How many cores to use. The default value of -1 will use all available cores.
 

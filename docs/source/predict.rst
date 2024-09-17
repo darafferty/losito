@@ -25,5 +25,9 @@ The following parameters are available for this operation:
     predictType
         This parameter is a string (default is ``'h5parmpredict'``) that sets the type of prediction done. Use ``'h5parmpredict'`` for normal prediction and one of ``'predict'``, ``'idgpredict'``, or ``'wgridderpredict'`` to predict without direction-dependent corruptions. If the prediction is done from a FITS image, one of ``'idgpredict'`` or ``'wgridderpredict'`` must be used.
 
+        .. note::
+
+            Currently, the ``'idgpredict'`` or ``'wgridderpredict'`` types do not support the application of direction-dependent corruptions. Therefore, when predicting from a FITS image, only direction-independent corruptions can be applied.
+
     resetWeights
         This parameter is a boolean (default is ``True``) that sets whether to reset the entries in the WEIGHT_SPECTRUM column.
