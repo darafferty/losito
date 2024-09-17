@@ -39,6 +39,7 @@ if __name__ == '__main__':
 
     msin = parser.getfilename('_global', 'msin')
     skymodel = parser.getstr('_global', 'skymodel')
+    regions = parser.getstr('_global', 'regions')
     qsub = parser.getbool('_global', 'qsub', False)
     maxThreads = parser.getint('_global', 'maxThreads', -1)
     ncpu = parser.getint('_global', 'ncpu', -1)
@@ -64,7 +65,7 @@ if __name__ == '__main__':
     s = lib_operations.Scheduler(log_dir=logger_obj.log_dir, qsub=qsub,
                                  max_processors=ncpu, maxThreads=maxThreads,
                                  dry=False)
-    obs = Observation(msin, skymodel, scheduler = s)
+    obs = Observation(msin, skymodel, regions, scheduler = s)
 
     # Possible operations, linked to relative function
     import losito.operations as operations
