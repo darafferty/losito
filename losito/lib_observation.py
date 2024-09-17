@@ -152,7 +152,7 @@ class Observation:
         self.name = os.path.basename(self.ms_filenames[0][0:-9])
         self.scheduler = scheduler
 
-        # Check sky model
+        # Check sky model and regions file
         self.input_skymodel_filename = skymodel_filename
         try:
             fits.open(self.input_skymodel_filename)
@@ -164,7 +164,8 @@ class Observation:
             self.output_skymodel_filename = skymodel_filename+'.losito'
             self.sourcedb_filename = self.output_skymodel_filename + '.sourcedb'
             self.regions_filename = None
-        if self.input_skymodel_type == 'fitsimage' and regions_filename is None:
+        if self.input_skymodel_type == 'fitsimage' and (regions_filename is None or
+                                                        regions_filename == ''):
             logger.critical("For FITS sky models, a ds9 region file that specifies "
                             "the directions (facets) must be supplied.")
             sys.exit(1)
