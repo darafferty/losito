@@ -230,6 +230,7 @@ def run(obs, method, h5parmFilename, r0=10, maxdtec=0.5, maxvtec=50, alphaIon = 
     ho.close()
 
     # Update predict parset parameters for the obs
-    obs.add_to_parset(stepname, 'tec000', h5parmFilename)
+    is_dde = True if len(source_names) > 1 else False
+    obs.add_to_parset(stepname, 'tec000', h5parmFilename, DDE=is_dde)
 
     return 0
