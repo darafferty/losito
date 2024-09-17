@@ -35,7 +35,7 @@ if __name__ == '__main__':
         sys.exit(1)
     parser = lib_io.ParsetParser(args.parset)
     steps = parser.sections()
-    parser.checkSpelling('_global', ['msin', 'skymodel', 'ncpu', 'qsub', 'maxThreads'])
+    parser.checkSpelling('_global', ['msin', 'skymodel', 'regions', 'ncpu', 'qsub', 'maxThreads'])
 
     msin = parser.getfilename('_global', 'msin')
     skymodel = parser.getstr('_global', 'skymodel')

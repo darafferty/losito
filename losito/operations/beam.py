@@ -16,7 +16,7 @@ def _run_parser(obs, parser, step):
     return run(obs, mode, usechannelfreq, onebeamperpatch)
 
 
-def run(obs,   mode='default', usechannelfreq=True, onebeamperpatch=False):
+def run(obs, mode='default', usechannelfreq=True, onebeamperpatch=False):
     """
     Corrupts with the beam model.
 

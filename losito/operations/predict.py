@@ -8,6 +8,7 @@ from ..lib_io import logger
 
 logger.debug('Loading PREDICT module.')
 
+
 def _run_parser(obs, parser, step):
     outputColumn = parser.getstr( step, 'outputColumn', 'DATA')
     predictType = parser.getstr( step, 'predictType', 'h5parmpredict')
@@ -21,10 +22,11 @@ def _run_parser(obs, parser, step):
 def run(obs, outputColumn='DATA', predictType='h5parmpredict',
         resetWeights=True, ncpu=0):
     """
-    Runs DP3 to predict a sky model. Prediction type "h5parmpredict" will
-    apply corruptions stored in a .h5parmdb (default).
-    Prediction type "predict" or "wgridderpredict" will generate uncorrupted
-    ground truth visibilities.
+    Runs DP3 to predict a sky model.
+
+    Prediction type "h5parmpredict" will apply direction-dependent corruptions
+    stored in a .h5parmdb (default). Prediction type "predict", "idgpredict" or
+    "wgridderpredict" will generate uncorrupted ground truth visibilities.
 
     Parameters
     ----------
@@ -33,8 +35,8 @@ def run(obs, outputColumn='DATA', predictType='h5parmpredict',
     outputColumn : str, optional
         Name of output column
     predictType : str, optional
-        Type of DP3 predict command: one of "h5parmpredict", "predict", or
-        "wgridderpredict"
+        Type of DP3 predict command: one of "h5parmpredict", "predict",
+        "idgpredict", or "wgridderpredict"
     resetWeights : bool, optional
         Whether to reset the entries in WEIGHT_SPECTRUM column
     ncpu : int, optional
@@ -51,8 +53,10 @@ def run(obs, outputColumn='DATA', predictType='h5parmpredict',
     s.run()
 
     # Check the predict type
-    if obs.input_skymodel_type == 'fitsimage' and predictType != "wgridderpredict":
-        logger.critical("For FITS sky models, predictType must be set to 'wgridderpredict'.")
+    if (obs.input_skymodel_type == 'fitsimage' and
+            predictType not in ["idgpredict", "wgridderpredict"]):
+        logger.critical("For FITS sky models, predictType must be set to either "
+                        "'idgpredict' or 'wgridderpredict'.")
         return 1
 
     # Make sourcedb from sky model
@@ -62,17 +66,18 @@ def run(obs, outputColumn='DATA', predictType='h5parmpredict',
     # TODO: Reset beam keyword using DP3 step setbeam
     # TODO: move most of this to observation class
     # Set parset parameters and write parset to file
-    if not 'predict' in obs.parset_parameters['steps']:
-        obs.parset_parameters['steps'].insert(0,'predict')
+    if 'predict' not in obs.parset_parameters['steps']:
+        obs.parset_parameters['steps'].insert(0, 'predict')
     obs.parset_parameters['numthreads'] = ncpu
     obs.parset_parameters['predict.type'] = predictType
     if obs.input_skymodel_type == 'makesourcedb':
         obs.parset_parameters['predict.sourcedb'] = obs.sourcedb_filename
         obs.parset_parameters['predict.operation'] = 'replace'
     else:
-        obs.parset_parameters['predict.images'] = obs.input_skymodel_filename
+        obs.parset_parameters['predict.images'] = f'[{obs.input_skymodel_filename}]'
         obs.parset_parameters['predict.regions'] = obs.regions_filename
-        obs.parset_parameters['predict.sumfacets'] = 'true'
+        if predictType == 'wgridderpredict':
+            obs.parset_parameters['predict.sumfacets'] = 'true'
     obs.parset_parameters['msout.datacolumn'] = outputColumn
     obs.make_parset()
     # Ensure that the LOFAR_APPLIED_BEAM_MODE keyword is unset (otherwise DP3 may
