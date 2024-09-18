@@ -22,7 +22,7 @@ def _run_parser(obs, parser, step):
     return run(obs, h5parmFilename, hIon, step, ncpu)
 
 def yearfrac_from_mjds(t):
-    ''' Get year + decimal fraction from MJD seconds. 
+    ''' Get year + decimal fraction from MJD seconds.
     Parameters:
     ----------
     t : float, MJDseconds time.
@@ -44,7 +44,7 @@ def Bfield(gc_points, time = 5.0e9):
     ----------
     gc_points : (3,) or (n,3) ndarray
         Point(s) at which to evaluate the B field. Must be given in
-        geocentric ITRS. Unit: meter       
+        geocentric ITRS. Unit: meter
     time : float, optional. default = some time in 2017.
         MJD seconds single timestep for the simulation.
     Returns
@@ -68,7 +68,7 @@ def Bfield(gc_points, time = 5.0e9):
     else:
         emm = EMM.WMM(date = year, lon = lon, lat = lat, h = height)
         return emm.getXYZ()
-    
+
 
 def run(obs, h5parmFilename, h_ion = 250.e3, stepname='rm', ncpu=0):
     ''' Add rotation measure Soltab to a TEC h5parm. '''
@@ -76,31 +76,31 @@ def run(obs, h5parmFilename, h_ion = 250.e3, stepname='rm', ncpu=0):
         ncpu = mp.cpu_count()
     h5 = h5parm(h5parmFilename, readonly=False)
     solset = h5.getSolset('sol000')
-    soltab = solset.getSoltab('tec000') 
-    sp = np.array(list(solset.getAnt().values())) 
-    
+    soltab = solset.getSoltab('tec000')
+    sp = np.array(list(solset.getAnt().values()))
+
     # Use only the directions specified in tec000 soltab. If there is e.g.
     # a dummy direction for the clock000 soltab, it has to be excluded from
     # the RM computation.
     directions = []
     for srcname in solset.getSou():
         if srcname in soltab.dir:
-            directions.append(solset.getSou()[srcname])        
+            directions.append(solset.getSou()[srcname])
     directions = np.rad2deg(directions)
     times = soltab.getAxisValues('time')
-    
+
     sTEC = soltab.getValues()[0]
     if np.any(sTEC < 0): # Make sure absolute TEC is used
-        logger.warning('''Negative TEC values in {}. You are probably using 
+        logger.warning('''Negative TEC values in {}. You are probably using
                     differential TEC. For an accurate estimate of the rotation
-                    measure, absolute TEC is required.'''.format(h5parmFilename))    
-    
-    
-    logger.info('''Calculating ionosphere pierce points for {} directions, {} 
-              stations and {} timestamps...'''.format(len(directions), len(sp), 
+                    measure, absolute TEC is required.'''.format(h5parmFilename))
+
+
+    logger.info('''Calculating ionosphere pierce points for {} directions, {}
+              stations and {} timestamps...'''.format(len(directions), len(sp),
               len(times)))
     PP, PD = get_PP_PD(sp, directions, times, h_ion, ncpu)
-    
+
     pool = mp.Pool(processes = ncpu)
     B_vec = np.zeros_like(PP)
     for i in range(len(B_vec[0])): # iterate stations
@@ -113,10 +113,10 @@ def run(obs, h5parmFilename, h_ion = 250.e3, stepname='rm', ncpu=0):
     logger.info('Calculate rotation measure...')
     c = 29979245800 # cm/s
     m = 9.109 * 10**(-28) # g
-    e = 4.803 * 10**(-10) # cm**(3/2)*g**(1/2)/s                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
+    e = 4.803 * 10**(-10) # cm**(3/2)*g**(1/2)/s
     constants = 10**(-5)*e**3/(2*np.pi*m**2*c**4) # 1/nT
     TECU = 10**16 # m**(-2)
-    
+
     # Get B parallel to PD at PP
     # In which way is parallel defined? Going from source to receiver
     # or the other way around? Currently, PD is calculated such that it
@@ -127,16 +127,16 @@ def run(obs, h5parmFilename, h_ion = 250.e3, stepname='rm', ncpu=0):
     # Delete rotationmeasure000 if it already exists
     stabnames = solset.getSoltabNames()
     rmtabs = [_tab for _tab in stabnames if 'rotationmeasure' in _tab]
-    if 'rotationmeasure000' in solset.getSoltabNames():   
+    if 'rotationmeasure000' in solset.getSoltabNames():
         logger.info('''There are already rotation measure solutions present in
-                 {}.'''.format(h5parmFilename+'/sol000'))    
+                 {}.'''.format(h5parmFilename+'/sol000'))
         for rmt in rmtabs:
             solset.getSoltab(rmt).delete()
-        
+
     st = solset.makeSoltab('rotationmeasure', 'rotationmeasure000', axesNames=
                            ['time', 'ant', 'dir'],
-                           axesVals=[times, soltab.getAxisValues('ant'), 
-                                             soltab.getAxisValues('dir')], 
+                           axesVals=[times, soltab.getAxisValues('ant'),
+                                             soltab.getAxisValues('dir')],
                            vals=RM, weights = np.ones_like(RM))
     # Add CREATE entry to history
     st.addHistory('CREATE (by FARADAY operation of LoSiTo from '
@@ -144,7 +144,8 @@ def run(obs, h5parmFilename, h_ion = 250.e3, stepname='rm', ncpu=0):
     h5.close()
 
     # Update predict parset parameters for the obs
-    obs.add_to_parset(stepname, 'rotationmeasure000', h5parmFilename)
+    is_dde = True if len(directions) > 1 else False
+    obs.add_to_parset(stepname, 'rotationmeasure000', h5parmFilename, DDE=is_dde)
 
     return 0
 
