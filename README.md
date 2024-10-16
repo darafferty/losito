@@ -10,7 +10,8 @@ It includes:
 * Station-based delay effects (clock and polarization misalignment)
 * Realistic noise
 
-Furthermore, LoSiTo features the simulation of LOFAR2.0 simultaneous LBA-HBA observations.
+Furthermore, LoSiTo features the simulation of LOFAR2.0 simultaneous LBA-HBA observations. For a detailed description of the models for the systematic effects implemented in LoSiTo and its application to simulate LOFAR 2.0 observations, see the paper [_Edler, de Gasperin, Rafferty (2021)_](https://ui.adsabs.harvard.edu/abs/2021A%26A...652A..37E/abstract).
+ 
 
 The full documentation can be found at the [LoSiTo webpage](https://losito.readthedocs.io/en/latest/).
 
