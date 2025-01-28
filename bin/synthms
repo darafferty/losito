@@ -71,18 +71,7 @@ def lofar_num2nu(num, station, n_chan = 4, nu_clk = 200.e6):
     return f, np.mean(f), delta_nu
 
 def timestamp(mjds):
-    """
-    Returns date string suitable for use in filenames
-
-    Parameters
-    ----------
-    mjds: Modified Julian Date in seconds
-
-    Returns
-    -------
-    date: date string
-    """
-    jd = Time(mjds, format='mjd')
+    jd = Time(mjds / (3600. * 24.), format='mjd')
     year = jd.to_datetime().year
     month = jd.to_datetime().month
     day = jd.to_datetime().day
