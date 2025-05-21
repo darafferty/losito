@@ -158,11 +158,9 @@ class Observation:
             fits.open(self.input_skymodel_filename)
             self.input_skymodel_type = 'fitsimage'
             self.output_skymodel_filename = None
-            self.sourcedb_filename = None
         except OSError:
             self.input_skymodel_type = 'makesourcedb'
-            self.output_skymodel_filename = skymodel_filename+'.losito'
-            self.sourcedb_filename = self.output_skymodel_filename + '.sourcedb'
+            self.output_skymodel_filename = skymodel_filename.replace('.skymodel','-losito.skymodel')
             self.regions_filename = None
         if self.input_skymodel_type == 'fitsimage' and (regions_filename is None or
                                                         regions_filename == ''):
@@ -201,17 +199,6 @@ class Observation:
 
     def __len__(self):
         return len(self.ms_list)
-
-    def make_sourcedb(self):
-        """
-        Makes the sourcedb for DP3 from the sky model
-        """
-        if self.input_skymodel_type == 'makesourcedb':
-            self.save_skymodel()
-            cmd = ['makesourcedb', 'in={}'.format(self.output_skymodel_filename),
-                   'out={}'.format(self.sourcedb_filename),
-                   'format=<', 'outtype=blob', 'append=False']
-            subprocess.call(cmd)
 
     def load_skymodel(self):
         """

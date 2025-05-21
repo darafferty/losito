@@ -59,10 +59,6 @@ def run(obs, outputColumn='DATA', predictType='h5parmpredict',
                         "'idgpredict' or 'wgridderpredict'.")
         return 1
 
-    # Make sourcedb from sky model
-    if obs.input_skymodel_type == 'makesourcedb':
-        obs.make_sourcedb()
-
     # TODO: Reset beam keyword using DP3 step setbeam
     # TODO: move most of this to observation class
     # Set parset parameters and write parset to file
@@ -71,7 +67,8 @@ def run(obs, outputColumn='DATA', predictType='h5parmpredict',
     obs.parset_parameters['numthreads'] = ncpu
     obs.parset_parameters['predict.type'] = predictType
     if obs.input_skymodel_type == 'makesourcedb':
-        obs.parset_parameters['predict.sourcedb'] = obs.sourcedb_filename
+        obs.save_skymodel()
+        obs.parset_parameters['predict.sourcedb'] = obs.output_skymodel_filename
         obs.parset_parameters['predict.operation'] = 'replace'
     else:
         obs.parset_parameters['predict.images'] = f'[{obs.input_skymodel_filename}]'
@@ -89,6 +86,7 @@ def run(obs, outputColumn='DATA', predictType='h5parmpredict',
         cmd = 'DP3 {} msin={}'.format(obs.parset_filename, ms.ms_filename)
         # TODO if ms filename contains dirname split
         msname = os.path.split(ms.ms_filename)[1]
+        print(cmd)
         s.add(cmd, commandType='DP3', log='predict_'+msname, processors='max')
     logger.info('Predict visibilities...')
     s.run(check=True)
