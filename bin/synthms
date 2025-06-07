@@ -42,7 +42,7 @@ def lofar_nu2num(nu, nu_clk = 200.e6):
     elif nu_clk == 160e6:
         SBband = 156250.0
 
-    return np.int(np.floor((1024./nu_clk) * (nu - (n-1) * nu_clk/2.)))
+    return int(np.floor((1024./nu_clk) * (nu - (n-1) * nu_clk/2.)))
 
 def lofar_num2nu(num, station, n_chan = 4, nu_clk = 200.e6):
     """
